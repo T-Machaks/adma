@@ -383,9 +383,37 @@ function ElimobilAdPage() {
 
 // ── PAGE 7: Jetmaster ────────────────────────────────────────────────────────
 function JetmasterAdPage() {
+  const stop = e => { e.stopPropagation(); };
   return (
-    <div className="absolute inset-0">
-      <img src="/magazines/ads/ad-jetmaster.jpg" alt="Jetmaster Fireplaces & Braais" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'fill' }} draggable={false} />
+    <div className="absolute inset-0 flex flex-col overflow-hidden" style={{ background: '#000' }}>
+      {/* Ad image — top 56% */}
+      <div className="shrink-0" style={{ height: '56%' }}>
+        <img src="/magazines/ads/ad-jetmaster.jpg" alt="Jetmaster Fireplaces & Braais" className="w-full h-full select-none" style={{ objectFit: 'fill' }} draggable={false} />
+      </div>
+      {/* YouTube embed — bottom 44% */}
+      <div
+        className="flex-1 flex flex-col overflow-hidden"
+        onMouseDown={stop} onTouchStart={stop} onPointerDown={stop} onClick={stop}
+      >
+        <div className="flex items-center gap-1.5 px-3 py-1.5 shrink-0" style={{ background: '#cc0000' }}>
+          <svg width="13" height="9" viewBox="0 0 24 17" fill="white">
+            <path d="M23.5 2.7a3 3 0 0 0-2.1-2.1C19.5 0 12 0 12 0S4.5 0 2.6.6A3 3 0 0 0 .5 2.7C0 4.6 0 8.5 0 8.5s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1C4.5 17 12 17 12 17s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8z"/>
+            <polygon fill="#cc0000" points="9.5,12.5 9.5,4.5 15.8,8.5"/>
+            <polygon fill="white" points="9.5,12.5 9.5,4.5 15.8,8.5"/>
+          </svg>
+          <span className="text-white font-bold" style={{ fontSize: 8 }}>Watch — Jetmaster Product Video</span>
+        </div>
+        <div className="flex-1 relative">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/onaJrcaNsC4?rel=0&modestbranding=1"
+            title="Jetmaster Product Video"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full"
+            style={{ border: 'none' }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
