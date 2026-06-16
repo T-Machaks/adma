@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AttendeeNote, MeetingRequest, Announcement } from '@/api/entities';
 import { Star, Bookmark, FileText, Calendar, Bell, Trash2, Plus, X, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import AdBannerCarousel from '@/components/home/AdBannerCarousel';
 
 const SESSIONS = [
   { id: 's1', title: 'Opening Keynote: Future of Mining in Southern Africa', time: '09:00', day: 'Day 1', location: 'Main Stage' },
@@ -70,6 +71,11 @@ export default function AttendeeDashboard() {
           <p className="text-muted-foreground text-sm">Attendee dashboard — plan your visit</p>
         </div>
         <div className="bg-amber/10 border border-amber/30 text-amber text-xs font-bold px-2.5 py-1.5 rounded-lg">DEMO</div>
+      </div>
+
+      {/* Ad banner carousel */}
+      <div className="-mx-4 mb-5">
+        <AdBannerCarousel />
       </div>
 
       {/* Stats */}
