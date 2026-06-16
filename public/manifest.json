@@ -1,0 +1,29 @@
+{
+  "name": "MineCon 2026",
+  "short_name": "MineCon",
+  "description": "Southern Africa's premier mining & construction exhibition — Harare, Zimbabwe.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1a1f2e",
+  "theme_color": "#f98a1a",
+  "lang": "en",
+  "categories": ["business", "events"],
+  "icons": [
+    {
+      "src": "/minecon-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/minecon-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
