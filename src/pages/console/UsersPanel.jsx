@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User } from '@/api/entities';
+import { useAuth } from '@/lib/AuthContext';
 import {
   Users, Plus, Trash2, Edit2, Shield, Building2,
-  User as UserIcon, Briefcase, CheckCircle, X, ChevronDown,
+  User as UserIcon, Briefcase, CheckCircle, X,
 } from 'lucide-react';
 
 const ROLES = [
