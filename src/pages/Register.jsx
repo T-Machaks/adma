@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Registration } from '@/api/entities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, User, Building2, Mail, Phone, Tag, Ticket, Shield, ChevronRight, Users, Star, Mic, Crown, Briefcase, AlertCircle } from 'lucide-react';
+import { CheckCircle, User, Building2, Mail, Phone, Tag, Ticket, Shield, ChevronRight, Users, Star, Mic, Crown, Briefcase, AlertCircle, UserPlus, ArrowRight } from 'lucide-react';
 
 const ROLE_TYPES = [
   { value: 'Attendee', icon: User, color: 'bg-blue-500', desc: 'Industry visitor & buyer' },
@@ -85,7 +86,22 @@ export default function Register() {
   return (
     <div className="pb-24 max-w-2xl mx-auto px-4 pt-5">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Event Registration</h1>
-      <p className="text-muted-foreground text-sm mb-5">Register for MineCon 2026 — Mining & Construction Exhibition</p>
+      <p className="text-muted-foreground text-sm mb-4">Register for MineCon 2026 — get a badge &amp; ticket to attend the exhibition.</p>
+
+      {/* Free account callout */}
+      <Link
+        to="/signup"
+        className="flex items-center gap-3 p-3 rounded-xl border border-amber/40 bg-amber/5 hover:bg-amber/10 transition-colors mb-5 group"
+      >
+        <div className="w-8 h-8 rounded-lg bg-amber flex items-center justify-center flex-shrink-0">
+          <UserPlus className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">Just need a platform account?</p>
+          <p className="text-xs text-muted-foreground">Create a free account to book meetings &amp; connect with exhibitors — no ticket required.</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-amber flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+      </Link>
 
       {/* Admin summary */}
       <div className="grid grid-cols-3 gap-3 mb-6">

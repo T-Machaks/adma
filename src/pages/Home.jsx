@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, Gauge, Star, BookOpen, MessageSquare, BarChart2, Shield, UserCheck, Zap, Sparkles } from 'lucide-react';
+import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, Gauge, Star, BookOpen, MessageSquare, BarChart2, Shield, UserCheck, Zap, Sparkles, UserPlus, Ticket } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Announcement, Exhibitor } from '@/api/entities';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
@@ -28,6 +29,7 @@ const typeColor = {
 
 export default function Home() {
   const { settings } = useAppSettings();
+  const { isAuthenticated } = useAuth();
   const { data: announcements = [] } = useQuery({
     queryKey: ['announcements'],
     queryFn: () => Announcement.list('-created_date'),
@@ -126,6 +128,46 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        {/* Get started — only shown to guests */}
+        {!isAuthenticated && (
+          <div className="mt-6">
+            <h2 className="font-heading text-lg font-bold uppercase tracking-wide text-foreground mb-3">Get Started</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                to="/signup"
+                className="flex flex-col gap-2 p-4 rounded-xl border-2 border-amber bg-amber/5 hover:bg-amber/10 active:scale-95 transition-all duration-150 select-none"
+              >
+                <div className="w-9 h-9 rounded-lg bg-amber flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm leading-tight">Free Account</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Book meetings, send enquiries — no ticket needed</p>
+                </div>
+                <span className="text-xs font-bold text-amber flex items-center gap-1 mt-auto">
+                  Create account <ArrowRight className="w-3 h-3" />
+                </span>
+              </Link>
+
+              <Link
+                to="/register"
+                className="flex flex-col gap-2 p-4 rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-95 transition-all duration-150 select-none"
+              >
+                <div className="w-9 h-9 rounded-lg bg-steel flex items-center justify-center">
+                  <Ticket className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm leading-tight">Event Registration</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Get a badge & ticket to attend the exhibition</p>
+                </div>
+                <span className="text-xs font-bold text-foreground/60 flex items-center gap-1 mt-auto">
+                  Register now <ArrowRight className="w-3 h-3" />
+                </span>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Featured Exhibitors */}
         {exhibitors.length > 0 && (
