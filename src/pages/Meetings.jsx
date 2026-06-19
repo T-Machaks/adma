@@ -4,7 +4,7 @@ import { MeetingRequest, Exhibitor } from '@/api/entities';
 import { Calendar, Clock, CheckCircle, Building2, User, Mail, Phone, FileText } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-const DATES = ['2 October 2026', '3 October 2026', '4 October 2026'];
+const DATES = ['14 October 2026', '15 October 2026', '16 October 2026'];
 const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
 const empty = { visitor_name: '', visitor_company: '', visitor_email: '', visitor_phone: '', exhibitor_name: '', exhibitor_booth: '', preferred_date: '', preferred_time: '', reason: '' };

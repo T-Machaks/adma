@@ -32,6 +32,7 @@ export default function ExhibitorHome() {
   const [editForm, setEditForm] = useState({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const [upgradeDismissed, setUpgradeDismissed] = useState(false);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const { data: exhibitors = [] } = useQuery({
     queryKey: ['exhibitors-all'],
@@ -51,7 +52,11 @@ export default function ExhibitorHome() {
   const isDiamond = myBooth?.tier === 'Diamond';
 
   const myMeetings = myBooth
-    ? meetings.filter(m => m.exhibitor_id === myBooth.id || m.company === myBooth.name)
+    ? meetings.filter(m =>
+        m.exhibitor_id === myBooth.id ||
+        m.exhibitor_name === myBooth.name ||
+        m.company === myBooth.name
+      )
     : [];
 
   const pending   = myMeetings.filter(m => m.status === 'Pending');
@@ -60,6 +65,8 @@ export default function ExhibitorHome() {
   const updateStatus = useMutation({
     mutationFn: ({ id, status }) => MeetingRequest.update(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['meetings-all'] }),
+    onSettled: () => setUpdatingId(null),
+    onError: (err) => alert(`Failed to update meeting: ${err.message}`),
   });
 
   const updateBoothImage = useMutation({
@@ -320,37 +327,41 @@ export default function ExhibitorHome() {
               const cfg = STATUS_STYLES[m.status] ?? STATUS_STYLES.Pending;
               const StatusIcon = cfg.icon;
               return (
-                <div key={m.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-4">
-                  <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-sm">{m.attendee_name || m.full_name || 'Attendee'}</p>
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.cls}`}>
-                        <StatusIcon className="w-3 h-3" />
-                        {m.status}
-                      </span>
+                <div key={m.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Users className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    {m.message && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{m.message}</p>}
-                    <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                      {m.preferred_time && <span>📅 {m.preferred_time}</span>}
-                      {m.attendee_email && <span>✉ {m.attendee_email}</span>}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-sm">{m.visitor_name || m.attendee_name || m.full_name || 'Attendee'}</p>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.cls}`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {m.status}
+                        </span>
+                      </div>
+                      {(m.reason || m.message) && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{m.reason || m.message}</p>}
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        {m.preferred_date && <span>📅 {m.preferred_date}{m.preferred_time ? ` at ${m.preferred_time}` : ''}</span>}
+                        {(m.visitor_email || m.attendee_email) && <span>✉ {m.visitor_email || m.attendee_email}</span>}
+                      </div>
                     </div>
                   </div>
                   {m.status === 'Pending' && (
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => updateStatus.mutate({ id: m.id, status: 'Confirmed' })}
-                        className="flex items-center gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-3 py-1.5 rounded-lg font-medium transition-all duration-150"
+                        disabled={updatingId === m.id}
+                        onClick={() => { setUpdatingId(m.id); updateStatus.mutate({ id: m.id, status: 'Confirmed' }); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white py-2 rounded-lg font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <CheckCircle className="w-3.5 h-3.5" /> Confirm
+                        <CheckCircle className="w-4 h-4" /> {updatingId === m.id ? 'Saving…' : 'Confirm'}
                       </button>
                       <button
-                        onClick={() => updateStatus.mutate({ id: m.id, status: 'Declined' })}
-                        className="flex items-center gap-1 text-xs bg-red-100 hover:bg-red-200 active:scale-95 text-red-700 px-3 py-1.5 rounded-lg font-medium transition-all duration-150"
+                        disabled={updatingId === m.id}
+                        onClick={() => { setUpdatingId(m.id); updateStatus.mutate({ id: m.id, status: 'Declined' }); }}
+                        className="flex-1 flex items-center justify-center gap-1.5 text-sm bg-red-100 hover:bg-red-200 active:scale-95 text-red-700 py-2 rounded-lg font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <XCircle className="w-3.5 h-3.5" /> Decline
+                        <XCircle className="w-4 h-4" /> Decline
                       </button>
                     </div>
                   )}
