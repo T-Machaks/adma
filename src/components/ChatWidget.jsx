@@ -1,11 +1,35 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 const PROMPTS_BY_ROLE = {
   exhibitor: ['My meeting requests', 'Book a meeting', 'Event announcements'],
   default:   ['Book a meeting', 'Diamond exhibitors', 'Event schedule', 'Venue & directions'],
 };
+
+const BOOKING_KEYWORDS = /\b(book|meeting|meet|schedule|appointment|enquir|request a meet|contact exhibitor)\b/i;
+
+function AuthGate() {
+  return (
+    <div className="flex justify-start">
+      <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[85%] space-y-3">
+        <p className="text-gray-100 leading-relaxed">
+          To book meetings or send enquiries you need a free MineCon account — it only takes a moment to set up.
+        </p>
+        <div className="flex gap-2">
+          <a href="/register"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber text-slate-900 text-xs font-semibold hover:bg-amber/80 transition-colors">
+            <UserPlus size={13} /> Create account
+          </a>
+          <a href="/login"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-gray-200 text-xs font-medium hover:bg-white/5 transition-colors">
+            <LogIn size={13} /> Log in
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ChatWidget() {
   const { user } = useAuth();
@@ -27,9 +51,23 @@ export default function ChatWidget() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  function pushAuthGate(userText) {
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: userText },
+      { role: 'gate' },
+    ]);
+    setInput('');
+  }
+
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
+
+    if (!user && BOOKING_KEYWORDS.test(text)) {
+      pushAuthGate(text);
+      return;
+    }
 
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setInput('');
@@ -56,6 +94,15 @@ export default function ChatWidget() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handlePromptClick(p) {
+    if (!user && BOOKING_KEYWORDS.test(p)) {
+      setMessages([{ role: 'gate' }]);
+      return;
+    }
+    setInput(p);
+    inputRef.current?.focus();
   }
 
   function handleKey(e) {
@@ -85,19 +132,29 @@ export default function ChatWidget() {
                 <Bot size={32} className="mx-auto mb-2 text-amber/50" />
                 <p className="font-medium text-slate-300">Hi! I'm your MineCon assistant.</p>
                 <p className="mt-1 text-xs">Ask me about exhibitors, the schedule, venue, or anything about the event.</p>
+                {!user && (
+                  <p className="mt-3 text-xs text-amber/70">
+                    <a href="/register" className="underline underline-offset-2 hover:text-amber transition-colors">Create a free account</a>
+                    {' '}to book meetings instantly.
+                  </p>
+                )}
               </div>
             )}
 
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap leading-relaxed ${
-                  m.role === 'user'
-                    ? 'bg-amber text-slate-900 font-medium'
-                    : 'bg-gray-700 text-gray-100 border border-gray-600'
-                }`}>
-                  {m.content}
-                </div>
-              </div>
+              m.role === 'gate'
+                ? <AuthGate key={i} />
+                : (
+                  <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap leading-relaxed ${
+                      m.role === 'user'
+                        ? 'bg-amber text-slate-900 font-medium'
+                        : 'bg-gray-700 text-gray-100 border border-gray-600'
+                    }`}>
+                      {m.content}
+                    </div>
+                  </div>
+                )
             ))}
 
             {loading && (
@@ -115,7 +172,7 @@ export default function ChatWidget() {
           {messages.length === 0 && (
             <div className="px-3 pb-2 flex flex-wrap gap-1">
               {suggestedPrompts.map(p => (
-                <button key={p} onClick={() => { setInput(p); inputRef.current?.focus(); }}
+                <button key={p} onClick={() => handlePromptClick(p)}
                   className="text-xs px-2 py-1 rounded-full border border-amber/30 text-amber/80 hover:bg-amber/10 transition-colors">
                   {p}
                 </button>
