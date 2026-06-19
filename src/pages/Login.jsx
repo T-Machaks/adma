@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2, Info } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
 import { useAuth } from "@/lib/AuthContext";
+import SocialAuthButtons, { SocialDivider } from "@/components/SocialAuthButtons";
 
 const DEMO_ACCOUNTS = [
   { email: "organizer@minecon.global",  role: "Organizer",         dest: "Console" },
@@ -16,7 +16,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, setSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -45,8 +45,9 @@ export default function Login() {
     }
   };
 
-  const handleGoogle = () => {
-    setError("Google sign-in is not available in demo mode. Please use email login.");
+  const handleSocialSuccess = (userData) => {
+    const result = setSession(userData);
+    navigate(intendedPath || result.redirectTo, { replace: true });
   };
 
   const fillDemo = (email) => {
@@ -73,23 +74,11 @@ export default function Login() {
         </>
       }
     >
-      <Button
-        variant="outline"
-        className="w-full h-12 text-sm font-medium mb-6"
-        onClick={handleGoogle}
-      >
-        <GoogleIcon className="w-5 h-5 mr-2" />
-        Continue with Google
-      </Button>
-
-      <div className="relative mb-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-3 text-muted-foreground">or</span>
-        </div>
-      </div>
+      <SocialAuthButtons
+        onSuccess={handleSocialSuccess}
+        onError={setError}
+      />
+      <SocialDivider />
 
       {/* Internal demo accounts — only visible on localhost */}
       {window.location.hostname === 'localhost' && (

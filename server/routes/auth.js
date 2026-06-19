@@ -74,4 +74,82 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ── OAuth helper — find or create user from social provider ─────────────────
+async function upsertOAuthUser({ email, full_name, oauth_provider, oauth_id }) {
+  const existing = await findByEmail(email);
+  if (existing) return existing;
+  const user = {
+    id: generateId(),
+    created_date: new Date().toISOString(),
+    full_name: full_name || email.split('@')[0],
+    email: email.toLowerCase(),
+    company: '',
+    role: 'attendee',
+    status: 'active',
+    oauth_provider,
+    oauth_id,
+  };
+  await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
+  return user;
+}
+
+// POST /api/auth/google
+router.post('/google', async (req, res) => {
+  try {
+    const { access_token } = req.body;
+    if (!access_token) return res.status(400).json({ error: 'access_token required' });
+
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    if (!r.ok) return res.status(401).json({ error: 'Invalid Google token' });
+    const { email, name, sub } = await r.json();
+    if (!email) return res.status(401).json({ error: 'Could not retrieve email from Google' });
+
+    const user = await upsertOAuthUser({ email, full_name: name, oauth_provider: 'google', oauth_id: sub });
+    res.json(sanitize(user));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/auth/microsoft
+router.post('/microsoft', async (req, res) => {
+  try {
+    const { access_token } = req.body;
+    if (!access_token) return res.status(400).json({ error: 'access_token required' });
+
+    const r = await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    if (!r.ok) return res.status(401).json({ error: 'Invalid Microsoft token' });
+    const profile = await r.json();
+    const email = profile.mail || profile.userPrincipalName;
+    if (!email) return res.status(401).json({ error: 'Could not retrieve email from Microsoft' });
+
+    const user = await upsertOAuthUser({ email, full_name: profile.displayName, oauth_provider: 'microsoft', oauth_id: profile.id });
+    res.json(sanitize(user));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/auth/facebook
+router.post('/facebook', async (req, res) => {
+  try {
+    const { access_token } = req.body;
+    if (!access_token) return res.status(400).json({ error: 'access_token required' });
+
+    const r = await fetch(`https://graph.facebook.com/me?fields=id,name,email&access_token=${access_token}`);
+    if (!r.ok) return res.status(401).json({ error: 'Invalid Facebook token' });
+    const profile = await r.json();
+    if (!profile.email) return res.status(401).json({ error: 'Facebook account has no email address. Please use email registration.' });
+
+    const user = await upsertOAuthUser({ email: profile.email, full_name: profile.name, oauth_provider: 'facebook', oauth_id: profile.id });
+    res.json(sanitize(user));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

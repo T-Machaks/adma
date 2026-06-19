@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/queryClient'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import { BrowserRouter as Router, Route, Routes, Outlet } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -131,6 +132,7 @@ const AuthenticatedApp = () => {
 
 function App() {
   return (
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
     <PWAInstallProvider>
       <AuthProvider>
         <AppSettingsProvider>
@@ -146,6 +148,7 @@ function App() {
         </AppSettingsProvider>
       </AuthProvider>
     </PWAInstallProvider>
+    </GoogleOAuthProvider>
   );
 }
 

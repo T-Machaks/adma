@@ -94,6 +94,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const setSession = (userData) => {
+    const session = {
+      id: userData.id,
+      email: userData.email,
+      full_name: userData.full_name,
+      role: userData.role,
+      company: userData.company || '',
+    };
+    localStorage.setItem('minecon_user', JSON.stringify(session));
+    setUser(session);
+    setIsAuthenticated(true);
+    return { success: true, redirectTo: redirectForRole(userData.role) };
+  };
+
   const logout = () => {
     localStorage.removeItem('minecon_user');
     setUser(null);
@@ -118,6 +132,7 @@ export const AuthProvider = ({ children }) => {
       authChecked,
       login,
       register,
+      setSession,
       logout,
       navigateToLogin,
       checkUserAuth,

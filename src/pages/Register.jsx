@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Registration } from '@/api/entities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, User, Building2, Mail, Phone, Tag, Ticket, Shield, ChevronRight, Users, Star, Mic, Crown, Briefcase, AlertCircle, UserPlus, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import SocialAuthButtons, { SocialDivider } from '@/components/SocialAuthButtons';
 
 const ROLE_TYPES = [
   { value: 'Attendee', icon: User, color: 'bg-blue-500', desc: 'Industry visitor & buyer' },
@@ -29,8 +31,10 @@ const BADGE_MAP = {
 };
 
 export default function Register() {
+  const { setSession } = useAuth();
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
+  const [socialError, setSocialError] = useState('');
   const [form, setForm] = useState({
     full_name: '', email: '', phone: '', company: '',
     role_type: '', ticket_type: '', badge_category: '',
@@ -131,6 +135,21 @@ export default function Register() {
       {/* Step 1 — Role selection */}
       {step === 1 && (
         <div>
+          {/* Social sign-in to pre-fill form */}
+          <SocialAuthButtons
+            onSuccess={(userData) => {
+              setSession(userData);
+              set('full_name', userData.full_name || '');
+              set('email', userData.email || '');
+              setSocialError('');
+            }}
+            onError={setSocialError}
+          />
+          {socialError && (
+            <p className="mt-2 text-xs text-destructive">{socialError}</p>
+          )}
+          <SocialDivider />
+
           <p className="text-sm font-semibold mb-4">Select your registration type:</p>
           <div className="space-y-3">
             {ROLE_TYPES.map(r => {

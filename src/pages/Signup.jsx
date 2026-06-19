@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/components/AuthLayout';
 import { useAuth } from '@/lib/AuthContext';
+import SocialAuthButtons, { SocialDivider } from '@/components/SocialAuthButtons';
 
 export default function Signup() {
-  const { register } = useAuth();
+  const { register, setSession } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ full_name: '', email: '', company: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
@@ -47,6 +48,11 @@ export default function Signup() {
     }
   };
 
+  const handleSocialSuccess = (userData) => {
+    setSession(userData);
+    navigate('/');
+  };
+
   return (
     <AuthLayout
       icon={UserPlus}
@@ -65,6 +71,9 @@ export default function Signup() {
         </>
       }
     >
+      <SocialAuthButtons onSuccess={handleSocialSuccess} onError={setError} />
+      <SocialDivider />
+
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
