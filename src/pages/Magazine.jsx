@@ -889,6 +889,118 @@ function ADMAFlipBook({ onBack, isMobile }) {
   );
 }
 
+// ── Tobacco Today flip book ───────────────────────────────────────────────────
+function TobaccoTodayFlipBook({ onBack, isMobile }) {
+  const bookRef = useRef(null);
+  const [bookKey, setBookKey] = useState(isMobile ? 'mb' : 'dk');
+  const [currentPage, setCurrentPage] = useState(0);
+
+  useEffect(() => {
+    setBookKey(isMobile ? 'mb' : 'dk');
+  }, [isMobile]);
+
+  // Page 1 (cover) and page 17 (back) are portrait singles.
+  // Pages 2–16 are landscape double-spreads; split each into left + right halves.
+  const ttPages = (() => {
+    const list = [];
+    list.push({ src: '/magazines/tobacco-today-pages/page-001.jpg', half: 'portrait' });
+    for (let i = 2; i <= 16; i++) {
+      const n = String(i).padStart(3, '0');
+      list.push({ src: `/magazines/tobacco-today-pages/page-${n}.jpg`, half: 'left' });
+      list.push({ src: `/magazines/tobacco-today-pages/page-${n}.jpg`, half: 'right' });
+    }
+    list.push({ src: '/magazines/tobacco-today-pages/page-017.jpg', half: 'portrait' });
+    return list;
+  })();
+
+  const TOTAL = ttPages.length;
+  const onFlip = useCallback(e => setCurrentPage(e.data), []);
+  const flipPrev = () => bookRef.current?.pageFlip().flipPrev();
+  const flipNext = () => bookRef.current?.pageFlip().flipNext();
+
+  const spreadLabel = isMobile
+    ? `Page ${currentPage + 1} of ${TOTAL}`
+    : currentPage === 0 ? 'Cover'
+    : currentPage >= TOTAL - 1 ? 'Back Cover'
+    : `Pages ${currentPage}–${currentPage + 1} of ${TOTAL}`;
+
+  return (
+    <div className="pb-24 pt-2">
+      <div className="px-4 mb-3 flex items-center gap-3">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Publications
+        </button>
+        <span className="text-muted-foreground">/</span>
+        <span className="text-sm font-semibold">Zimbabwe Tobacco Today — Issue 60 · June 2026</span>
+        <a
+          href="/magazines/tobacco-today-2026-q2.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        >
+          <ExternalLink className="w-3.5 h-3.5" /> PDF
+        </a>
+      </div>
+
+      <div className="w-full" style={{ touchAction: 'pan-y' }}>
+        <HTMLFlipBook
+          key={bookKey}
+          ref={bookRef}
+          width={420}
+          height={544}
+          size="stretch"
+          minWidth={200}
+          maxWidth={500}
+          minHeight={259}
+          maxHeight={660}
+          maxShadowOpacity={0.5}
+          showCover
+          mobileScrollSupport
+          usePortrait={isMobile}
+          onFlip={onFlip}
+          flippingTime={650}
+          drawShadow
+          showPageCorners
+          disableFlipByClick={false}
+          swipeDistance={30}
+          style={{ margin: '0 auto', display: 'block' }}
+        >
+          {ttPages.map((p, i) => (
+            <MagazinePage key={`tt-p${i}`}>
+              <img
+                src={p.src}
+                alt={`Page ${i + 1}`}
+                className="absolute inset-0 w-full h-full select-none"
+                style={{
+                  objectFit: p.half === 'portrait' ? 'fill' : 'cover',
+                  objectPosition: p.half === 'left' ? 'left center' : p.half === 'right' ? 'right center' : 'center',
+                }}
+                loading={i < 8 ? 'eager' : 'lazy'}
+                draggable={false}
+              />
+            </MagazinePage>
+          ))}
+        </HTMLFlipBook>
+      </div>
+
+      <div className="flex items-center justify-center gap-4 mt-4 px-4">
+        <button onClick={flipPrev} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors font-medium text-sm">
+          <ChevronLeft className="w-4 h-4" /> Prev
+        </button>
+        <span className="text-sm text-muted-foreground font-medium">{spreadLabel}</span>
+        <button onClick={flipNext} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors font-medium text-sm">
+          Next <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      <p className="text-xs text-muted-foreground text-center mt-3 px-4">
+        <BookOpen className="inline w-3.5 h-3.5 mr-1" />
+        {isMobile ? 'Swipe left/right or use arrows to turn pages' : 'Click page corners or drag to flip · Double-page spread on desktop'}
+      </p>
+    </div>
+  );
+}
+
 // ── MineCon Magazine (stubbed — cover only) ───────────────────────────────────
 function MineConMagazineCover() {
   return (
@@ -1035,6 +1147,21 @@ function MagazineLibrary({ onSelect }) {
         />
       ),
     },
+    {
+      id: 'tobacco-today',
+      title: 'Tobacco Today',
+      subtitle: 'Issue 60 · June 2026',
+      tag: 'Interactive Flip Book · 32 pages',
+      type: 'flipbook',
+      cover: (
+        <img
+          src="/magazines/tobacco-today-pages/page-001.jpg"
+          alt="Zimbabwe Tobacco Today cover"
+          className="absolute inset-0 w-full h-full"
+          style={{ objectFit: 'cover', objectPosition: 'center top' }}
+        />
+      ),
+    },
   ];
 
   return (
@@ -1088,5 +1215,6 @@ export default function Magazine() {
   if (view === 'guide')            return <GuideViewer           onBack={() => setView(null)} isMobile={isMobile} />;
   if (view === 'minecon-magazine') return <MineConMagazineViewer onBack={() => setView(null)} />;
   if (view === 'adma')             return <ADMAFlipBook          onBack={() => setView(null)} isMobile={isMobile} />;
+  if (view === 'tobacco-today')    return <TobaccoTodayFlipBook  onBack={() => setView(null)} isMobile={isMobile} />;
   return <MagazineLibrary onSelect={setView} />;
 }
