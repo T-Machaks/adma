@@ -71,7 +71,9 @@ export default function AppShell({ children }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-steel shadow-lg border-b border-white/10">
+      <header className="sticky top-0 z-50 shadow-2xl border-b border-white/10">
+        <div className="h-0.5 bg-gradient-to-r from-amber via-amber/80 to-amber/40" />
+        <div style={{background: 'linear-gradient(to right, hsl(220,20%,8%), hsl(220,14%,18%), hsl(220,18%,13%))'}}>
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
           {/* Back button — mobile only, non-home pages */}
           {!isHome ? (
@@ -98,6 +100,7 @@ export default function AppShell({ children }) {
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
+        </div>
         </div>
 
         {/* Mobile dropdown menu */}
@@ -281,7 +284,10 @@ export default function AppShell({ children }) {
       </div>
 
       {/* Bottom tab bar — hidden on desktop */}
-      <nav className="sticky bottom-0 z-50 bg-steel border-t border-white/10 lg:hidden">
+      <nav
+        className="sticky bottom-0 z-50 border-t border-white/10 lg:hidden"
+        style={{backgroundColor: 'hsl(220 14% 18% / 0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)'}}
+      >
         <div className="grid grid-cols-5 max-w-md mx-auto">
           {bottomNav.map(({ path, label, icon: Icon }) => (
             <Link
