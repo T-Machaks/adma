@@ -47,8 +47,7 @@ export default function AdBannerCarousel() {
 
   const card = (
     <div
-      className={`relative w-full rounded-2xl overflow-hidden cursor-pointer group bg-gradient-to-br ${ad.bg}`}
-      style={{ minHeight: 156 }}
+      className={`relative w-full rounded-2xl overflow-hidden cursor-pointer group bg-gradient-to-br ${ad.bg} min-h-[156px] lg:min-h-[280px] xl:min-h-[320px]`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -116,9 +115,8 @@ export default function AdBannerCarousel() {
       {/* ── Content (keyed for fade-in on slide change) ── */}
       <div
         key={current}
-        className="relative flex flex-col gap-2.5 p-4"
+        className="relative flex flex-col gap-2.5 lg:gap-4 p-4 lg:p-8 min-h-[156px] lg:min-h-[280px] xl:min-h-[320px]"
         style={{
-          minHeight: 156,
           animation: 'adFadeIn 0.3s ease-out',
           // Cutout: keep text in left 56% so it doesn't overlap the product image
           paddingRight: isCutout ? '46%' : undefined,
@@ -127,20 +125,20 @@ export default function AdBannerCarousel() {
         {/* Top: logo + company + counter */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow overflow-hidden">
+            <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white rounded-xl lg:rounded-2xl flex items-center justify-center flex-shrink-0 shadow overflow-hidden">
               {ad.logo_url
-                ? <img src={ad.logo_url} alt={ad.company} className="w-9 h-9 object-contain" />
+                ? <img src={ad.logo_url} alt={ad.company} className="w-9 h-9 lg:w-12 lg:h-12 object-contain" />
                 : <span className="font-bold text-lg text-foreground">{ad.company[0]}</span>
               }
             </div>
             <div>
-              <p className="text-white font-bold text-sm leading-none drop-shadow-sm">{ad.company}</p>
-              <p className="text-white/55 text-[10px] mt-0.5 font-medium">{ad.label}</p>
+              <p className="text-white font-bold text-sm lg:text-lg leading-none drop-shadow-sm">{ad.company}</p>
+              <p className="text-white/55 text-[10px] lg:text-xs mt-0.5 font-medium">{ad.label}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {paused && <PauseCircle className="w-3 h-3 text-white/30" />}
-            <span className="text-[10px] font-bold tabular-nums text-white/35 select-none">
+            <span className="text-[10px] lg:text-xs font-bold tabular-nums text-white/35 select-none">
               {current + 1}&thinsp;/&thinsp;{slots.length}
             </span>
           </div>
@@ -148,8 +146,8 @@ export default function AdBannerCarousel() {
 
         {/* Headline + sub */}
         <div className="flex-1">
-          <p className="text-white font-heading font-bold text-base leading-snug drop-shadow-sm">{ad.headline}</p>
-          {ad.sub && <p className="text-white/55 text-xs mt-0.5">{ad.sub}</p>}
+          <p className="text-white font-heading font-bold text-base lg:text-2xl xl:text-3xl leading-snug drop-shadow-sm">{ad.headline}</p>
+          {ad.sub && <p className="text-white/55 text-xs lg:text-sm mt-0.5">{ad.sub}</p>}
         </div>
 
         {/* Bottom: stat + tags + CTA */}
@@ -157,20 +155,20 @@ export default function AdBannerCarousel() {
           <div className="flex items-center gap-1.5 flex-wrap min-w-0">
             {ad.stat && (
               <span
-                className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white"
+                className="text-[11px] lg:text-sm font-bold px-2 py-0.5 rounded-full text-white"
                 style={{ background: `${accent}38`, border: `1px solid ${accent}65` }}
               >
                 {ad.stat}
               </span>
             )}
             {(ad.tags || []).map(tag => (
-              <span key={tag} className="text-[10px] text-white/50 bg-white/12 px-1.5 py-0.5 rounded-full">
+              <span key={tag} className="text-[10px] lg:text-xs text-white/50 bg-white/12 px-1.5 py-0.5 rounded-full">
                 {tag}
               </span>
             ))}
           </div>
           <span
-            className="flex-shrink-0 text-[11px] font-bold text-white/85 px-2.5 py-1 rounded-lg transition-colors group-hover:bg-white/25"
+            className="flex-shrink-0 text-[11px] lg:text-sm font-bold text-white/85 px-2.5 lg:px-4 py-1 lg:py-2 rounded-lg transition-colors group-hover:bg-white/25"
             style={{ background: 'rgba(255,255,255,0.13)', border: '1px solid rgba(255,255,255,0.18)' }}
           >
             Visit ↗
@@ -191,17 +189,13 @@ export default function AdBannerCarousel() {
       </div>
 
       {/* ── Dot indicators ── */}
-      <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1.5">
+      <div className="absolute bottom-1.5 lg:bottom-3 left-0 right-0 flex justify-center gap-1.5">
         {slots.map((_, i) => (
           <button
             key={i}
             onClick={e => goTo(i, e)}
-            className="rounded-full transition-all duration-300"
-            style={{
-              width: i === current ? 16 : 6,
-              height: 4,
-              background: i === current ? accent : 'rgba(255,255,255,0.28)',
-            }}
+            className={`rounded-full transition-all duration-300 h-1 lg:h-1.5 ${i === current ? 'w-4 lg:w-6' : 'w-1.5 lg:w-2'}`}
+            style={{ background: i === current ? accent : 'rgba(255,255,255,0.28)' }}
           />
         ))}
       </div>
@@ -209,25 +203,25 @@ export default function AdBannerCarousel() {
       {/* ── Prev / Next (appear on hover) ── */}
       <button
         onClick={prev}
-        className="absolute left-0 top-0 bottom-0 w-9 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute left-0 top-0 bottom-0 w-9 lg:w-14 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
       >
-        <div className="w-6 h-6 rounded-full bg-black/35 hover:bg-black/55 flex items-center justify-center transition-colors">
-          <ChevronLeft className="w-3.5 h-3.5 text-white" />
+        <div className="w-6 h-6 lg:w-10 lg:h-10 rounded-full bg-black/35 hover:bg-black/55 flex items-center justify-center transition-colors">
+          <ChevronLeft className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-white" />
         </div>
       </button>
       <button
         onClick={next}
-        className="absolute right-0 top-0 bottom-0 w-9 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute right-0 top-0 bottom-0 w-9 lg:w-14 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
       >
-        <div className="w-6 h-6 rounded-full bg-black/35 hover:bg-black/55 flex items-center justify-center transition-colors">
-          <ChevronRight className="w-3.5 h-3.5 text-white" />
+        <div className="w-6 h-6 lg:w-10 lg:h-10 rounded-full bg-black/35 hover:bg-black/55 flex items-center justify-center transition-colors">
+          <ChevronRight className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-white" />
         </div>
       </button>
     </div>
   );
 
   return (
-    <div className="px-4 mb-4 max-w-2xl mx-auto">
+    <div className="px-4 mb-4 max-w-2xl lg:max-w-6xl mx-auto">
       <style>{KEYFRAMES}</style>
       {ad.internal
         ? <a href={ad.url} onClick={handleClick}>{card}</a>
