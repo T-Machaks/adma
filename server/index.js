@@ -16,6 +16,7 @@ import guidePages from './routes/guide-pages.js';
 import magazinePages from './routes/magazine-pages.js';
 import chat from './routes/chat.js';
 import auth from './routes/auth.js';
+import exhibitorApplications from './routes/exhibitor-applications.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -35,7 +36,8 @@ app.use('/api/upload',            upload);
 app.use('/api/guide-pages',       guidePages);
 app.use('/api/magazine-pages',    magazinePages);
 app.use('/api/chat',              chat);
-app.use('/api/auth',              auth);
+app.use('/api/auth',                    auth);
+app.use('/api/exhibitor-applications',  exhibitorApplications);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 

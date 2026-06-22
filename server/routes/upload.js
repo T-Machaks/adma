@@ -23,6 +23,16 @@ r.post('/booth-image-url', async (req, res) => {
   }
 });
 
+r.post('/exhibitor-logo-url', async (req, res) => {
+  try {
+    const key = `exhibitor-logos/${Date.now()}.png`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, 'image/png');
+    res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 r.post('/guide-image-url', async (req, res) => {
   try {
     const { pageNum, oldImageUrl } = req.body;

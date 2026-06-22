@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, Mail, User, Loader2, Building2, Lock } from 'lucide-react';
+import { UserPlus, Mail, User, Loader2, Building2, Lock, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import SocialAuthButtons, { SocialDivider } from '@/components/SocialAuthButtons
 export default function Signup() {
   const { register, setSession } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ full_name: '', email: '', company: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ full_name: '', email: '', company: '', phone: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,6 +34,7 @@ export default function Signup() {
         full_name: form.full_name,
         email: form.email,
         company: form.company,
+        phone: form.phone,
         password: form.password,
       });
       if (result.success) {
@@ -125,6 +126,24 @@ export default function Signup() {
               placeholder="Your organisation"
               value={form.company}
               onChange={e => set('company', e.target.value)}
+              className="pl-10 h-12"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phone">
+            Mobile number{' '}
+            <span className="text-muted-foreground font-normal">(optional — enables SMS login verification)</span>
+          </Label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="+27 82 123 4567"
+              value={form.phone}
+              onChange={e => set('phone', e.target.value)}
               className="pl-10 h-12"
             />
           </div>

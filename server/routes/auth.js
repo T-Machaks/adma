@@ -1,12 +1,34 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import crypto from 'crypto';
+import { GetCommand, QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
+import { sendOtpEmail } from '../lib/mailer.js';
+import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 
 const TABLE = 'minecon_users';
 const router = Router();
 
+// Superadmins — only these accounts can hold the organizer role and add other organizers
+const SUPERADMIN_EMAILS = ['info@minecon.global', 'tamuka@tyflex.co.zw'];
+
+// ── In-memory challenge store ─────────────────────────────────────────────────
+// token -> { type: 'email'|'totp'|'totp_setup', userId, email, otp?, secret?, expiresAt }
+const challengeStore = new Map();
+
+function cleanExpired() {
+  const now = Date.now();
+  for (const [k, v] of challengeStore) {
+    if (v.expiresAt < now) challengeStore.delete(k);
+  }
+}
+
+function newToken() { return crypto.randomUUID(); }
+function newExpiry() { return Date.now() + 10 * 60 * 1000; } // 10 min
+function generateOtp() { return Math.floor(100000 + Math.random() * 900000).toString(); }
+
+// ── DB helpers ────────────────────────────────────────────────────────────────
 async function findByEmail(email) {
   const result = await ddb.send(new QueryCommand({
     TableName: TABLE,
@@ -18,18 +40,28 @@ async function findByEmail(email) {
   return result.Items?.[0] ?? null;
 }
 
+async function getById(id) {
+  const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id } }));
+  return result.Item ?? null;
+}
+
 function sanitize(user) {
-  const { password_hash, ...rest } = user;
+  const { password_hash, totp_secret, ...rest } = user;
   return rest;
 }
 
-// POST /api/auth/signup  — attendee account creation with password
+function maskEmail(email) {
+  const [local, domain] = email.split('@');
+  return `${local[0]}***@${domain}`;
+}
+
+// ── POST /api/auth/signup  ─────────────────────────────────────────────────
 router.post('/signup', async (req, res) => {
   try {
-    const { full_name, email, password, company } = req.body;
-    if (!full_name || !email || !password) {
+    const { full_name, email, password, company, phone } = req.body;
+    if (!full_name || !email || !password)
       return res.status(400).json({ error: 'Name, email and password are required.' });
-    }
+
     const existing = await findByEmail(email);
     if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
 
@@ -40,6 +72,7 @@ router.post('/signup', async (req, res) => {
       full_name,
       email: email.toLowerCase(),
       company: company || '',
+      phone: phone || '',
       role: 'attendee',
       status: 'active',
       password_hash,
@@ -51,7 +84,7 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// POST /api/auth/login  — validates password for attendees; skips check for internal roles
+// ── POST /api/auth/login  ─────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -59,22 +92,196 @@ router.post('/login', async (req, res) => {
 
     const user = await findByEmail(email);
     if (!user) return res.status(401).json({ error: 'No account found with that email.' });
+    if (user.status === 'pending')
+      return res.status(403).json({ error: 'Your account is pending organizer approval.' });
 
-    if (user.role === 'attendee') {
-      if (!user.password_hash) {
-        return res.status(401).json({ error: 'This account has no password set. Please sign up again.' });
-      }
+    // Password check — required for accounts that have one set
+    if (user.password_hash) {
       const match = await bcrypt.compare(password || '', user.password_hash);
       if (!match) return res.status(401).json({ error: 'Incorrect password.' });
     }
 
+    cleanExpired();
+
+    // Force password change on first login
+    if (user.must_change_password) {
+      const token = newToken();
+      challengeStore.set(token, { type: 'password_change', userId: user.id, expiresAt: newExpiry() });
+      return res.json({ must_change_password: true, change_token: token });
+    }
+
+    // Organizers → TOTP (authenticator app)
+    if (user.role === 'organizer') {
+      const token = newToken();
+
+      if (!user.totp_secret) {
+        // First time — generate secret and QR code for setup
+        const secret = generateSecret();
+        const qr_code = await generateQrDataUrl(user.email, secret);
+        challengeStore.set(token, { type: 'totp_setup', userId: user.id, secret, expiresAt: newExpiry() });
+        return res.json({ totp_required: true, mfa_token: token, first_time: true, qr_code });
+      }
+
+      // TOTP already configured — just prompt for code
+      challengeStore.set(token, { type: 'totp', userId: user.id, expiresAt: newExpiry() });
+      return res.json({ totp_required: true, mfa_token: token, first_time: false });
+    }
+
+    // All other roles → email OTP via NoReply@tyflex.co.zw
+    const otp = generateOtp();
+    const token = newToken();
+    challengeStore.set(token, { type: 'email', userId: user.id, email: user.email, otp, expiresAt: newExpiry() });
+
+    try {
+      await sendOtpEmail(user.email, otp);
+    } catch (mailErr) {
+      console.error('Email OTP send failed:', mailErr.message);
+      return res.status(503).json({ error: 'Could not send verification email. Please try again.' });
+    }
+
+    return res.json({ mfa_required: true, mfa_token: token, email_hint: maskEmail(user.email) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/otp/verify  — email OTP ───────────────────────────────
+router.post('/otp/verify', async (req, res) => {
+  try {
+    const { mfa_token, otp } = req.body;
+    if (!mfa_token || !otp)
+      return res.status(400).json({ error: 'mfa_token and otp are required.' });
+
+    cleanExpired();
+    const entry = challengeStore.get(mfa_token);
+    if (!entry || entry.type !== 'email')
+      return res.status(401).json({ error: 'Verification code expired. Please log in again.' });
+    if (entry.otp !== otp.trim())
+      return res.status(401).json({ error: 'Incorrect verification code.' });
+
+    challengeStore.delete(mfa_token);
+    const user = await getById(entry.userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── OAuth helper — find or create user from social provider ─────────────────
+// ── POST /api/auth/otp/resend  — resend email OTP ────────────────────────
+router.post('/otp/resend', async (req, res) => {
+  try {
+    const { mfa_token } = req.body;
+    if (!mfa_token) return res.status(400).json({ error: 'mfa_token required.' });
+
+    cleanExpired();
+    const entry = challengeStore.get(mfa_token);
+    if (!entry || entry.type !== 'email')
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
+
+    const otp = generateOtp();
+    entry.otp = otp;
+    entry.expiresAt = newExpiry();
+
+    try {
+      await sendOtpEmail(entry.email, otp);
+    } catch (mailErr) {
+      console.error('Email OTP resend failed:', mailErr.message);
+      return res.status(503).json({ error: 'Could not send verification email. Please try again.' });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/change-password  — forced on first login ──────────────
+router.post('/change-password', async (req, res) => {
+  try {
+    const { change_token, new_password } = req.body;
+    if (!change_token || !new_password)
+      return res.status(400).json({ error: 'change_token and new_password are required.' });
+    if (new_password.length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (new_password === '@MineCon2026')
+      return res.status(400).json({ error: 'You must choose a different password.' });
+
+    cleanExpired();
+    const entry = challengeStore.get(change_token);
+    if (!entry || entry.type !== 'password_change')
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
+
+    const user = await getById(entry.userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const password_hash = await bcrypt.hash(new_password, 10);
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { id: user.id },
+      UpdateExpression: 'SET password_hash = :p REMOVE must_change_password',
+      ExpressionAttributeValues: { ':p': password_hash },
+    }));
+
+    challengeStore.delete(change_token);
+
+    // Immediately issue TOTP challenge so the user continues without re-entering credentials
+    const token = newToken();
+    const updatedUser = { ...user, password_hash, must_change_password: undefined };
+
+    if (!updatedUser.totp_secret) {
+      const secret  = generateSecret();
+      const qr_code = await generateQrDataUrl(updatedUser.email, secret);
+      challengeStore.set(token, { type: 'totp_setup', userId: updatedUser.id, secret, expiresAt: newExpiry() });
+      return res.json({ totp_required: true, mfa_token: token, first_time: true, qr_code });
+    }
+
+    challengeStore.set(token, { type: 'totp', userId: updatedUser.id, expiresAt: newExpiry() });
+    return res.json({ totp_required: true, mfa_token: token, first_time: false });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/totp/verify  — authenticator app code ─────────────────
+router.post('/totp/verify', async (req, res) => {
+  try {
+    const { mfa_token, code } = req.body;
+    if (!mfa_token || !code)
+      return res.status(400).json({ error: 'mfa_token and code are required.' });
+
+    cleanExpired();
+    const entry = challengeStore.get(mfa_token);
+    if (!entry || !['totp', 'totp_setup'].includes(entry.type))
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
+
+    const user = await getById(entry.userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const secret = entry.type === 'totp_setup' ? entry.secret : user.totp_secret;
+    if (!secret) return res.status(401).json({ error: 'TOTP not configured for this account.' });
+
+    if (!verifyToken(secret, code.trim()))
+      return res.status(401).json({ error: 'Incorrect authenticator code. Please try again.' });
+
+    // If this was first-time setup, persist the TOTP secret
+    if (entry.type === 'totp_setup') {
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { id: user.id },
+        UpdateExpression: 'SET totp_secret = :s',
+        ExpressionAttributeValues: { ':s': secret },
+      }));
+    }
+
+    challengeStore.delete(mfa_token);
+    res.json(sanitize(user));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── OAuth helpers ─────────────────────────────────────────────────────────
 async function upsertOAuthUser({ email, full_name, oauth_provider, oauth_id }) {
   const existing = await findByEmail(email);
   if (existing) return existing;
@@ -84,6 +291,7 @@ async function upsertOAuthUser({ email, full_name, oauth_provider, oauth_id }) {
     full_name: full_name || email.split('@')[0],
     email: email.toLowerCase(),
     company: '',
+    phone: '',
     role: 'attendee',
     status: 'active',
     oauth_provider,
@@ -93,19 +301,17 @@ async function upsertOAuthUser({ email, full_name, oauth_provider, oauth_id }) {
   return user;
 }
 
-// POST /api/auth/google
+// ── POST /api/auth/google ─────────────────────────────────────────────────
 router.post('/google', async (req, res) => {
   try {
     const { access_token } = req.body;
     if (!access_token) return res.status(400).json({ error: 'access_token required' });
-
     const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
     if (!r.ok) return res.status(401).json({ error: 'Invalid Google token' });
     const { email, name, sub } = await r.json();
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Google' });
-
     const user = await upsertOAuthUser({ email, full_name: name, oauth_provider: 'google', oauth_id: sub });
     res.json(sanitize(user));
   } catch (e) {
@@ -113,12 +319,11 @@ router.post('/google', async (req, res) => {
   }
 });
 
-// POST /api/auth/microsoft
+// ── POST /api/auth/microsoft ──────────────────────────────────────────────
 router.post('/microsoft', async (req, res) => {
   try {
     const { access_token } = req.body;
     if (!access_token) return res.status(400).json({ error: 'access_token required' });
-
     const r = await fetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
@@ -126,7 +331,6 @@ router.post('/microsoft', async (req, res) => {
     const profile = await r.json();
     const email = profile.mail || profile.userPrincipalName;
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Microsoft' });
-
     const user = await upsertOAuthUser({ email, full_name: profile.displayName, oauth_provider: 'microsoft', oauth_id: profile.id });
     res.json(sanitize(user));
   } catch (e) {
@@ -134,19 +338,49 @@ router.post('/microsoft', async (req, res) => {
   }
 });
 
-// POST /api/auth/facebook
+// ── POST /api/auth/facebook ───────────────────────────────────────────────
 router.post('/facebook', async (req, res) => {
   try {
     const { access_token } = req.body;
     if (!access_token) return res.status(400).json({ error: 'access_token required' });
-
     const r = await fetch(`https://graph.facebook.com/me?fields=id,name,email&access_token=${access_token}`);
     if (!r.ok) return res.status(401).json({ error: 'Invalid Facebook token' });
     const profile = await r.json();
-    if (!profile.email) return res.status(401).json({ error: 'Facebook account has no email address. Please use email registration.' });
-
+    if (!profile.email) return res.status(401).json({ error: 'Facebook account has no email. Please use email registration.' });
     const user = await upsertOAuthUser({ email: profile.email, full_name: profile.name, oauth_provider: 'facebook', oauth_id: profile.id });
     res.json(sanitize(user));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/organizer/add-user  — superadmin only ─────────────────
+router.post('/organizer/add-user', async (req, res) => {
+  try {
+    const { requester_email, full_name, email, password } = req.body;
+    if (!requester_email || !SUPERADMIN_EMAILS.includes(requester_email.toLowerCase()))
+      return res.status(403).json({ error: 'Only superadmin organizers can add organizer accounts.' });
+
+    if (!full_name || !email || !password)
+      return res.status(400).json({ error: 'full_name, email and password are required.' });
+
+    const existing = await findByEmail(email);
+    if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const user = {
+      id: generateId(),
+      created_date: new Date().toISOString(),
+      full_name,
+      email: email.toLowerCase(),
+      company: '',
+      phone: '',
+      role: 'organizer',
+      status: 'active',
+      password_hash,
+    };
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
+    res.status(201).json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

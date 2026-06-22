@@ -44,6 +44,8 @@ import Communications from '@/pages/Communications';
 import UsersPanel from '@/pages/console/UsersPanel';
 import CheckIn from '@/pages/CheckIn';
 import MarketingHub from '@/pages/console/MarketingHub';
+import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
+import ExhibitorApply from '@/pages/ExhibitorApply';
 
 // Exhibitor portal pages
 import ExhibitorHome from '@/pages/exhibitor/ExhibitorHome';
@@ -83,6 +85,7 @@ const AuthenticatedApp = () => {
       {/* ── Auth pages — no shell ── */}
       <Route path="/login"            element={<Login />} />
       <Route path="/signup"           element={<Signup />} />
+      <Route path="/exhibitor-apply"  element={<ExhibitorApply />} />
       <Route path="/forgot-password"  element={<ForgotPassword />} />
       <Route path="/reset-password"   element={<ResetPassword />} />
 
@@ -97,6 +100,7 @@ const AuthenticatedApp = () => {
           <Route path="/console/users"            element={<UsersPanel />} />
           <Route path="/console/check-in"         element={<CheckIn />} />
           <Route path="/console/marketing"        element={<MarketingHub />} />
+          <Route path="/console/exhibitor-applications" element={<ExhibitorApplications />} />
         </Route>
       </Route>
 

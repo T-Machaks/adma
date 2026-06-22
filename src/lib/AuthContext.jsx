@@ -59,6 +59,28 @@ export const AuthProvider = ({ children }) => {
       });
       const found = await res.json();
       if (!res.ok) return { success: false, error: found.error || 'Login failed.' };
+
+      // Forced password change (first login)
+      if (found.must_change_password) {
+        return { success: true, mustChangePassword: true, changeToken: found.change_token };
+      }
+
+      // Email OTP required
+      if (found.mfa_required) {
+        return { success: true, mfaRequired: true, mfaToken: found.mfa_token, emailHint: found.email_hint };
+      }
+
+      // Authenticator TOTP required (organizers)
+      if (found.totp_required) {
+        return {
+          success: true,
+          totpRequired: true,
+          mfaToken: found.mfa_token,
+          firstTime: found.first_time,
+          qrCode: found.qr_code,
+        };
+      }
+
       const session = {
         id: found.id,
         email: found.email,
@@ -72,6 +94,96 @@ export const AuthProvider = ({ children }) => {
       return { success: true, redirectTo: redirectForRole(found.role) };
     } catch (e) {
       return { success: false, error: e.message || 'Login failed.' };
+    }
+  };
+
+  const verifyOtp = async (mfaToken, otp) => {
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfa_token: mfaToken, otp }),
+      });
+      const found = await res.json();
+      if (!res.ok) return { success: false, error: found.error || 'Verification failed.' };
+      const session = {
+        id: found.id,
+        email: found.email,
+        full_name: found.full_name,
+        role: found.role,
+        company: found.company || '',
+      };
+      localStorage.setItem('minecon_user', JSON.stringify(session));
+      setUser(session);
+      setIsAuthenticated(true);
+      return { success: true, redirectTo: redirectForRole(found.role) };
+    } catch (e) {
+      return { success: false, error: e.message || 'Verification failed.' };
+    }
+  };
+
+  const changePassword = async (changeToken, newPassword) => {
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ change_token: changeToken, new_password: newPassword }),
+      });
+      const found = await res.json();
+      if (!res.ok) return { success: false, error: found.error || 'Password change failed.' };
+      // Server issues TOTP challenge immediately after password change
+      if (found.totp_required) {
+        return {
+          success: true,
+          totpRequired: true,
+          mfaToken: found.mfa_token,
+          firstTime: found.first_time,
+          qrCode: found.qr_code,
+        };
+      }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || 'Password change failed.' };
+    }
+  };
+
+  const verifyTotp = async (mfaToken, code) => {
+    try {
+      const res = await fetch('/api/auth/totp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfa_token: mfaToken, code }),
+      });
+      const found = await res.json();
+      if (!res.ok) return { success: false, error: found.error || 'Verification failed.' };
+      const session = {
+        id: found.id,
+        email: found.email,
+        full_name: found.full_name,
+        role: found.role,
+        company: found.company || '',
+      };
+      localStorage.setItem('minecon_user', JSON.stringify(session));
+      setUser(session);
+      setIsAuthenticated(true);
+      return { success: true, redirectTo: redirectForRole(found.role) };
+    } catch (e) {
+      return { success: false, error: e.message || 'Verification failed.' };
+    }
+  };
+
+  const resendOtp = async (mfaToken) => {
+    try {
+      const res = await fetch('/api/auth/otp/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfa_token: mfaToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.error || 'Could not resend code.' };
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || 'Could not resend code.' };
     }
   };
 
@@ -131,6 +243,10 @@ export const AuthProvider = ({ children }) => {
       appPublicSettings,
       authChecked,
       login,
+      changePassword,
+      verifyOtp,
+      verifyTotp,
+      resendOtp,
       register,
       setSession,
       logout,
