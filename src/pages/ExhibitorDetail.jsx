@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, VirtualEnquiry } from '@/api/entities';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { useAuth } from '@/lib/AuthContext';
 import { track } from '@/lib/tracking';
 import TierBadge from '@/components/ui/TierBadge';
 import {
   ArrowLeft, Globe, Mail, Phone, Calendar, MapPin,
-  Video, Send, CheckCircle, FileText, ExternalLink, ImagePlus
+  Video, Send, CheckCircle, FileText, ExternalLink, ImagePlus, Lock, LogIn, UserPlus
 } from 'lucide-react';
 
 export default function ExhibitorDetail() {
@@ -21,9 +22,21 @@ export default function ExhibitorDetail() {
     queryFn: () => Exhibitor.get(id),
   });
 
+  const { user, isAuthenticated } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', company: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setForm(f => ({
+        ...f,
+        name: user.full_name || f.name,
+        email: user.email || f.email,
+        company: user.company || f.company,
+      }));
+    }
+  }, [user]);
 
   const enquireMutation = useMutation({
     mutationFn: (data) => VirtualEnquiry.create(data),
@@ -243,7 +256,20 @@ export default function ExhibitorDetail() {
               </div>
               <p className="text-xs text-muted-foreground mb-4">Send a message directly to {ex.name} and they'll follow up with you.</p>
 
-              {submitted ? (
+              {!isAuthenticated ? (
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <Lock className="w-6 h-6 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Sign in to send an enquiry.</p>
+                  <div className="flex gap-2">
+                    <Link to="/login" className="flex items-center gap-1.5 bg-amber text-white text-xs font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity">
+                      <LogIn className="w-3.5 h-3.5" /> Sign In
+                    </Link>
+                    <Link to="/register" className="flex items-center gap-1.5 border border-border text-xs font-semibold px-4 py-2 rounded-lg hover:bg-muted transition-colors">
+                      <UserPlus className="w-3.5 h-3.5" /> Create Account
+                    </Link>
+                  </div>
+                </div>
+              ) : submitted ? (
                 <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
                   <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                   <div>
@@ -253,36 +279,14 @@ export default function ExhibitorDetail() {
                 </div>
               ) : (
                 <form onSubmit={handleEnquire} className="space-y-3">
+                  {/* Locked account fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Name *</label>
-                      <input
-                        value={form.name}
-                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        placeholder="Your name"
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Email *</label>
-                      <input
-                        type="email"
-                        value={form.email}
-                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                        placeholder="your@email.com"
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber"
-                      />
-                    </div>
+                    <LockedField icon={<Mail className="w-3.5 h-3.5" />} value={form.name} label="Name" />
+                    <LockedField icon={<Mail className="w-3.5 h-3.5" />} value={form.email} label="Email" />
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Company</label>
-                    <input
-                      value={form.company}
-                      onChange={e => setForm(f => ({ ...f, company: e.target.value }))}
-                      placeholder="Your company (optional)"
-                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber"
-                    />
-                  </div>
+                  {form.company && (
+                    <LockedField icon={<Mail className="w-3.5 h-3.5" />} value={form.company} label="Company" />
+                  )}
                   <div>
                     <label className="text-xs font-medium text-muted-foreground block mb-1">Message</label>
                     <textarea
@@ -308,6 +312,16 @@ export default function ExhibitorDetail() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function LockedField({ icon, value, label }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted text-sm text-foreground">
+      <span className="text-muted-foreground flex-shrink-0">{icon}</span>
+      <span className="flex-1 truncate">{value || <span className="text-muted-foreground">{label}</span>}</span>
+      <Lock className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
     </div>
   );
 }
