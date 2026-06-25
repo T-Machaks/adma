@@ -71,7 +71,7 @@ function confirmationHtml(r) {
 
       <!-- Footer -->
       <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 24px;text-align:center;">
-        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">MineCon 2026 · Harare International Conference Centre, Zimbabwe</p>
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">MineCon 2026 · Artfarm Grounds, Pomona, Harare, Zimbabwe</p>
         <p style="margin:0;color:#cbd5e1;font-size:11px;">If you did not register for this event, please ignore this email.</p>
       </div>
     </div>`;

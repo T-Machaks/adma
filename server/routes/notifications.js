@@ -44,7 +44,7 @@ function header(preheader = '') {
 function footer() {
   return `</div>
     <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 24px;text-align:center;">
-      <p style="margin:0;color:#94a3b8;font-size:11px;">MineCon 2026 · Harare International Conference Centre, Zimbabwe</p>
+      <p style="margin:0;color:#94a3b8;font-size:11px;">MineCon 2026 · Artfarm Grounds, Pomona, Harare, Zimbabwe</p>
     </div>
     </div>`;
 }
