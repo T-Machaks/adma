@@ -1,6 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Bot, Loader2, UserPlus, LogIn } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+
+const BUBBLE_SIZE = 52;
+const PANEL_W = 384; // sm:w-96
+const PANEL_H = 520;
+const EDGE_PAD = 12;
+const STORAGE_KEY = 'minecon_chat_pos';
 
 const PROMPTS_BY_ROLE = {
   exhibitor: ['My meeting requests', 'Book a meeting', 'Event announcements'],
@@ -8,6 +14,29 @@ const PROMPTS_BY_ROLE = {
 };
 
 const BOOKING_KEYWORDS = /\b(book|meeting|meet|schedule|appointment|enquir|request a meet|contact exhibitor)\b/i;
+
+function clamp(val, min, max) { return Math.min(Math.max(val, min), max); }
+
+function defaultPos() {
+  return {
+    x: window.innerWidth  - BUBBLE_SIZE - EDGE_PAD,
+    y: window.innerHeight - BUBBLE_SIZE - 80,
+  };
+}
+
+function loadPos() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+      // re-clamp in case viewport changed since last visit
+      return {
+        x: clamp(saved.x, EDGE_PAD, window.innerWidth  - BUBBLE_SIZE - EDGE_PAD),
+        y: clamp(saved.y, EDGE_PAD, window.innerHeight - BUBBLE_SIZE - EDGE_PAD),
+      };
+    }
+  } catch {}
+  return defaultPos();
+}
 
 function AuthGate() {
   return (
@@ -33,58 +62,89 @@ function AuthGate() {
 
 export default function ChatWidget() {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]       = useState(false);
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [input, setInput]     = useState('');
   const [loading, setLoading] = useState(false);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-  const sessionId = useRef(crypto.randomUUID());
+  const [pos, setPos]         = useState(loadPos);
+  const [dragging, setDragging] = useState(false);
+
+  const bottomRef  = useRef(null);
+  const inputRef   = useRef(null);
+  const sessionId  = useRef(crypto.randomUUID());
+  const dragState  = useRef(null); // { startX, startY, origX, origY, moved }
 
   const suggestedPrompts = PROMPTS_BY_ROLE[user?.role] ?? PROMPTS_BY_ROLE.default;
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
+  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
 
-  useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+  // ── Drag logic ──────────────────────────────────────────────────────────────
+  const onPointerDown = useCallback((e) => {
+    e.preventDefault();
+    dragState.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, moved: false };
+    setDragging(false);
 
+    function onMove(ev) {
+      const dx = ev.clientX - dragState.current.startX;
+      const dy = ev.clientY - dragState.current.startY;
+      if (!dragState.current.moved && Math.hypot(dx, dy) < 6) return;
+      dragState.current.moved = true;
+      setDragging(true);
+      const nx = clamp(dragState.current.origX + dx, EDGE_PAD, window.innerWidth  - BUBBLE_SIZE - EDGE_PAD);
+      const ny = clamp(dragState.current.origY + dy, EDGE_PAD, window.innerHeight - BUBBLE_SIZE - EDGE_PAD);
+      setPos({ x: nx, y: ny });
+    }
+
+    function onUp(ev) {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup',   onUp);
+      if (dragState.current.moved) {
+        const dx = ev.clientX - dragState.current.startX;
+        const dy = ev.clientY - dragState.current.startY;
+        const nx = clamp(dragState.current.origX + dx, EDGE_PAD, window.innerWidth  - BUBBLE_SIZE - EDGE_PAD);
+        const ny = clamp(dragState.current.origY + dy, EDGE_PAD, window.innerHeight - BUBBLE_SIZE - EDGE_PAD);
+        const finalPos = { x: nx, y: ny };
+        setPos(finalPos);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(finalPos));
+      }
+      setTimeout(() => setDragging(false), 0);
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup',   onUp);
+  }, [pos]);
+
+  function handleBubbleClick() {
+    if (!dragState.current?.moved) setOpen(o => !o);
+  }
+
+  // ── Chat panel position: anchor above/beside bubble ──────────────────────
+  const panelW = Math.min(PANEL_W, window.innerWidth - 2 * EDGE_PAD);
+  const panelLeft = clamp(pos.x + BUBBLE_SIZE / 2 - panelW / 2, EDGE_PAD, window.innerWidth - panelW - EDGE_PAD);
+  const spaceBelow = window.innerHeight - pos.y - BUBBLE_SIZE;
+  const panelTop = spaceBelow >= PANEL_H + 8
+    ? pos.y + BUBBLE_SIZE + 8
+    : Math.max(EDGE_PAD, pos.y - PANEL_H - 8);
+
+  // ── Message send ────────────────────────────────────────────────────────────
   function pushAuthGate(userText) {
-    setMessages(prev => [
-      ...prev,
-      { role: 'user', content: userText },
-      { role: 'gate' },
-    ]);
+    setMessages(prev => [...prev, { role: 'user', content: userText }, { role: 'gate' }]);
     setInput('');
   }
 
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
-
-    if (!user && BOOKING_KEYWORDS.test(text)) {
-      pushAuthGate(text);
-      return;
-    }
-
+    if (!user && BOOKING_KEYWORDS.test(text)) { pushAuthGate(text); return; }
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setInput('');
     setLoading(true);
-
     try {
-      const res = await fetch('/api/chat', {
+      const res  = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          sessionId: sessionId.current,
-          userName:    user?.full_name,
-          userEmail:   user?.email,
-          userRole:    user?.role,
-          userCompany: user?.company,
-        }),
+        body: JSON.stringify({ message: text, sessionId: sessionId.current, userName: user?.full_name, userEmail: user?.email, userRole: user?.role, userCompany: user?.company }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -97,10 +157,7 @@ export default function ChatWidget() {
   }
 
   function handlePromptClick(p) {
-    if (!user && BOOKING_KEYWORDS.test(p)) {
-      setMessages([{ role: 'gate' }]);
-      return;
-    }
+    if (!user && BOOKING_KEYWORDS.test(p)) { setMessages([{ role: 'gate' }]); return; }
     setInput(p);
     inputRef.current?.focus();
   }
@@ -113,9 +170,10 @@ export default function ChatWidget() {
     <>
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-36 right-4 z-50 w-80 sm:w-96 flex flex-col rounded-xl shadow-2xl border border-white/10 bg-[#1a2332] overflow-hidden"
-          style={{ maxHeight: 'calc(100vh - 10rem)' }}>
-
+        <div
+          className="fixed z-50 flex flex-col rounded-xl shadow-2xl border border-white/10 bg-[#1a2332] overflow-hidden"
+          style={{ left: panelLeft, top: panelTop, width: panelW, maxHeight: Math.min(PANEL_H, window.innerHeight - 2 * EDGE_PAD) }}
+        >
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 bg-amber/10 border-b border-white/10">
             <Bot size={18} className="text-amber" />
@@ -147,9 +205,7 @@ export default function ChatWidget() {
                 : (
                   <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`rounded-lg px-3 py-2 text-sm max-w-[85%] whitespace-pre-wrap leading-relaxed ${
-                      m.role === 'user'
-                        ? 'bg-amber text-slate-900 font-medium'
-                        : 'bg-gray-700 text-gray-100 border border-gray-600'
+                      m.role === 'user' ? 'bg-amber text-slate-900 font-medium' : 'bg-gray-700 text-gray-100 border border-gray-600'
                     }`}>
                       {m.content}
                     </div>
@@ -168,7 +224,7 @@ export default function ChatWidget() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Suggested prompts — only before first message */}
+          {/* Suggested prompts */}
           {messages.length === 0 && (
             <div className="px-3 pb-2 flex flex-wrap gap-1">
               {suggestedPrompts.map(p => (
@@ -200,11 +256,12 @@ export default function ChatWidget() {
         </div>
       )}
 
-      {/* Floating button */}
+      {/* Floating bubble — draggable */}
       <button
-        onClick={() => setOpen(o => !o)}
-        className="fixed bottom-20 right-4 z-50 w-13 h-13 rounded-full bg-amber hover:bg-amber/80 shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-        style={{ width: '52px', height: '52px' }}
+        onPointerDown={onPointerDown}
+        onClick={handleBubbleClick}
+        className={`fixed z-50 rounded-full bg-amber shadow-lg flex items-center justify-center transition-transform select-none touch-none ${dragging ? 'scale-110 cursor-grabbing' : 'hover:scale-105 active:scale-95 cursor-grab'}`}
+        style={{ left: pos.x, top: pos.y, width: BUBBLE_SIZE, height: BUBBLE_SIZE }}
         aria-label="Open MineCon Assistant"
       >
         {open ? <X size={22} className="text-slate-900" /> : <MessageCircle size={22} className="text-slate-900" />}
