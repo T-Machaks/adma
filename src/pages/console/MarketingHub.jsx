@@ -114,6 +114,7 @@ export default function MarketingHub() {
   const [selectedAdPage, setSelectedAdPage] = useState(null);
   const [editUrl, setEditUrl] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   // Data queries
   const { data: adSlots = [] } = useQuery({
@@ -163,6 +164,7 @@ export default function MarketingHub() {
     if (selectedAdPage) {
       setEditUrl(pageConfigMap[selectedAdPage]?.click_url || '');
       setEditImageUrl(pageConfigMap[selectedAdPage]?.image_url || '');
+      setImageLoadError(false);
     }
   }, [selectedAdPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -192,12 +194,16 @@ export default function MarketingHub() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['guide-pages'] }),
   });
 
-  const handleSavePageConfig = () => {
+  const handleSaveImageUrl = () => {
+    if (!selectedAdPage || !editImageUrl.trim()) return;
+    const existing = pageConfigMap[selectedAdPage] || {};
+    updatePageMutation.mutate({ pageNum: selectedAdPage, data: { ...existing, image_url: editImageUrl.trim() } });
+  };
+
+  const handleSaveClickUrl = () => {
     if (!selectedAdPage) return;
     const existing = pageConfigMap[selectedAdPage] || {};
-    const data = { ...existing, click_url: editUrl };
-    if (editImageUrl.trim()) data.image_url = editImageUrl.trim();
-    updatePageMutation.mutate({ pageNum: selectedAdPage, data });
+    updatePageMutation.mutate({ pageNum: selectedAdPage, data: { ...existing, click_url: editUrl.trim() } });
   };
 
   // Mutations — AdSlot
@@ -435,37 +441,59 @@ export default function MarketingHub() {
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4 p-4">
-                  {/* Image URL */}
+                  {/* Image URL — live preview */}
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Ad Image</p>
                     <div className="relative rounded-xl overflow-hidden border border-border bg-muted" style={{ aspectRatio: '3/4', maxHeight: 240 }}>
-                      {imageUrl ? (
-                        <img src={imageUrl} alt={page?.advertiser} className="absolute inset-0 w-full h-full object-cover" />
+                      {editImageUrl && !imageLoadError ? (
+                        <img
+                          src={editImageUrl}
+                          alt={page?.advertiser}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onLoad={() => setImageLoadError(false)}
+                          onError={() => setImageLoadError(true)}
+                        />
+                      ) : imageLoadError ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-red-500 bg-red-50 dark:bg-red-950/20">
+                          <ImageIcon className="w-7 h-7" />
+                          <span className="text-[10px] font-semibold">Cannot load image</span>
+                        </div>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                           <ImageIcon className="w-8 h-8" />
                         </div>
                       )}
-                      {config.image_url && (
-                        <div className="absolute top-2 left-2 rounded px-1.5 py-0.5 text-white text-[9px] font-bold" style={{ background: '#f59e0b' }}>Custom</div>
+                      {editImageUrl && editImageUrl === config.image_url && (
+                        <div className="absolute top-2 left-2 rounded px-1.5 py-0.5 text-white text-[9px] font-bold" style={{ background: '#f59e0b' }}>Saved</div>
+                      )}
+                      {editImageUrl && editImageUrl !== config.image_url && !imageLoadError && (
+                        <div className="absolute top-2 left-2 rounded px-1.5 py-0.5 text-white text-[9px] font-bold bg-blue-500">Preview</div>
                       )}
                     </div>
-                    <div className="mt-2 flex gap-2">
-                      <div className="relative flex-1">
+                    <div className="mt-2 space-y-2">
+                      <div className="relative">
                         <ImageIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                         <input
                           type="url"
-                          placeholder="S3 URL or https://…"
+                          placeholder="https://minecon.s3.af-south-1.amazonaws.com/magazines/ads/…"
                           value={editImageUrl}
-                          onChange={e => setEditImageUrl(e.target.value)}
+                          onChange={e => { setEditImageUrl(e.target.value); setImageLoadError(false); }}
                           className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-amber"
                         />
                       </div>
+                      <button
+                        onClick={handleSaveImageUrl}
+                        disabled={!editImageUrl.trim() || imageLoadError || isSaving}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      >
+                        {isSaving ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check className="w-3 h-3" />}
+                        Save Image
+                      </button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">Paste an S3 path or any public image URL</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Preview updates live · paste S3 or any public URL</p>
                   </div>
 
-                  {/* URL + analytics */}
+                  {/* Click URL + analytics */}
                   <div className="space-y-4">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Click URL</p>
@@ -477,11 +505,22 @@ export default function MarketingHub() {
                             placeholder="https://advertiser.com"
                             value={editUrl}
                             onChange={e => setEditUrl(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber"
+                            className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-amber"
                           />
                         </div>
+                        {editUrl && (
+                          <a
+                            href={editUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center px-2.5 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            title="Test link"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
                         <button
-                          onClick={handleSavePageConfig}
+                          onClick={handleSaveClickUrl}
                           disabled={isSaving}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
                         >
@@ -489,7 +528,7 @@ export default function MarketingHub() {
                           Save
                         </button>
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">Visitors will be taken to this URL when they click the ad image.</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Where visitors go when they tap the ad · use full https:// URL</p>
                     </div>
 
                     {/* Analytics */}
