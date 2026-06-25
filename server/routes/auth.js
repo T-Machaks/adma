@@ -131,8 +131,8 @@ router.post('/login', async (req, res) => {
       return res.json({ must_change_password: true, change_token: token });
     }
 
-    // Organizers → TOTP (authenticator app)
-    if (user.role === 'organizer') {
+    // Organizers + superadmin → TOTP (authenticator app)
+    if (user.role === 'organizer' || user.role === 'superadmin') {
       const token = newToken();
 
       if (!user.totp_secret) {

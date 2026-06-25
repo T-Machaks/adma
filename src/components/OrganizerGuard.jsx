@@ -17,7 +17,7 @@ export default function OrganizerGuard() {
     return <Navigate to="/console/login" replace />;
   }
 
-  if (user.role !== 'organizer') {
+  if (user.role !== 'organizer' && user.role !== 'superadmin') {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background px-6">
         <div className="max-w-sm w-full bg-card border border-border rounded-2xl p-8 text-center">

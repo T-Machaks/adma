@@ -4,7 +4,7 @@ import { User } from '@/api/entities';
 const AuthContext = createContext();
 
 // Roles with console access
-const CONSOLE_ROLES = ['organizer', 'marketing_partner'];
+const CONSOLE_ROLES = ['organizer', 'marketing_partner', 'superadmin'];
 // Roles with exhibitor portal access
 const EXHIBITOR_ROLES = ['exhibitor'];
 

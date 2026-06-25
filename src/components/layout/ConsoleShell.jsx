@@ -8,20 +8,21 @@ import MineConLogo from './MineConLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
 
 const consoleNav = [
-  { path: '/console',                label: 'Dashboard',        icon: LayoutDashboard, exact: true, roles: ['organizer', 'marketing_partner'] },
-  { path: '/console/registrations',  label: 'Registrations',    icon: Users,                        roles: ['organizer'] },
-  { path: '/console/check-in',       label: 'Gate Check-In',    icon: ScanLine,                     roles: ['organizer'] },
-  { path: '/console/analytics',      label: 'Analytics',        icon: BarChart2,                    roles: ['organizer', 'marketing_partner'] },
-  { path: '/console/communications', label: 'Communications',   icon: MessageSquare,                roles: ['organizer'] },
-  { path: '/console/marketing',      label: 'Marketing Hub',    icon: Megaphone,                    roles: ['marketing_partner'] },
-  { path: '/console/exhibitor-applications', label: 'Exhibitor Applications', icon: ClipboardList, roles: ['organizer'] },
-  { path: '/console/users',          label: 'Users & Roles',    icon: UserCog,                      roles: ['organizer'] },
-  { path: '/console/admin',          label: 'Admin & Security', icon: Shield,                       roles: ['organizer'] },
+  { path: '/console',                label: 'Dashboard',        icon: LayoutDashboard, exact: true, roles: ['organizer', 'marketing_partner', 'superadmin'] },
+  { path: '/console/registrations',  label: 'Registrations',    icon: Users,                        roles: ['organizer', 'superadmin'] },
+  { path: '/console/check-in',       label: 'Gate Check-In',    icon: ScanLine,                     roles: ['organizer', 'superadmin'] },
+  { path: '/console/analytics',      label: 'Analytics',        icon: BarChart2,                    roles: ['organizer', 'marketing_partner', 'superadmin'] },
+  { path: '/console/communications', label: 'Communications',   icon: MessageSquare,                roles: ['organizer', 'superadmin'] },
+  { path: '/console/marketing',      label: 'Marketing Hub',    icon: Megaphone,                    roles: ['marketing_partner', 'superadmin'] },
+  { path: '/console/exhibitor-applications', label: 'Exhibitor Applications', icon: ClipboardList, roles: ['organizer', 'superadmin'] },
+  { path: '/console/users',          label: 'Users & Roles',    icon: UserCog,                      roles: ['organizer', 'superadmin'] },
+  { path: '/console/admin',          label: 'Admin & Security', icon: Shield,                       roles: ['organizer', 'superadmin'] },
 ];
 
 const ROLE_LABELS = {
   organizer:         'Organizer',
   marketing_partner: 'Marketing Partner',
+  superadmin:        'Super Admin',
 };
 
 export default function ConsoleShell() {

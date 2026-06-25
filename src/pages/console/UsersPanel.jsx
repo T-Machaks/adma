@@ -40,8 +40,11 @@ export default function UsersPanel() {
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
   const isOrganizer = currentUser?.role === 'organizer';
-  // Organizers cannot create or assign the marketing_partner role
-  const assignableRoles = isOrganizer ? ROLES.filter(r => r.id !== 'marketing_partner') : ROLES;
+  // superadmin role is never assignable or visible in the users panel
+  // organizers additionally cannot assign marketing_partner
+  const assignableRoles = ROLES.filter(r =>
+    r.id !== 'superadmin' && !(isOrganizer && r.id === 'marketing_partner')
+  );
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -93,12 +96,13 @@ export default function UsersPanel() {
   };
 
   const filtered = users.filter(u => {
+    if (u.role === 'superadmin') return false; // superadmin is always hidden
     const matchSearch = !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()) || u.company?.toLowerCase().includes(search.toLowerCase());
     const matchRole = roleFilter === 'all' || u.role === roleFilter;
     return matchSearch && matchRole;
   });
 
-  const counts = ROLES.reduce((acc, r) => { acc[r.id] = users.filter(u => u.role === r.id).length; return acc; }, {});
+  const counts = ROLES.reduce((acc, r) => { acc[r.id] = users.filter(u => u.role === r.id && u.role !== 'superadmin').length; return acc; }, {});
 
   return (
     <div className="pb-12 px-4 sm:px-6 pt-6 max-w-5xl mx-auto">

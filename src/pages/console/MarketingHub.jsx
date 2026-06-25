@@ -299,7 +299,7 @@ export default function MarketingHub() {
 
   const toggle = (section) => setExpandedSection(v => v === section ? null : section);
 
-  if (user?.role !== 'marketing_partner') {
+  if (user?.role !== 'marketing_partner' && user?.role !== 'superadmin') {
     return <Navigate to="/console" replace />;
   }
 
