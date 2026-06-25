@@ -90,10 +90,6 @@ export default function Register() {
     }
   };
 
-  const total = registrations.length;
-  const byRole = ROLE_TYPES.map(r => ({ ...r, count: registrations.filter(reg => reg.role_type === r.value).length }));
-  const confirmed = registrations.filter(r => r.status === 'Confirmed' || r.status === 'Checked In').length;
-
   return (
     <div className="pb-24 max-w-2xl lg:max-w-3xl mx-auto px-4 pt-5">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Event Registration</h1>
@@ -113,22 +109,6 @@ export default function Register() {
         </div>
         <ArrowRight className="w-4 h-4 text-amber flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
       </Link>
-
-      {/* Admin summary */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-card border border-border rounded-xl p-3 text-center">
-          <p className="font-heading text-2xl font-bold text-amber">{total}</p>
-          <p className="text-xs text-muted-foreground">Total</p>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-3 text-center">
-          <p className="font-heading text-2xl font-bold text-emerald-500">{confirmed}</p>
-          <p className="text-xs text-muted-foreground">Confirmed</p>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-3 text-center">
-          <p className="font-heading text-2xl font-bold text-blue-500">{registrations.filter(r => r.role_type === 'Attendee').length}</p>
-          <p className="text-xs text-muted-foreground">Attendees</p>
-        </div>
-      </div>
 
       {/* Step indicator */}
       {step < 4 && (
@@ -326,46 +306,6 @@ export default function Register() {
         </div>
       )}
 
-      {/* Admin registrations list */}
-      {registrations.length > 0 && step === 1 && (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-heading text-base font-bold uppercase tracking-wide">Recent Registrations</p>
-            <span className="text-xs text-muted-foreground">{total} total</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {byRole.map(r => {
-              const Icon = r.icon;
-              return (
-                <div key={r.value} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
-                  <div className={`w-8 h-8 ${r.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                    <Icon className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-heading font-bold">{r.count}</p>
-                    <p className="text-[10px] text-muted-foreground">{r.value}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="space-y-2">
-            {registrations.slice(0, 10).map(r => (
-              <div key={r.id} className="bg-card border border-border rounded-xl px-4 py-3 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-medium">{r.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{r.company || r.email} · {r.role_type}</p>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  r.status === 'Confirmed' || r.status === 'Checked In' ? 'bg-emerald-100 text-emerald-700' :
-                  r.status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {r.status || 'Pending'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
