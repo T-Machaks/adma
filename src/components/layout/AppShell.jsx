@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Users, Map, Calendar, Info, Bell,
-  LayoutDashboard, QrCode, Menu, X,
+  LayoutDashboard, QrCode, Menu, X, Star, Zap,
   BookOpen, UserCheck, Clock, Shield, ChevronLeft, ChevronRight, Download,
   LogIn, LogOut, UserCircle,
 } from 'lucide-react';
