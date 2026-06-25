@@ -5,19 +5,18 @@ import { crudRouter } from '../lib/crudRouter.js';
 export default crudRouter('minecon_exhibitors', {
   defaults: () => ({ featured: false }),
   extraRoutes(r) {
-    // GET /api/exhibitors/demo-list — active exhibitors for demo login dropdown
+    // GET /api/exhibitors/demo-list — all exhibitors with a linked user account
     r.get('/demo-list', async (req, res) => {
       try {
         const result = await ddb.send(new ScanCommand({
           TableName: 'minecon_exhibitors',
-          FilterExpression: '#s = :s',
-          ExpressionAttributeNames: { '#s': 'status' },
-          ExpressionAttributeValues: { ':s': 'active' },
-          ProjectionExpression: 'id, company_name, logo_url, user_id, tier',
+          ProjectionExpression: 'id, company_name, #n, logo_url, user_id, tier',
+          ExpressionAttributeNames: { '#n': 'name' },
         }));
-        const items = (result.Items || []).sort((a, b) =>
-          (a.company_name || '').localeCompare(b.company_name || '')
-        );
+        const items = (result.Items || [])
+          .filter(e => e.user_id)
+          .map(e => ({ ...e, company_name: e.company_name || e.name }))
+          .sort((a, b) => (a.company_name || '').localeCompare(b.company_name || ''));
         res.json(items);
       } catch (e) {
         res.status(500).json({ error: e.message });
