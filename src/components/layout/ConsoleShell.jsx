@@ -41,7 +41,7 @@ export default function ConsoleShell() {
   const handleLogout = () => {
     setMobileOpen(false);
     logout();
-    navigate('/login', { replace: true });
+    navigate('/console/login', { replace: true });
   };
 
   const UserBlock = () => (

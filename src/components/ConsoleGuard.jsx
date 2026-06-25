@@ -13,7 +13,7 @@ export default function ConsoleGuard() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: '/console', reason: 'auth_required' }} />;
+    return <Navigate to="/console/login" replace state={{ from: '/console', reason: 'auth_required' }} />;
   }
 
   if (!hasConsoleAccess()) {
