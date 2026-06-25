@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, MeetingRequest, Exhibitor } from '@/api/entities';
 import { Shield, User, Building2, Star, Mic, Crown, Lock, Eye, EyeOff, CheckCircle, Settings, ChevronRight, Users, Bell, Mail, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/lib/AuthContext';
 
 const ROLES = [
   { id: 'admin', label: 'Admin', icon: Shield, color: 'bg-red-500', desc: 'Full access to all modules, data, and settings.', perms: ['registrations', 'exhibitors', 'analytics', 'announcements', 'communications', 'settings'] },
@@ -23,12 +24,19 @@ const MODULES = [
 ];
 
 export default function AdminPanel() {
+  const { user } = useAuth();
+  const isOrganizer = user?.role === 'organizer';
+
   const [selectedRole, setSelectedRole] = useState('admin');
   const [showOtp, setShowOtp] = useState(false);
   const [profile, setProfile] = useState({ name: 'Demo Admin', email: 'admin@minecon.global', role: 'admin' });
   const queryClient = useQueryClient();
 
-  const { data: registrations = [] } = useQuery({ queryKey: ['registrations'], queryFn: () => Registration.list() });
+  const { data: registrations = [] } = useQuery({
+    queryKey: ['registrations'],
+    queryFn: () => Registration.list(),
+    enabled: isOrganizer,
+  });
   const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => MeetingRequest.list() });
   const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors-all'], queryFn: () => Exhibitor.list() });
 
@@ -148,8 +156,18 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* Registration management */}
-      {registrations.length > 0 && (
+      {/* Registration management — organizer only */}
+      {!isOrganizer ? (
+        <div className="bg-card border border-border rounded-xl p-6 mb-5 flex items-center gap-4">
+          <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center flex-shrink-0">
+            <Shield className="w-5 h-5 text-red-500" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Registration List Restricted</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Only organizers can view attendee registration records.</p>
+          </div>
+        </div>
+      ) : registrations.length > 0 && (
         <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <p className="font-heading text-sm font-bold uppercase tracking-wide">Registration Management</p>

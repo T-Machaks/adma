@@ -11,6 +11,7 @@ import AppShell from '@/components/layout/AppShell';
 import ConsoleShell from '@/components/layout/ConsoleShell';
 import ExhibitorShell from '@/components/layout/ExhibitorShell';
 import ConsoleGuard from '@/components/ConsoleGuard';
+import OrganizerGuard from '@/components/OrganizerGuard';
 import InstallPromptModal from '@/components/InstallPromptModal';
 import ChatWidget from '@/components/ChatWidget';
 import { PWAInstallProvider } from '@/lib/PWAInstallContext';
@@ -103,15 +104,20 @@ const AuthenticatedApp = () => {
       {/* ── Management Console (organizer + marketing_partner only) ── */}
       <Route element={<ConsoleGuard />}>
         <Route element={<ConsoleShell />}>
-          <Route path="/console"                  element={<Dashboard />} />
-          <Route path="/console/analytics"        element={<Analytics />} />
-          <Route path="/console/admin"            element={<AdminPanel />} />
-          <Route path="/console/communications"   element={<Communications />} />
-          <Route path="/console/registrations"    element={<AdminPanel />} />
-          <Route path="/console/users"            element={<UsersPanel />} />
-          <Route path="/console/check-in"         element={<CheckIn />} />
-          <Route path="/console/marketing"        element={<MarketingHub />} />
-          <Route path="/console/exhibitor-applications" element={<ExhibitorApplications />} />
+          {/* Shared: organizer + marketing_partner */}
+          <Route path="/console"             element={<Dashboard />} />
+          <Route path="/console/analytics"   element={<Analytics />} />
+          <Route path="/console/marketing"   element={<MarketingHub />} />
+
+          {/* Organizer-only */}
+          <Route element={<OrganizerGuard />}>
+            <Route path="/console/registrations"         element={<AdminPanel />} />
+            <Route path="/console/admin"                 element={<AdminPanel />} />
+            <Route path="/console/communications"        element={<Communications />} />
+            <Route path="/console/users"                 element={<UsersPanel />} />
+            <Route path="/console/check-in"              element={<CheckIn />} />
+            <Route path="/console/exhibitor-applications" element={<ExhibitorApplications />} />
+          </Route>
         </Route>
       </Route>
 
