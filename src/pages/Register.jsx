@@ -643,10 +643,28 @@ export default function Register() {
               <p key={s} className="text-xs text-muted-foreground">✓ {s}</p>
             ))}
           </div>
+          {/* Account CTA for guests */}
+          {!user && (
+            <div className="bg-amber/10 border border-amber/30 rounded-2xl p-4 text-left">
+              <p className="text-sm font-bold text-amber mb-1">Access your digital QR badge</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Create a free account to unlock your visitor badge and entry ticket QR code. Your registration links automatically via your email.
+              </p>
+              <Link
+                to={`/signup?email=${encodeURIComponent(created?.email || '')}&name=${encodeURIComponent(created?.full_name || '')}`}
+                className="inline-flex items-center gap-2 bg-amber text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+              >
+                <UserPlus className="w-4 h-4" /> Create free account →
+              </Link>
+            </div>
+          )}
+
           <div className="flex gap-3">
-            <Link to="/qr-resources" className="flex-1 py-3 rounded-xl border border-amber text-amber text-sm font-semibold text-center hover:bg-amber/5 transition-colors">
-              View My Badge
-            </Link>
+            {user && (
+              <Link to="/qr-resources" className="flex-1 py-3 rounded-xl border border-amber text-amber text-sm font-semibold text-center hover:bg-amber/5 transition-colors">
+                View My Badge
+              </Link>
+            )}
             <button onClick={() => {
               setForm({ full_name: '', email: '', phone: '', company: '', role_type: '', ticket_type: '', badge_category: '', notes: '', day1: true, day2: false, day3: false });
               setQuantity(1); setExhibitorTier(''); setAddonQty({});

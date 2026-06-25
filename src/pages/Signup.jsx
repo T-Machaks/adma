@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserPlus, Mail, User, Loader2, Building2, Lock, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,15 @@ function normalizeZimPhone(value) {
 export default function Signup() {
   const { register, setSession } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ full_name: '', email: '', company: '', phone: '', password: '', confirmPassword: '' });
+  const [searchParams] = useSearchParams();
+  const [form, setForm] = useState({
+    full_name: searchParams.get('name') || '',
+    email:     searchParams.get('email') || '',
+    company:   '',
+    phone:     '',
+    password:  '',
+    confirmPassword: '',
+  });
   const [error, setError] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [loading, setLoading] = useState(false);
