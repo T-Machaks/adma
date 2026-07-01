@@ -73,7 +73,7 @@ function findExhibitorForZone(zoneCompany, exhibitors) {
 export default function SitePlan() {
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState(null);
-  const [uploadedUrl, setUploadedUrl] = useState(null);
+  const [uploadedUrl, setUploadedUrl] = useState('/site-plan-2026.png');
   const [uploading, setUploading] = useState(false);
   const [locating, setLocating] = useState(false);
 
@@ -154,7 +154,7 @@ export default function SitePlan() {
               <div className="overflow-auto">
                 <img
                   src={uploadedUrl}
-                  alt="Site floor plan"
+                  alt="ADMA Agri Show 2026 official site plan"
                   style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', transition: 'transform 0.2s' }}
                   className="max-w-none"
                 />
