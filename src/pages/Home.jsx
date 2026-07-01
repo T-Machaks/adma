@@ -51,7 +51,7 @@ export default function Home() {
         <div className="absolute inset-0" style={{background: 'radial-gradient(ellipse at 50% 0%, rgba(249,138,26,0.15) 0%, transparent 60%)'}} />
         <div className="absolute top-0 left-1/2 w-64 h-64 rounded-full blur-3xl bg-amber/20" style={{animation: 'hero-glow 6s ease-in-out infinite'}} />
         <div className="relative max-w-2xl mx-auto text-center">
-          <img src={EVENT_CONFIG.logo.transparent} alt="" className="w-20 h-20 lg:w-28 lg:h-28 object-contain drop-shadow-2xl mx-auto mb-4" />
+          <img src={EVENT_CONFIG.logo.transparent} alt="" className="w-40 h-40 lg:w-56 lg:h-56 object-contain drop-shadow-2xl mx-auto mb-4" />
           <div className="inline-block bg-amber text-white text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-widest uppercase">
             05–07 June 2026
           </div>
