@@ -9,7 +9,38 @@ import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 
 const TABLE = 'adma_users';
+const APP_URL = 'https://adma.tyflex.co.zw';
 const router = Router();
+
+function welcomeHtml(user) {
+  return `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;">
+      <div style="background:#0f2e1c;padding:32px 24px;text-align:center;">
+        <h1 style="margin:0;color:#eab308;font-size:26px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">ADMA Agri Show 2026</h1>
+        <p style="margin:8px 0 0;color:#94a3b8;font-size:13px;">Zimbabwe's Largest Agricultural Exhibition</p>
+      </div>
+      <div style="padding:32px 24px;">
+        <h2 style="margin:0 0 6px;color:#111;font-size:20px;">Account Created ✓</h2>
+        <p style="margin:0 0 24px;color:#555;font-size:15px;">
+          Hi <strong>${user.full_name}</strong>, your ADMA Agri Show account has been created with the email
+          <strong>${user.email}</strong>.
+        </p>
+        <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:24px;">
+          <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Next Steps</p>
+          <ul style="margin:0;padding:0 0 0 16px;color:#555;font-size:13px;line-height:2;">
+            <li>Log in at <a href="${APP_URL}" style="color:#f59e0b;">${APP_URL.replace('https://', '')}</a></li>
+            <li>Register for the event to get your QR badge</li>
+            <li>Browse the exhibitor directory before the event</li>
+          </ul>
+        </div>
+        <a href="${APP_URL}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:13px;padding:10px 24px;border-radius:8px;text-decoration:none;">Log In →</a>
+      </div>
+      <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 24px;text-align:center;">
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">ADMA Agri Show 2026 · ART Farm, Pomona, Harare, Zimbabwe</p>
+        <p style="margin:0;color:#cbd5e1;font-size:11px;">If you did not create this account, please ignore this email.</p>
+      </div>
+    </div>`;
+}
 
 // Superadmins — only these accounts can hold the organizer role and add other organizers
 const SUPERADMIN_EMAILS = ['info@agrishow.co.zw', 'tamuka@tyflex.co.zw'];
@@ -100,6 +131,11 @@ router.post('/signup', async (req, res) => {
     };
     await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
     res.status(201).json(sanitize(user));
+
+    sendOtpEmail(user.email, null, {
+      subject: 'Welcome to ADMA Agri Show 2026 — Account Created',
+      html: welcomeHtml(user),
+    }).catch(e => console.error('Welcome email failed:', e.message));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -370,6 +406,12 @@ async function upsertOAuthUser({ email, full_name, oauth_provider, oauth_id }) {
     oauth_id,
   };
   await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
+
+  sendOtpEmail(user.email, null, {
+    subject: 'Welcome to ADMA Agri Show 2026 — Account Created',
+    html: welcomeHtml(user),
+  }).catch(e => console.error('Welcome email failed:', e.message));
+
   return user;
 }
 

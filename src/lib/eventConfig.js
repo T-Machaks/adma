@@ -135,7 +135,7 @@ export const EVENT_CONFIG = {
 
   // ── App shell UI copy ─────────────────────────────────────────────────────
   nav: {
-    myEventLabel:   `My ${NAME}`,
+    myEventLabel:   'My ADMA',
     installBarCopy: `add ${NAME} to your home screen`,
   },
 };
