@@ -8,7 +8,7 @@
  * coding (Gold/Silver/Bronze).
  */
 import 'dotenv/config';
-import { BatchWriteCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { BatchWriteCommand, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 
 const SEED_EXHIBITORS = [
@@ -258,17 +258,17 @@ const SEED_EXHIBITORS = [
 ];
 
 const SEED_SPONSORS = [
-  { id: 's1', name: 'Afritractors',            tier: 'Platinum', description: 'Zimbabwe\'s leading tractor and implement dealer. Proud Platinum sponsor of ADMA Agri Show 2026.', website: 'https://www.afritractors.co.zw', logo_url: '', featured: true  },
-  { id: 's2', name: 'Agricon',                 tier: 'Platinum', description: 'Comprehensive farm equipment solutions supporting Zimbabwean agriculture.',                        website: 'https://www.agricon.co.zw',      logo_url: '', featured: true  },
-  { id: 's3', name: 'Centre Pivot Irrigation', tier: 'Platinum', description: 'Centre pivot and drip irrigation systems for commercial-scale crop production.',                   website: '',                                logo_url: '', featured: true  },
+  { id: 's1', name: 'Afritractors',            tier: 'Platinum', description: 'Zimbabwe\'s leading tractor and implement dealer. Proud Platinum sponsor of ADMA Agri Show 2026.', website: 'https://www.afritractors.co.zw', logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e01.jpg', featured: true  },
+  { id: 's2', name: 'Agricon',                 tier: 'Platinum', description: 'Comprehensive farm equipment solutions supporting Zimbabwean agriculture.',                        website: 'https://www.agricon.co.zw',      logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e02.jpg', featured: true  },
+  { id: 's3', name: 'Centre Pivot Irrigation', tier: 'Platinum', description: 'Centre pivot and drip irrigation systems for commercial-scale crop production.',                   website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e08.jpg', featured: true  },
   { id: 's4', name: 'Zimplow',                 tier: 'Platinum', description: 'Diversified Zimbabwean industrial group manufacturing implements for agriculture.',                website: 'https://www.zimplow.co.zw',      logo_url: '', featured: false },
-  { id: 's5', name: 'Farmec',                  tier: 'Gold',     description: 'Massey Ferguson tractor and combine harvester dealer for commercial farming operations.',          website: '',                                logo_url: '', featured: false },
-  { id: 's6', name: 'Seedco',                  tier: 'Gold',     description: 'Leading seed breeder and supplier of certified maize, soya and small grain seed varieties.',         website: '',                                logo_url: '', featured: false },
-  { id: 's7', name: 'CBZ Agro-Yield',          tier: 'Gold',     description: 'Agricultural finance and input support products for growing farm businesses.',                     website: '',                                logo_url: '', featured: false },
-  { id: 's8', name: 'Windmill',                tier: 'Silver',   description: 'Fertiliser and agro-chemical manufacturer supplying inputs nationwide.',                            website: '',                                logo_url: '', featured: false },
-  { id: 's9', name: 'Cochrane Pumps',          tier: 'Silver',   description: 'Industrial and irrigation pumps with dewatering and maintenance services.',                         website: '',                                logo_url: '', featured: false },
-  { id: 's10', name: 'Fawcett Security',       tier: 'Bronze',   description: 'Farm and rural security services including guarding and alarm response.',                          website: '',                                logo_url: '', featured: false },
-  { id: 's11', name: 'Ezytrack',               tier: 'Bronze',   description: 'GPS fleet tracking and asset management solutions for farm vehicles and equipment.',                website: '',                                logo_url: '', featured: false },
+  { id: 's5', name: 'Farmec',                  tier: 'Gold',     description: 'Massey Ferguson tractor and combine harvester dealer for commercial farming operations.',          website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e26.jpg', featured: false },
+  { id: 's6', name: 'Seedco',                  tier: 'Gold',     description: 'Leading seed breeder and supplier of certified maize, soya and small grain seed varieties.',         website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e30.jpg', featured: false },
+  { id: 's7', name: 'CBZ Agro-Yield',          tier: 'Gold',     description: 'Agricultural finance and input support products for growing farm businesses.',                     website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e38.png', featured: false },
+  { id: 's8', name: 'Windmill',                tier: 'Silver',   description: 'Fertiliser and agro-chemical manufacturer supplying inputs nationwide.',                            website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e33.jpg', featured: false },
+  { id: 's9', name: 'Cochrane Pumps',          tier: 'Silver',   description: 'Industrial and irrigation pumps with dewatering and maintenance services.',                         website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e63.png', featured: false },
+  { id: 's10', name: 'Fawcett Security',       tier: 'Bronze',   description: 'Farm and rural security services including guarding and alarm response.',                          website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e57.png', featured: false },
+  { id: 's11', name: 'Ezytrack',               tier: 'Bronze',   description: 'GPS fleet tracking and asset management solutions for farm vehicles and equipment.',                website: '',                                logo_url: 'https://adma-zw.s3.af-south-1.amazonaws.com/exhibitor-logos/e58.jpg', featured: false },
 ];
 
 const SEED_ANNOUNCEMENTS = [
@@ -291,6 +291,19 @@ async function batchWrite(table, items) {
     await ddb.send(new BatchWriteCommand({ RequestItems: { [table]: chunk } }));
   }
   console.log(`✓ ${table}: ${items.length} items`);
+}
+
+// Preserve exhibitor-portal login links (user_id) across re-seeds — a plain
+// PutRequest replaces the whole item, which would otherwise silently orphan
+// every exhibitor's linked account each time this script runs.
+const { Items: existingExhibitors = [] } = await ddb.send(new ScanCommand({ TableName: 'adma_exhibitors' }));
+const existingById = new Map(existingExhibitors.map(e => [e.id, e]));
+for (const exh of SEED_EXHIBITORS) {
+  const prev = existingById.get(exh.id);
+  if (prev?.user_id) {
+    exh.user_id = prev.user_id;
+    exh.status = prev.status;
+  }
 }
 
 await batchWrite('adma_exhibitors',    SEED_EXHIBITORS);
