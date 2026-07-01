@@ -7,10 +7,10 @@ import { Label } from '@/components/ui/label';
 import AuthLayout from '@/components/AuthLayout';
 
 const TIERS = [
-  { value: 'Diamond', label: 'Diamond', desc: 'Premium placement, maximum visibility', color: 'text-cyan-400' },
-  { value: 'Gold',    label: 'Gold',    desc: 'High-profile booth, featured listing',  color: 'text-amber-400' },
-  { value: 'Chrome',  label: 'Chrome',  desc: 'Standard exhibitor listing',             color: 'text-slate-400' },
-  { value: 'Copper',  label: 'Copper',  desc: 'Entry-level presence',                  color: 'text-orange-600' },
+  { value: 'Platinum', label: 'Platinum', desc: 'Premium positioning, maximum visibility', color: 'text-emerald-500' },
+  { value: 'Gold',      label: 'Gold',      desc: 'High-profile booth, featured listing',   color: 'text-amber-400' },
+  { value: 'Silver',    label: 'Silver',    desc: 'Standard exhibitor listing',             color: 'text-slate-400' },
+  { value: 'Bronze',    label: 'Bronze',    desc: 'Entry-level presence',                   color: 'text-orange-700' },
 ];
 
 const MAX_DESC = 150;
@@ -128,7 +128,7 @@ export default function ExhibitorApply() {
     <AuthLayout
       icon={Building2}
       title="Exhibitor Application"
-      subtitle="Apply to exhibit at MineCon 2026 — subject to organizer approval"
+      subtitle="Apply to exhibit at ADMA Agri Show 2026 — subject to organizer approval"
       footer={
         <>
           Already have an account?{' '}

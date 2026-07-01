@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { Shield } from 'lucide-react';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 export default function OrganizerGuard() {
   const { user, isLoadingAuth, authChecked } = useAuth();
@@ -26,7 +27,7 @@ export default function OrganizerGuard() {
           </div>
           <h2 className="text-lg font-bold mb-2">Organizer Access Only</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            This section is restricted to MineCon organizers.
+            This section is restricted to {EVENT_CONFIG.eventName} organizers.
           </p>
           <a href="/console" className="inline-block w-full py-2.5 rounded-xl bg-amber text-white text-sm font-semibold hover:opacity-90 transition-opacity">
             Back to Dashboard

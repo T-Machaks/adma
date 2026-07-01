@@ -13,7 +13,7 @@ const ddb = DynamoDBDocumentClient.from(rawDdb, { marshallOptions: { removeUndef
 
 const AGENT_ID    = '6KLVWZQPR7';
 const AGENT_ALIAS = 'IOIIMEPX6A';
-const TABLE       = 'minecon_meeting_requests';
+const TABLE       = 'adma_meeting_requests';
 
 router.post('/', async (req, res) => {
   try {

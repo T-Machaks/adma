@@ -1,13 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
-const SEEN_KEY = 'pwa-prompt-seen';
-
 const PWAInstallContext = createContext(null);
 
 export function PWAInstallProvider({ children }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [seen, setSeen] = useState(() => localStorage.getItem(SEEN_KEY) === '1');
-  const [modalForced, setModalForced] = useState(false);
 
   const isStandalone =
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -32,22 +28,11 @@ export function PWAInstallProvider({ children }) {
     return outcome === 'accepted';
   };
 
-  const markSeen = () => {
-    localStorage.setItem(SEEN_KEY, '1');
-    setSeen(true);
-    setModalForced(false);
-  };
-
-  const openModal = () => setModalForced(true);
-
   const value = {
-    showPopup: !isStandalone && (!seen || modalForced),
     showMenuLink: !isStandalone,
     isIOS,
     hasBrowserPrompt: !!deferredPrompt,
     promptInstall,
-    markSeen,
-    openModal,
   };
 
   return (

@@ -4,9 +4,9 @@ import { ScanCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 
-const USER_TABLE = 'minecon_users';
-const EXH_TABLE  = 'minecon_exhibitors';
-const DEMO_PASSWORD = '@MineCon2026';
+const USER_TABLE = 'adma_users';
+const EXH_TABLE  = 'adma_exhibitors';
+const DEMO_PASSWORD = '@AgriShow2026';
 
 const password_hash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
@@ -19,7 +19,7 @@ for (const exh of exhibitors) {
 
   const displayName = exh.company_name || exh.name || exh.id;
   const slug = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  const email = `${slug}.${exh.id}@portal.minecon.global`;
+  const email = `${slug}.${exh.id}@portal.agrishow.co.zw`;
 
   const userId = generateId();
   await ddb.send(new PutCommand({

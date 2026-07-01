@@ -46,26 +46,26 @@ const ALL_MAGAZINE_PAGES = [
   { num: '1',  type: 'editorial', title: 'Cover',              defaultImage: null },
   { num: '2',  type: 'editorial', title: 'Welcome',            defaultImage: null },
   { num: '3',  type: 'editorial', title: 'Contents',           defaultImage: null },
-  { num: '4',  type: 'interactive', advertiser: 'SANY Group',       defaultImage: '/magazines/sany/excavator.jpg',   desc: 'Auto-rotating product carousel' },
+  { num: '4',  type: 'interactive', advertiser: 'Afritractors',        defaultImage: '/magazines/adma-pages/page-004.jpg', desc: 'Auto-rotating product carousel' },
   { num: '5',  type: 'editorial', title: 'Event Overview',     defaultImage: null },
-  { num: '6',  type: 'image',     advertiser: 'Elimobil',          defaultImage: '/magazines/ads/ad-elimobil.jpg',  desc: 'Full-page image ad' },
-  { num: '7',  type: 'video',     advertiser: 'Jetmaster',         defaultImage: '/magazines/ads/ad-jetmaster.jpg', desc: 'Image + video embed' },
+  { num: '6',  type: 'image',     advertiser: 'Centre Pivot Irrigation', defaultImage: '/magazines/adma-pages/page-006.jpg', desc: 'Full-page image ad' },
+  { num: '7',  type: 'video',     advertiser: 'Cloverleaf Motors',     defaultImage: '/magazines/adma-pages/page-007.jpg', desc: 'Image + video embed' },
   { num: '8',  type: 'editorial', title: 'Site Plan',          defaultImage: null },
   { num: '9',  type: 'editorial', title: 'Industry Insight',   defaultImage: null },
-  { num: '10', type: 'image',     advertiser: 'Zambezi Gas & Coal', defaultImage: '/magazines/ads/ad-zambezi.jpg',   desc: 'Full-page image ad' },
+  { num: '10', type: 'image',     advertiser: 'Brown Engineering Group', defaultImage: '/magazines/adma-pages/page-010.jpg', desc: 'Full-page image ad' },
   { num: '11', type: 'editorial', title: 'Exhibitor Dir.',     defaultImage: null },
-  { num: '12', type: 'image',     advertiser: 'Zimtile',           defaultImage: '/magazines/ads/ad-zimtile.jpg',   desc: 'Full-page image ad' },
-  { num: '13', type: 'image',     advertiser: 'Woodlot Timbers',   defaultImage: '/magazines/ads/ad-woodlot.jpg',   desc: 'Half-page image ad' },
+  { num: '12', type: 'image',     advertiser: 'Croco Motors',         defaultImage: '/magazines/adma-pages/page-012.jpg', desc: 'Full-page image ad' },
+  { num: '13', type: 'image',     advertiser: 'Amtec',                defaultImage: '/magazines/adma-pages/page-013.jpg', desc: 'Half-page image ad' },
   { num: '14', type: 'editorial', title: 'Why Attend?',        defaultImage: null },
   { num: '15', type: 'editorial', title: 'Back Cover',         defaultImage: null },
 ];
 const AD_PAGES = ALL_MAGAZINE_PAGES.filter(p => p.type !== 'editorial');
 
 const TIER_COLORS = {
-  Diamond: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400',
-  Gold:    'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400',
-  Chrome:  'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  Copper:  'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400',
+  Platinum: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
+  Gold:     'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400',
+  Silver:   'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  Bronze:   'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400',
 };
 
 const GRADIENT_OPTIONS = [
@@ -79,7 +79,7 @@ const GRADIENT_OPTIONS = [
 ];
 
 const EMPTY_SLOT = {
-  company: '', headline: '', sub: '', label: 'Diamond Exhibitor',
+  company: '', headline: '', sub: '', label: 'Platinum Exhibitor',
   logo_url: '', url: '', bg: 'from-slate-700 to-slate-900',
   exhibitor_id: '', exhibitor_name: '',
 };
@@ -175,7 +175,7 @@ export default function MarketingHub() {
   const totalEngagements = events.length;
 
   // Tier breakdown
-  const tierCounts = { Diamond: 0, Gold: 0, Chrome: 0, Copper: 0 };
+  const tierCounts = { Platinum: 0, Gold: 0, Silver: 0, Bronze: 0 };
   exhibitors.forEach(e => { if (tierCounts[e.tier] !== undefined) tierCounts[e.tier]++; });
 
   // Ad clicks by exhibitor (for performance table)
@@ -239,7 +239,7 @@ export default function MarketingHub() {
   const exportEngagementReport = () => {
     exportCSV(
       events.map(e => [e.type, e.source, e.exhibitor_name, e.created_date]),
-      'minecon_engagement_report.csv',
+      'adma_engagement_report.csv',
       ['Type', 'Source', 'Exhibitor', 'Date'],
     );
   };
@@ -247,7 +247,7 @@ export default function MarketingHub() {
   const exportSponsoredPostsReport = () => {
     exportCSV(
       sponsoredPosts.map(a => [a.title, a.sponsor_name, a.type, a.created_date]),
-      'minecon_sponsored_posts.csv',
+      'adma_sponsored_posts.csv',
       ['Title', 'Sponsor', 'Type', 'Date'],
     );
   };
@@ -258,7 +258,7 @@ export default function MarketingHub() {
         s.company, s.headline, s.active ? 'Active' : 'Paused',
         clicksByExhibitor[s.company] || 0, s.created_date,
       ]),
-      'minecon_ad_performance.csv',
+      'adma_ad_performance.csv',
       ['Company', 'Headline', 'Status', 'Ad Clicks', 'Created'],
     );
   };
@@ -275,7 +275,7 @@ export default function MarketingHub() {
         const carousel = p.num === '4' ? guideCarouselViews : '';
         return [p.advertiser, `pg${p.num}`, p.desc || p.type, clicks, vPlays, vCompletes, completionRate, carousel];
       }),
-      `minecon_guide_report_${date}.csv`,
+      `adma_guide_report_${date}.csv`,
       ['Advertiser', 'Page', 'Ad Type', 'Ad Clicks', 'Video Plays', 'Video Completes', 'Completion Rate', 'Carousel Views'],
     );
   };
@@ -479,7 +479,7 @@ export default function MarketingHub() {
                         <ImageIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                         <input
                           type="url"
-                          placeholder="https://minecon.s3.af-south-1.amazonaws.com/magazines/ads/…"
+                          placeholder="https://adma.s3.af-south-1.amazonaws.com/magazines/ads/…"
                           value={editImageUrl}
                           onChange={e => { setEditImageUrl(e.target.value); setImageLoadError(false); }}
                           className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-amber"
@@ -835,7 +835,7 @@ export default function MarketingHub() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              {tierCounts.Diamond + tierCounts.Gold} premium exhibitors (Diamond + Gold) eligible for lead export &amp; ad placement.
+              {tierCounts.Platinum + tierCounts.Gold} premium exhibitors (Platinum + Gold) eligible for lead export &amp; ad placement.
             </p>
           </div>
         </div>
@@ -916,7 +916,7 @@ export default function MarketingHub() {
               <div>
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Ad Label</label>
                 <Input
-                  placeholder="Diamond Exhibitor"
+                  placeholder="Platinum Exhibitor"
                   value={slotForm.label}
                   onChange={e => setSlotForm(f => ({ ...f, label: e.target.value }))}
                 />

@@ -1,18 +1,19 @@
 import React, { useState, useRef, useEffect } from "react";
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogIn, Mail, Lock, Loader2, Info, MessageSquare, RefreshCw, ShieldCheck, Smartphone, KeyRound } from "lucide-react";
+import { LogIn, Mail, Lock, Loader2, Info, MessageSquare, RefreshCw, ShieldCheck, Smartphone, KeyRound, Eye, EyeOff } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { useAuth } from "@/lib/AuthContext";
 import SocialAuthButtons, { SocialDivider } from "@/components/SocialAuthButtons";
 
 const DEMO_ACCOUNTS = [
-  { email: "organizer@minecon.global",  role: "Organizer",         dest: "Console" },
-  { email: "partner@minecon.global",    role: "Marketing Partner", dest: "Console" },
-  { email: "exhibitor@minecon.global",  role: "Exhibitor",         dest: "Exhibitor Portal" },
-  { email: "attendee@minecon.global",   role: "Attendee",          dest: "Attendee App" },
+  { email: "organizer@agrishow.co.zw",  role: "Organizer",         dest: "Console" },
+  { email: "partner@agrishow.co.zw",    role: "Marketing Partner", dest: "Console" },
+  { email: "exhibitor@agrishow.co.zw",  role: "Exhibitor",         dest: "Exhibitor Portal" },
+  { email: "attendee@agrishow.co.zw",   role: "Attendee",          dest: "Attendee App" },
 ];
 
 // ── Verification method pill ────────────────────────────────────────────────
@@ -56,6 +57,7 @@ export default function Login() {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
+  const [showPass, setShowPass] = useState(false);
 
   const otpRef   = useRef(null);
   const totpRef  = useRef(null);
@@ -63,7 +65,7 @@ export default function Login() {
 
   const focusAfter = (ref) => setTimeout(() => ref.current?.focus(), 100);
 
-  const OTP_SESSION_KEY = 'minecon_otp_flow';
+  const OTP_SESSION_KEY = `${EVENT_CONFIG.storagePrefix}_otp_flow`;
 
   // Restore OTP flow if user left the app to check email/SMS and came back
   useEffect(() => {
@@ -494,8 +496,17 @@ export default function Login() {
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input id="password" type="password" autoComplete="current-password" placeholder="••••••••"
-              value={password} onChange={e => setPassword(e.target.value)} className="pl-10 h-12" />
+            <Input id="password" type={showPass ? 'text' : 'password'} autoComplete="current-password" placeholder="••••••••"
+              value={password} onChange={e => setPassword(e.target.value)} className="pl-10 pr-10 h-12" />
+            <button
+              type="button"
+              onClick={() => setShowPass(p => !p)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+              aria-label={showPass ? 'Hide password' : 'Show password'}
+            >
+              {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
         </div>
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>

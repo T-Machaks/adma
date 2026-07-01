@@ -3,7 +3,7 @@ import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 
-const TABLE = 'minecon_users';
+const TABLE = 'adma_users';
 
 export default crudRouter(TABLE, {
   defaults: () => ({ role: 'attendee', status: 'active' }),

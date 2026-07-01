@@ -12,10 +12,10 @@ import ConsoleShell from '@/components/layout/ConsoleShell';
 import ExhibitorShell from '@/components/layout/ExhibitorShell';
 import ConsoleGuard from '@/components/ConsoleGuard';
 import OrganizerGuard from '@/components/OrganizerGuard';
-import InstallPromptModal from '@/components/InstallPromptModal';
 import ChatWidget from '@/components/ChatWidget';
 import { PWAInstallProvider } from '@/lib/PWAInstallContext';
 import { AppSettingsProvider } from '@/lib/AppSettingsContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 // Attendee pages
 import Home from '@/pages/Home';
@@ -32,6 +32,8 @@ import Sponsors from '@/pages/Sponsors';
 import Magazine from '@/pages/Magazine';
 import ExhibitorDetail from '@/pages/ExhibitorDetail';
 import Connect from '@/pages/Connect';
+import LiveSessions from '@/pages/LiveSessions';
+import LiveRoom from '@/pages/LiveRoom';
 import Login from '@/pages/Login';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
@@ -47,6 +49,7 @@ import CheckIn from '@/pages/CheckIn';
 import MarketingHub from '@/pages/console/MarketingHub';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
 import Registrations from '@/pages/console/Registrations';
+import SessionsManager from '@/pages/console/SessionsManager';
 import EnquiriesPanel from '@/pages/console/EnquiriesPanel';
 import ExhibitorApply from '@/pages/ExhibitorApply';
 import ExhibitorLogin from '@/pages/ExhibitorLogin';
@@ -82,7 +85,7 @@ const AuthenticatedApp = () => {
       <div className="fixed inset-0 flex items-center justify-center bg-steel">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-amber/30 border-t-amber rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm font-medium">Loading MineCon…</p>
+          <p className="text-slate-400 text-sm font-medium">Loading {EVENT_CONFIG.eventName}…</p>
         </div>
       </div>
     );
@@ -118,6 +121,7 @@ const AuthenticatedApp = () => {
 
           {/* Organizer-only */}
           <Route element={<OrganizerGuard />}>
+            <Route path="/console/sessions"              element={<SessionsManager />} />
             <Route path="/console/registrations"         element={<Registrations />} />
             <Route path="/console/admin"                 element={<AdminPanel />} />
             <Route path="/console/communications"        element={<Communications />} />
@@ -157,6 +161,8 @@ const AuthenticatedApp = () => {
         <Route path="/sponsors"           element={<Sponsors />} />
         <Route path="/magazine"           element={<Magazine />} />
         <Route path="/connect"            element={<Connect />} />
+        <Route path="/sessions"           element={<LiveSessions />} />
+        <Route path="/sessions/:id"       element={<LiveRoom />} />
         <Route path="*"                   element={<PageNotFound />} />
       </Route>
     </Routes>
@@ -175,7 +181,6 @@ function App() {
               <AuthenticatedApp />
             </Router>
             <Toaster />
-            <InstallPromptModal />
             <ChatWidget />
           </QueryClientProvider>
         </AppSettingsProvider>

@@ -2,14 +2,14 @@ import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 
-export default crudRouter('minecon_exhibitors', {
+export default crudRouter('adma_exhibitors', {
   defaults: () => ({ featured: false }),
   extraRoutes(r) {
     // GET /api/exhibitors/demo-list — all exhibitors with a linked user account
     r.get('/demo-list', async (req, res) => {
       try {
         const result = await ddb.send(new ScanCommand({
-          TableName: 'minecon_exhibitors',
+          TableName: 'adma_exhibitors',
           ProjectionExpression: 'id, company_name, #n, logo_url, user_id, tier',
           ExpressionAttributeNames: { '#n': 'name' },
         }));

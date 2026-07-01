@@ -9,45 +9,26 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import SocialAuthButtons, { SocialDivider } from '@/components/SocialAuthButtons';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
-// ── Pricing ────────────────────────────────────────────────────────────────
-const TICKET_PRICES = {
-  'General Admission': 10,
-  'VIP (includes parking)': 25,
-  'Exhibitor Pass': 0,   // set by tier
-  'Speaker Pass': 0,
-};
+const TICKET_PRICES = EVENT_CONFIG.ticketPrices;
+const TICKET_MAP    = EVENT_CONFIG.ticketMap;
+const BADGE_MAP     = EVENT_CONFIG.badgeMap;
 
-const EXHIBITOR_TIERS = [
-  { value: 'Diamond', price: 5000, border: 'border-cyan-400',   ring: 'ring-cyan-400',   label: 'text-cyan-500',   desc: 'Premium placement, max visibility' },
-  { value: 'Gold',    price: 3000, border: 'border-amber-400',  ring: 'ring-amber-400',  label: 'text-amber-500',  desc: 'High-profile booth, featured listing' },
-  { value: 'Silver',  price: 1500, border: 'border-slate-400',  ring: 'ring-slate-400',  label: 'text-slate-400',  desc: 'Standard exhibitor listing' },
-  { value: 'Bronze',  price: 800,  border: 'border-orange-500', ring: 'ring-orange-500', label: 'text-orange-600', desc: 'Entry-level presence' },
-];
+// boothTiers from config use colorBorder/colorRing/colorLabel; Register uses border/ring/label
+const EXHIBITOR_TIERS = EVENT_CONFIG.boothTiers.map(t => ({
+  value: t.id, price: t.price, desc: t.desc,
+  border: t.colorBorder, ring: t.colorRing, label: t.colorLabel,
+}));
 
-const EXHIBITOR_ADDONS = [
-  { id: 'extra_pass',  label: 'Additional Exhibitor Pass',  desc: 'Extra staff badge (up to 5)',   price: 100, maxQty: 5 },
-  { id: 'electricity', label: 'Electricity (16A)',           desc: 'Single-phase connection',       price: 200, maxQty: 1 },
-  { id: 'furniture',   label: 'Furniture Package',           desc: 'Table, 2 chairs & display',    price: 300, maxQty: 1 },
-  { id: 'premium_loc', label: 'Premium Location',            desc: 'Upgrade to high-traffic area', price: 500, maxQty: 1 },
-];
+// boothAddons: Register uses fullLabel as the display label
+const EXHIBITOR_ADDONS = EVENT_CONFIG.boothAddons.map(a => ({ ...a, label: a.fullLabel }));
 
-const PAYNOW_METHODS = [
-  { id: 'ecocash',  label: 'EcoCash',          hint: 'EcoCash mobile money',   icon: Smartphone },
-  { id: 'onemoney', label: 'OneMoney',          hint: 'NetOne OneMoney',        icon: Smartphone },
-  { id: 'card',     label: 'Visa / Mastercard', hint: 'Debit or credit card',   icon: CreditCard },
-];
+const PAY_ICON = { smartphone: Smartphone, creditcard: CreditCard };
+const PAYNOW_METHODS = EVENT_CONFIG.paymentMethods.map(m => ({ ...m, icon: PAY_ICON[m.iconType] }));
 
-const ROLE_TYPES = [
-  { value: 'Attendee',  icon: User,     color: 'bg-blue-500',   desc: 'Industry visitor & buyer' },
-  { value: 'Exhibitor', icon: Building2,color: 'bg-amber-500',  desc: 'Company with a booth' },
-  { value: 'Sponsor',   icon: Star,     color: 'bg-yellow-500', desc: 'Event sponsor partner' },
-  { value: 'Speaker',   icon: Mic,      color: 'bg-purple-500', desc: 'Conference presenter' },
-  { value: 'VIP Guest', icon: Crown,    color: 'bg-rose-500',   desc: 'Special invite or dignitary' },
-];
-
-const TICKET_MAP  = { Attendee: ['General Admission', 'VIP (includes parking)'], Exhibitor: ['Exhibitor Pass'], Sponsor: ['VIP (includes parking)', 'Exhibitor Pass'], Speaker: ['Speaker Pass'], 'VIP Guest': ['VIP (includes parking)'] };
-const BADGE_MAP   = { Attendee: 'Visitor', Exhibitor: 'Exhibitor', Sponsor: 'Sponsor', Speaker: 'Speaker', 'VIP Guest': 'VIP' };
+const ROLE_ICON = { user: User, building: Building2, star: Star, mic: Mic, crown: Crown };
+const ROLE_TYPES = EVENT_CONFIG.registrationRoles.map(r => ({ ...r, icon: ROLE_ICON[r.iconType] }));
 
 function isValidZimPhone(v) {
   if (!v) return true;
@@ -106,7 +87,6 @@ export default function Register() {
   // step: 'role' | 'details' | 'tier' | 'review' | 'account' | 'payment' | 'done'
   const [step, setStep] = useState('role');
   const [socialError, setSocialError] = useState('');
-  const [duplicateError, setDuplicateError] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [created, setCreated] = useState(null);
 
@@ -190,7 +170,10 @@ export default function Register() {
       if (!form.full_name && user.full_name) set('full_name', user.full_name);
       if (!form.email    && user.email)      set('email',     user.email);
       if (!form.company  && user.company)    set('company',   user.company);
-      goNext('payment');
+      // replaceState so back from payment skips account (avoids re-triggering this loop)
+      window.history.replaceState({ regStep: 'payment' }, '');
+      setStep('payment');
+      window.scrollTo(0, 0);
     }
   }, [user, step]); // eslint-disable-line
 
@@ -241,14 +224,27 @@ export default function Register() {
     }, 2000);
   };
 
-  // ── Steps ─────────────────────────────────────────────────────────────────
-  const goNext = (nextStep) => { setStep(nextStep); window.scrollTo(0, 0); };
-  const goBack = (prevStep) => { setStep(prevStep); window.scrollTo(0, 0); };
+  // ── Steps — browser history tracks each step so the header back button works ─
+  useEffect(() => {
+    window.history.replaceState({ regStep: 'role' }, '');
+    const onPop = (e) => {
+      if (e.state?.regStep) { setStep(e.state.regStep); window.scrollTo(0, 0); }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const goNext = (nextStep) => {
+    if (nextStep !== 'done') window.history.pushState({ regStep: nextStep }, '');
+    setStep(nextStep);
+    window.scrollTo(0, 0);
+  };
+  const goBack = () => window.history.back();
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-3xl mx-auto px-4 pt-5">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Event Registration</h1>
-      <p className="text-muted-foreground text-sm mb-4">Register for MineCon 2026 — get a badge & ticket to attend the exhibition.</p>
+      <p className="text-muted-foreground text-sm mb-4">Register for {EVENT_CONFIG.eventFullName} — get a badge & ticket to attend the exhibition.</p>
 
       {!user && step === 'role' && (
         <Link to="/signup"
@@ -378,27 +374,15 @@ export default function Register() {
             onChange={e => set('notes', e.target.value)} rows={2}
             className="w-full px-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber resize-none" />
 
-          {duplicateError && (
-            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
-              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-              <p className="text-xs text-red-600 dark:text-red-400">This email is already registered.</p>
-            </div>
-          )}
-
           <div className="flex gap-3">
-            <button type="button" onClick={() => goBack('role')}
+            <button type="button" onClick={goBack}
               className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors">
               Back
             </button>
             <button type="button"
-              onClick={async () => {
+              onClick={() => {
                 if (phoneError) return;
                 if (!form.full_name || !form.email) return;
-                // Check for duplicate email
-                try {
-                  const existing = await Registration.findByEmail(form.email);
-                  if (existing) { setDuplicateError(true); return; }
-                } catch {}
                 goNext(form.role_type === 'Exhibitor' ? 'tier' : 'review');
               }}
               disabled={!form.full_name || !form.email}
@@ -481,7 +465,7 @@ export default function Register() {
           </div>
 
           <div className="flex gap-3">
-            <button type="button" onClick={() => goBack('details')}
+            <button type="button" onClick={goBack}
               className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors">
               Back
             </button>
@@ -539,7 +523,7 @@ export default function Register() {
           )}
 
           <div className="flex gap-3">
-            <button type="button" onClick={() => goBack(form.role_type === 'Exhibitor' ? 'tier' : 'details')}
+            <button type="button" onClick={goBack}
               className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors">
               Edit
             </button>
@@ -610,7 +594,7 @@ export default function Register() {
           </div>
 
           <div className="flex gap-3">
-            <button type="button" onClick={() => goBack('review')}
+            <button type="button" onClick={goBack}
               className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors">
               Back
             </button>
@@ -665,7 +649,7 @@ export default function Register() {
             <div>
               <p className="text-xs text-slate-400 uppercase tracking-wide">Amount Due</p>
               <p className="text-3xl font-bold text-amber mt-0.5">${total.toLocaleString()}</p>
-              <p className="text-xs text-slate-400 mt-1">USD · MineCon 2026 registration</p>
+              <p className="text-xs text-slate-400 mt-1">USD · {EVENT_CONFIG.eventFullName} registration</p>
             </div>
             <div className="w-12 h-12 bg-amber/20 rounded-full flex items-center justify-center">
               <Lock className="w-5 h-5 text-amber" />
@@ -696,7 +680,7 @@ export default function Register() {
                 })}
               </div>
               <div className="flex gap-3">
-                <button type="button" onClick={() => goBack(user ? 'review' : 'account')}
+                <button type="button" onClick={goBack}
                   className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors">
                   Back
                 </button>
@@ -742,7 +726,7 @@ export default function Register() {
           </div>
           <div>
             <p className="font-heading text-2xl font-bold">You're Registered!</p>
-            <p className="text-sm text-muted-foreground mt-2">Welcome to MineCon 2026, <strong>{created?.full_name}</strong>.</p>
+            <p className="text-sm text-muted-foreground mt-2">Welcome to {EVENT_CONFIG.eventFullName}, <strong>{created?.full_name}</strong>.</p>
             <p className="text-sm text-muted-foreground mt-1">
               Badge: <span className="font-semibold text-amber">{created?.badge_category}</span>
               {created?.total_amount > 0 && (
@@ -758,7 +742,7 @@ export default function Register() {
           </div>
           <div className="bg-card border border-border rounded-xl p-4 text-left space-y-1.5">
             <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Next Steps</p>
-            {['Add MineCon to your calendar', 'Browse the exhibitor directory', 'Book meetings with exhibitors', 'Review the event schedule', 'Access your QR badge under QR Resources'].map(s => (
+            {[`Add ${EVENT_CONFIG.eventName} to your calendar`, 'Browse the exhibitor directory', 'Book meetings with exhibitors', 'Review the event schedule', 'Access your QR badge under QR Resources'].map(s => (
               <p key={s} className="text-xs text-muted-foreground">✓ {s}</p>
             ))}
           </div>

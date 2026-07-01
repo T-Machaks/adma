@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, Share, X, Smartphone, Link } from 'lucide-react';
 import { usePWAInstall } from '@/lib/PWAInstallContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 export default function InstallPromptModal() {
   const { showPopup, isIOS, hasBrowserPrompt, promptInstall, markSeen } = usePWAInstall();
@@ -29,7 +30,7 @@ export default function InstallPromptModal() {
     const url = window.location.origin;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'MineCon 2026', url });
+        await navigator.share({ title: EVENT_CONFIG.eventFullName, url });
       } else {
         await navigator.clipboard.writeText(url);
         setCopied(true);
@@ -56,7 +57,7 @@ export default function InstallPromptModal() {
 
       {/* Card */}
       <div
-        className={`relative w-full max-w-sm rounded-2xl bg-[#1a1f2e] border border-white/10 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 ${hasBrowserPrompt && !isIOS ? 'cursor-pointer' : ''}`}
+        className={`relative w-full max-w-sm rounded-2xl bg-[#12241a] border border-white/10 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 ${hasBrowserPrompt && !isIOS ? 'cursor-pointer' : ''}`}
         onClick={hasBrowserPrompt && !isIOS ? handleInstall : undefined}
       >
         {/* Amber top stripe */}
@@ -74,11 +75,11 @@ export default function InstallPromptModal() {
           {/* Logo + title */}
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl bg-amber/10 border border-amber/20 flex items-center justify-center flex-shrink-0">
-              <img src="/minecon-logo.png" alt="MineCon" className="w-8 h-8 object-contain" />
+              <img src={EVENT_CONFIG.logo.transparent} alt={EVENT_CONFIG.eventName} className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <p className="font-bold text-white text-base leading-tight">MineCon 2026</p>
-              <p className="text-xs text-amber font-medium">Southern Africa's Mining Exhibition</p>
+              <p className="font-bold text-white text-base leading-tight">{EVENT_CONFIG.eventFullName}</p>
+              <p className="text-xs text-amber font-medium">Zimbabwe's Premier Agricultural Exhibition</p>
             </div>
           </div>
 
@@ -113,7 +114,7 @@ export default function InstallPromptModal() {
             <div className="bg-white/5 rounded-xl p-4 mb-5 flex items-start gap-3">
               <Smartphone className="w-5 h-5 text-amber flex-shrink-0 mt-0.5" />
               <p className="text-sm text-slate-300 leading-relaxed">
-                Click the <strong className="text-white">install icon</strong> in your browser's address bar, or open the browser menu and choose <strong className="text-white">"Install MineCon 2026"</strong>.
+                Click the <strong className="text-white">install icon</strong> in your browser's address bar, or open the browser menu and choose <strong className="text-white">"Install {EVENT_CONFIG.eventFullName}"</strong>.
               </p>
             </div>
           )}

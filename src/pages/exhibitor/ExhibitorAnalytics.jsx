@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Exhibitor, MeetingRequest, EngagementEvent } from '@/api/entities';
+import { Exhibitor, MeetingRequest, EngagementEvent, AdSlot } from '@/api/entities';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAuth } from '@/lib/AuthContext';
 import {
   Eye, Calendar, Megaphone, TrendingUp,
@@ -11,7 +12,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
-import { ADS } from '@/lib/adBanners';
 
 const TYPE_LABEL = {
   profile_view:   'Booth Visit',
@@ -95,7 +95,7 @@ function exportLeadsCSV(leads, boothName) {
   URL.revokeObjectURL(url);
 }
 
-const TIER_ORDER = { Diamond: 4, Gold: 3, Chrome: 2, Copper: 1 };
+const TIER_ORDER = { Platinum: 4, Gold: 3, Silver: 2, Bronze: 1 };
 
 export default function ExhibitorAnalytics() {
   const { user } = useAuth();
@@ -120,6 +120,11 @@ export default function ExhibitorAnalytics() {
   const { data: allMeetings = [] } = useQuery({
     queryKey: ['meetings-all'],
     queryFn: () => MeetingRequest.list('-created_date'),
+  });
+
+  const { data: activeAdSlots = [] } = useQuery({
+    queryKey: ['adslots-active'],
+    queryFn: () => AdSlot.listActive(),
   });
 
   if (!myBooth) {
@@ -183,8 +188,8 @@ export default function ExhibitorAnalytics() {
   const guideStats = { adClicks: guideAdClicks, videoPlays: guideVideoPlays, videoCompletes: guideVideoCompletes, carouselViews: guideCarouselViews };
 
   const isPremium = (TIER_ORDER[myBooth?.tier] ?? 0) >= TIER_ORDER.Gold;
-  const isDiamond = myBooth?.tier === 'Diamond';
-  const myAd = myBooth ? ADS.find(a => a.exhibitor_id === myBooth.id) : null;
+  const isPlatinum = myBooth?.tier === 'Platinum';
+  const myAd = activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null;
   const carouselAdClicks = events.filter(e => e.type === 'ad_click' && e.source === 'home_carousel').length;
 
   const kpis = [
@@ -328,7 +333,7 @@ export default function ExhibitorAnalytics() {
           <Megaphone className="w-4 h-4 text-amber" />
           <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Ad Banner Performance</h2>
         </div>
-        {isDiamond && myAd ? (
+        {isPlatinum && myAd ? (
           <div className="p-5 space-y-4">
             <AdBannerPreview ad={myAd} />
             <div className="grid grid-cols-2 gap-3">
@@ -350,7 +355,7 @@ export default function ExhibitorAnalytics() {
               </div>
             </div>
           </div>
-        ) : isDiamond ? (
+        ) : isPlatinum ? (
           <div className="p-8 text-center text-muted-foreground">
             <Megaphone className="w-8 h-8 mx-auto mb-2" />
             <p className="text-sm font-medium">No ad configured</p>
@@ -363,9 +368,9 @@ export default function ExhibitorAnalytics() {
                 <Lock className="w-5 h-5 text-amber" />
               </div>
               <div className="text-center px-6">
-                <p className="font-heading font-bold text-sm">Diamond Feature</p>
+                <p className="font-heading font-bold text-sm">Platinum Feature</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                  Upgrade to Diamond to get a carousel ad slot and track click performance.
+                  Upgrade to Platinum to get a carousel ad slot and track click performance.
                 </p>
               </div>
               <button
@@ -549,7 +554,7 @@ export default function ExhibitorAnalytics() {
                 <Lock className="w-5 h-5 text-amber" />
               </div>
               <div className="text-center px-6">
-                <p className="font-heading font-bold text-sm">Gold & Diamond Feature</p>
+                <p className="font-heading font-bold text-sm">Gold & Platinum Feature</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs">Upgrade your booth tier to export full lead contact data and unlock attendee details.</p>
               </div>
               <button
@@ -612,12 +617,12 @@ export default function ExhibitorAnalytics() {
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <p className="text-sm text-muted-foreground">
-              You're currently on the <strong>{myBooth.tier}</strong> tier. Upgrade to <strong>Gold</strong> or <strong>Diamond</strong> to unlock lead export and premium analytics.
+              You're currently on the <strong>{myBooth.tier}</strong> tier. Upgrade to <strong>Gold</strong> or <strong>Platinum</strong> to unlock lead export and premium analytics.
             </p>
             <div className="space-y-2">
               {[
                 { tier: 'Gold', color: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20', perks: ['Full lead export (CSV)', 'Priority booth placement', 'Featured in digital magazine', 'Meeting request boost'] },
-                { tier: 'Diamond', color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/20', perks: ['Everything in Gold', 'Home page featured listing', 'Ad banner carousel slot', 'Diamond badge visibility'] },
+                { tier: 'Platinum', color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20', perks: ['Everything in Gold', 'Home page featured listing', 'Ad banner carousel slot', 'Platinum badge visibility'] },
               ].map(({ tier, color, perks }) => (
                 <div key={tier} className={`border rounded-xl p-4 ${color}`}>
                   <p className="font-heading font-bold text-sm mb-2">{tier} Tier</p>
@@ -632,7 +637,7 @@ export default function ExhibitorAnalytics() {
               ))}
             </div>
             <a
-              href="mailto:info@minecon.global?subject=Booth%20Tier%20Upgrade%20Enquiry"
+              href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Tier%20Upgrade%20Enquiry`}
               className="flex items-center justify-center gap-2 w-full bg-amber text-white font-semibold text-sm py-2.5 rounded-lg hover:bg-amber/90 active:scale-95 transition-all duration-150"
               onClick={() => setUpgradeOpen(false)}
             >

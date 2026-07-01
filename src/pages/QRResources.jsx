@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Registration, Exhibitor, EngagementEvent } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import QRScanner from '@/components/QRScanner';
 import {
@@ -17,10 +18,10 @@ const TABS = [
 ];
 
 function getOrCreateVisitorId() {
-  let vid = localStorage.getItem('minecon_vid');
+  let vid = localStorage.getItem(`${EVENT_CONFIG.storagePrefix}_vid`);
   if (!vid) {
     vid = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6).toUpperCase();
-    localStorage.setItem('minecon_vid', vid);
+    localStorage.setItem(`${EVENT_CONFIG.storagePrefix}_vid`, vid);
   }
   return vid;
 }
@@ -32,11 +33,13 @@ export default function QRResources() {
   const [scanResult, setScanResult] = useState(null); // null | 'success' | 'error'
   const [scannedExhibitor, setScannedExhibitor] = useState(null);
 
-  const { data: myReg, isLoading: isLoadingReg } = useQuery({
-    queryKey: ['my-registration', user?.email],
-    queryFn: () => Registration.findByEmail(user.email),
+  const { data: myRegs = [], isLoading: isLoadingReg } = useQuery({
+    queryKey: ['my-registrations', user?.email],
+    queryFn: () => Registration.listByEmail(user.email),
     enabled: !!user?.email,
   });
+  // Primary reg used for badge display (most recent confirmed, else any)
+  const myReg = myRegs.find(r => r.status === 'Confirmed') ?? myRegs[0] ?? null;
 
   const { data: exhibitors = [] } = useQuery({
     queryKey: ['exhibitors-all'],
@@ -58,16 +61,16 @@ export default function QRResources() {
     id: visitorId,
     n: displayName,
     e: user?.email || '',
-    ev: 'mc26',
+    ev: EVENT_CONFIG.qrEventCode,
   });
 
   const ticketQR = myReg?.token
-    ? JSON.stringify({ t: 'ticket', ev: 'mc26', rid: myReg.id, tok: myReg.token })
+    ? JSON.stringify({ t: 'ticket', ev: EVENT_CONFIG.qrEventCode, rid: myReg.id, tok: myReg.token })
     : null;
 
   const handleScan = useCallback(
     async (parsed) => {
-      if (parsed?.ev !== 'mc26') {
+      if (parsed?.ev !== EVENT_CONFIG.qrEventCode) {
         setScanResult('error');
         return;
       }
@@ -134,7 +137,7 @@ export default function QRResources() {
     );
   }
 
-  if (!isLoadingReg && !myReg) {
+  if (!isLoadingReg && myRegs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -145,10 +148,10 @@ export default function QRResources() {
           Your account <span className="font-medium text-foreground">{user?.email}</span> does not have a registered event ticket.
         </p>
         <p className="text-muted-foreground text-xs mb-6 max-w-xs">
-          Register for MineCon 2026 to receive your entry ticket and visitor badge QR codes.
+          Register for {EVENT_CONFIG.eventFullName} to receive your entry ticket and visitor badge QR codes.
         </p>
         <Link to="/register" className="flex items-center gap-2 bg-amber text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber/90 transition-colors">
-          <Ticket className="w-4 h-4" /> Register for MineCon 2026
+          <Ticket className="w-4 h-4" /> Register for {EVENT_CONFIG.eventFullName}
         </Link>
         <p className="text-xs text-muted-foreground mt-4">
           Already registered?{' '}
@@ -194,11 +197,11 @@ export default function QRResources() {
               <div className="w-6 h-6 bg-white/20 rounded flex items-center justify-center">
                 <QrCode className="w-4 h-4 text-white" />
               </div>
-              <span className="font-heading font-bold text-sm tracking-widest uppercase">MineCon 2026 · Visitor Badge</span>
+              <span className="font-heading font-bold text-sm tracking-widest uppercase">{EVENT_CONFIG.eventFullName} · Visitor Badge</span>
             </div>
             <div className="p-5 flex gap-5 items-start">
               <div className="bg-white p-2 rounded-xl flex-shrink-0">
-                <QRCodeDisplay value={badgeQR} size={120} label={displayName} sublabel="MineCon 2026 Visitor" />
+                <QRCodeDisplay value={badgeQR} size={120} compact />
               </div>
               <div className="flex-1 min-w-0 space-y-2">
                 <div>
@@ -225,60 +228,61 @@ export default function QRResources() {
             </div>
           </div>
 
-          {/* Entry Ticket QR(s) — one per ticket in the booking */}
+          {/* Entry Ticket QR(s) — one per ticket across all registrations */}
           {(() => {
-            const qty = Math.max(1, myReg?.quantity || 1);
-            const tickets = Array.from({ length: qty }, (_, i) => i + 1);
+            // Flatten all registrations into individual ticket slots
+            const allTickets = myRegs.flatMap(reg =>
+              Array.from({ length: Math.max(1, Number(reg.quantity) || 1) }, (_, i) => ({ reg, n: i + 1 }))
+            );
+            const totalQty = allTickets.length;
+
             return (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="font-heading text-lg font-bold uppercase tracking-wide flex items-center gap-2">
-                    <Ticket className="w-4 h-4 text-amber" /> Entry Ticket{qty > 1 ? `s (${qty})` : ''}
+                    <Ticket className="w-4 h-4 text-amber" /> Entry Ticket{totalQty !== 1 ? `s (${totalQty})` : ''}
                   </h2>
-                  {qty > 1 && <span className="text-xs bg-amber text-white px-2 py-0.5 rounded-full font-medium">{qty} tickets</span>}
+                  {totalQty > 1 && <span className="text-xs bg-amber text-white px-2 py-0.5 rounded-full font-medium">{totalQty} tickets</span>}
                 </div>
-                {myReg?.token ? (
-                  <>
-                    {tickets.map(n => {
-                      const tQR = JSON.stringify({ t: 'ticket', ev: 'mc26', rid: myReg.id, tok: myReg.token, n });
-                      return (
-                        <div key={n} className="bg-card border border-border rounded-2xl overflow-hidden">
-                          <div className="bg-steel px-4 py-3 flex items-center gap-2">
-                            <Ticket className="w-4 h-4 text-amber" />
-                            <span className="font-heading font-bold text-sm uppercase tracking-widest text-white">
-                              {qty > 1 ? `Ticket ${n} of ${qty}` : 'Entry Ticket'}
-                            </span>
-                            <Lock className="w-3.5 h-3.5 text-amber ml-auto" />
+                {allTickets.length > 0 && allTickets[0].reg.token ? (
+                  allTickets.map(({ reg, n }, idx) => {
+                    const tQR = JSON.stringify({ t: 'ticket', ev: EVENT_CONFIG.qrEventCode, rid: reg.id, tok: reg.token, n });
+                    const label = totalQty > 1 ? `Ticket ${idx + 1} of ${totalQty}` : 'Entry Ticket';
+                    return (
+                      <div key={`${reg.id}-${n}`} className="bg-card border border-border rounded-2xl overflow-hidden">
+                        <div className="bg-steel px-4 py-3 flex items-center gap-2">
+                          <Ticket className="w-4 h-4 text-amber" />
+                          <span className="font-heading font-bold text-sm uppercase tracking-widest text-white">{label}</span>
+                          <Lock className="w-3.5 h-3.5 text-amber ml-auto" />
+                        </div>
+                        <div className="p-5 space-y-4">
+                          <QRCodeDisplay
+                            value={tQR}
+                            size={180}
+                            label={totalQty > 1 ? `${displayName} — Ticket ${idx + 1}` : displayName}
+                            sublabel={`${reg.ticket_type} · ${reg.badge_category}`}
+                          />
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            {[
+                              ['Ticket', reg.ticket_type],
+                              ['Badge', reg.badge_category],
+                              ['Days', [reg.day1 && 'D1', reg.day2 && 'D2', reg.day3 && 'D3'].filter(Boolean).join(' ')],
+                              ['Status', reg.checked_in ? 'Checked In ✓' : (reg.status || 'Pending')],
+                            ].map(([lbl, val]) => (
+                              <div key={lbl} className="bg-muted rounded-lg px-3 py-2">
+                                <p className="text-muted-foreground uppercase tracking-wide text-[10px]">{lbl}</p>
+                                <p className="font-semibold mt-0.5 truncate">{val}</p>
+                              </div>
+                            ))}
                           </div>
-                          <div className="p-5 space-y-4">
-                            <QRCodeDisplay
-                              value={tQR}
-                              size={180}
-                              label={qty > 1 ? `${displayName} — Ticket ${n}` : displayName}
-                              sublabel={`${myReg.ticket_type} · ${myReg.badge_category}`}
-                            />
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              {[
-                                ['Ticket', myReg.ticket_type],
-                                ['Badge', myReg.badge_category],
-                                ['Days', [myReg.day1 && 'D1', myReg.day2 && 'D2', myReg.day3 && 'D3'].filter(Boolean).join(' ')],
-                                ['Status', myReg.checked_in ? 'Checked In ✓' : (myReg.status || 'Pending')],
-                              ].map(([label, value]) => (
-                                <div key={label} className="bg-muted rounded-lg px-3 py-2">
-                                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">{label}</p>
-                                  <p className="font-semibold mt-0.5 truncate">{value}</p>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="flex items-start gap-2 bg-muted/50 rounded-xl p-3 text-xs text-muted-foreground">
-                              <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                              <p>Present this QR at the gate for entry. Each ticket can only be used once.</p>
-                            </div>
+                          <div className="flex items-start gap-2 bg-muted/50 rounded-xl p-3 text-xs text-muted-foreground">
+                            <Lock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                            <p>Present this QR at the gate for entry. Each ticket can only be used once.</p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </>
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="bg-card border border-border rounded-2xl p-6 text-center space-y-2">
                     <Ticket className="w-10 h-10 text-muted-foreground mx-auto" />
@@ -365,7 +369,7 @@ export default function QRResources() {
                 <AlertCircle className="w-12 h-12 text-red-400" />
                 <p className="font-heading text-base font-bold text-red-700 dark:text-red-300">QR Code Not Recognised</p>
                 <p className="text-sm text-red-600 dark:text-red-400">
-                  This QR code doesn't appear to be a valid MineCon 2026 exhibitor code.
+                  This QR code doesn't appear to be a valid {EVENT_CONFIG.eventFullName} exhibitor code.
                 </p>
               </div>
               <button

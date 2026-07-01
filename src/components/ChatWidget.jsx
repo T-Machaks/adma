@@ -1,18 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { HardHat, X, Send, Loader2, UserPlus, LogIn, CheckCircle, User, Mail, Phone, CreditCard, Smartphone, ChevronRight, Building2 } from 'lucide-react';
+import { Sprout, X, Send, Loader2, UserPlus, LogIn, CheckCircle, User, Mail, Phone, CreditCard, Smartphone, ChevronRight, Building2, WifiOff } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { Registration } from '@/api/entities';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const BUBBLE_SIZE = 52;
 const PANEL_W = 384; // sm:w-96
 const PANEL_H = 520;
 const EDGE_PAD = 12;
-const STORAGE_KEY = 'minecon_chat_pos';
+const STORAGE_KEY = EVENT_CONFIG.storageChatKey;
 
-const PROMPTS_BY_ROLE = {
-  exhibitor: ['My meeting requests', 'Book a meeting', 'Event announcements'],
-  default:   ['Register for MineCon', 'Book a meeting', 'Diamond exhibitors', 'Event schedule'],
-};
+const PROMPTS_BY_ROLE = EVENT_CONFIG.chat.suggestedPrompts;
 
 const BOOKING_KEYWORDS  = /\b(book|meeting|meet|schedule|appointment|enquir|request a meet|contact exhibitor)\b/i;
 const REGISTER_KEYWORDS = /\b(register|sign[\s-]?up|attend|get a ticket|get ticket|ticket|join|how do i register|how to register|i want to (come|attend|register))\b/i;
@@ -83,7 +81,7 @@ function AuthGate() {
     <div className="flex justify-start">
       <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[85%] space-y-3">
         <p className="text-gray-100 leading-relaxed">
-          To book meetings or send enquiries you need a free MineCon account — it only takes a moment to set up.
+          To book meetings or send enquiries you need a free {EVENT_CONFIG.eventName} account — it only takes a moment to set up.
         </p>
         <div className="flex gap-2">
           <a href="/signup"
@@ -100,30 +98,15 @@ function AuthGate() {
   );
 }
 
-const ATTENDEE_TICKETS = [
-  { id: 'General Admission',      label: 'General Admission',       price: 10 },
-  { id: 'VIP (includes parking)', label: 'VIP (incl. parking)',      price: 25 },
-];
+const ATTENDEE_TICKETS = EVENT_CONFIG.attendeeTickets;
 
-const EXHIBITOR_TIERS = [
-  { id: 'Diamond', label: 'Diamond', price: 5000, color: 'text-cyan-400' },
-  { id: 'Gold',    label: 'Gold',    price: 3000, color: 'text-amber-400' },
-  { id: 'Silver',  label: 'Silver',  price: 1500, color: 'text-slate-400' },
-  { id: 'Bronze',  label: 'Bronze',  price: 800,  color: 'text-orange-500' },
-];
+// colorText from boothTiers maps to `color` used in this widget's tier picker
+const EXHIBITOR_TIERS = EVENT_CONFIG.boothTiers.map(t => ({ ...t, color: t.colorText }));
 
-const EXHIBITOR_ADDONS = [
-  { id: 'extra_pass',  label: 'Extra Staff Pass',      price: 100 },
-  { id: 'electricity', label: 'Electricity (16A)',      price: 200 },
-  { id: 'furniture',   label: 'Furniture Package',      price: 300 },
-  { id: 'premium_loc', label: 'Premium Location',       price: 500 },
-];
+const EXHIBITOR_ADDONS = EVENT_CONFIG.boothAddons;
 
-const PAY_METHODS = [
-  { id: 'ecocash',  label: 'EcoCash',        Icon: Smartphone },
-  { id: 'onemoney', label: 'OneMoney',        Icon: Smartphone },
-  { id: 'card',     label: 'Visa/Mastercard', Icon: CreditCard },
-];
+const PAY_ICON = { smartphone: Smartphone, creditcard: CreditCard };
+const PAY_METHODS = EVENT_CONFIG.paymentMethods.map(m => ({ ...m, Icon: PAY_ICON[m.iconType] }));
 
 function RegistrationForm({ prefillName, prefillEmail, onDone }) {
   // step: 'role' | 'details' | 'tier' | 'payment' | 'processing' | 'done'
@@ -164,6 +147,7 @@ function RegistrationForm({ prefillName, prefillEmail, onDone }) {
 
   async function submitPayment() {
     if (!payMethod) { setErr('Please select a payment method.'); return; }
+    if (!navigator.onLine) { setErr('You are offline. Please reconnect to complete registration.'); return; }
     setErr('');
     setStep('processing');
     await new Promise(r => setTimeout(r, 2000));
@@ -210,8 +194,8 @@ function RegistrationForm({ prefillName, prefillEmail, onDone }) {
           </div>
           <p className="text-gray-200 text-xs leading-relaxed">
             {role === 'Exhibitor'
-              ? <>Booked as <strong>{tier} Exhibitor</strong> for MineCon 2026. Confirmation sent to <strong>{email}</strong>. Our team will follow up with booth details.</>
-              : <>Registered for <strong>MineCon 2026</strong> · {ticket}. Confirmation sent to <strong>{email}</strong>.</>}
+              ? <>Booked as <strong>{tier} Exhibitor</strong> for {EVENT_CONFIG.eventFullName}. Confirmation sent to <strong>{email}</strong>. Our team will follow up with booth details.</>
+              : <>Registered for <strong>{EVENT_CONFIG.eventFullName}</strong> · {ticket}. Confirmation sent to <strong>{email}</strong>.</>}
           </p>
           {role !== 'Exhibitor' && (
             <a href="/qr-resources" className="inline-flex items-center gap-1.5 mt-1 text-xs text-amber underline underline-offset-2 hover:text-amber/80">
@@ -289,7 +273,7 @@ function RegistrationForm({ prefillName, prefillEmail, onDone }) {
             className="w-full py-1.5 rounded bg-amber text-slate-900 text-xs font-bold hover:bg-amber/80 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-colors">
             Pay ${price.toLocaleString()} <ChevronRight size={13} />
           </button>
-          <p className="text-gray-500 text-[10px] text-center">Secured via PayNow · Artfarm Grounds, Harare</p>
+          <p className="text-gray-500 text-[10px] text-center">Secured via PayNow · {EVENT_CONFIG.venueShort}, Harare</p>
         </div>
       </div>
     );
@@ -377,7 +361,7 @@ function RegistrationForm({ prefillName, prefillEmail, onDone }) {
               Next <ChevronRight size={13} />
             </button>
           </form>
-          <p className="text-gray-400 text-[10px]">Artfarm Grounds, Pomona, Harare</p>
+          <p className="text-gray-400 text-[10px]">{EVENT_CONFIG.venue}</p>
         </div>
       </div>
     );
@@ -387,7 +371,7 @@ function RegistrationForm({ prefillName, prefillEmail, onDone }) {
   return (
     <div className="flex justify-start">
       <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[95%] w-full space-y-3">
-        <p className="text-amber font-semibold text-xs uppercase tracking-wide">Register for MineCon 2026</p>
+        <p className="text-amber font-semibold text-xs uppercase tracking-wide">Register for {EVENT_CONFIG.eventFullName}</p>
         <p className="text-gray-300 text-xs">Are you attending as a visitor or do you have a company exhibiting?</p>
         <div className="space-y-1.5">
           <button type="button" onClick={() => { setRole('Attendee'); setStep('details'); }}
@@ -403,11 +387,11 @@ function RegistrationForm({ prefillName, prefillEmail, onDone }) {
             <Building2 size={15} className="text-amber shrink-0" />
             <div>
               <p className="font-semibold text-white">Exhibitor / Company</p>
-              <p className="text-gray-400 text-[10px]">Bronze $800 · Silver $1,500 · Gold $3,000 · Diamond $5,000</p>
+              <p className="text-gray-400 text-[10px]">Bronze $800 · Silver $1,500 · Gold $3,000 · Platinum $5,000</p>
             </div>
           </button>
         </div>
-        <p className="text-gray-500 text-[10px]">Artfarm Grounds, Pomona, Harare · 2026</p>
+        <p className="text-gray-500 text-[10px]">{EVENT_CONFIG.venue} · {EVENT_CONFIG.eventYear}</p>
       </div>
     </div>
   );
@@ -428,9 +412,17 @@ export default function ChatWidget() {
   const dragState  = useRef(null); // { startX, startY, origX, origY, moved }
 
   const suggestedPrompts = PROMPTS_BY_ROLE[user?.role] ?? PROMPTS_BY_ROLE.default;
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  useEffect(() => {
+    const up   = () => setIsOnline(true);
+    const down = () => setIsOnline(false);
+    window.addEventListener('online',  up);
+    window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, []);
 
   // ── Drag logic ──────────────────────────────────────────────────────────────
   const onPointerDown = useCallback((e) => {
@@ -496,11 +488,31 @@ export default function ChatWidget() {
     setInput('');
   }
 
+  function pushOfflineMsg(userText) {
+    setMessages(prev => [
+      ...prev,
+      ...(userText ? [{ role: 'user', content: userText }] : []),
+      { role: 'offline-block' },
+    ]);
+    setInput('');
+  }
+
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
-    if (REGISTER_KEYWORDS.test(text)) { pushRegForm(text); return; }
-    if (!user && BOOKING_KEYWORDS.test(text)) { pushAuthGate(text); return; }
+    if (REGISTER_KEYWORDS.test(text)) {
+      if (!isOnline) { pushOfflineMsg(text); return; }
+      pushRegForm(text); return;
+    }
+    if (BOOKING_KEYWORDS.test(text)) {
+      if (!isOnline) { pushOfflineMsg(text); return; }
+      if (!user) { pushAuthGate(text); return; }
+    }
+    if (!isOnline) {
+      setMessages(prev => [...prev, { role: 'user', content: text }, { role: 'offline-block' }]);
+      setInput('');
+      return;
+    }
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setInput('');
     setLoading(true);
@@ -521,8 +533,14 @@ export default function ChatWidget() {
   }
 
   function handlePromptClick(p) {
-    if (REGISTER_KEYWORDS.test(p)) { pushRegForm(null); return; }
-    if (!user && BOOKING_KEYWORDS.test(p)) { setMessages([{ role: 'gate' }]); return; }
+    if (REGISTER_KEYWORDS.test(p)) {
+      if (!isOnline) { pushOfflineMsg(null); return; }
+      pushRegForm(null); return;
+    }
+    if (!user && BOOKING_KEYWORDS.test(p)) {
+      if (!isOnline) { pushOfflineMsg(null); return; }
+      setMessages([{ role: 'gate' }]); return;
+    }
     setInput(p);
     inputRef.current?.focus();
   }
@@ -536,13 +554,18 @@ export default function ChatWidget() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed z-50 flex flex-col rounded-xl shadow-2xl border border-white/10 bg-[#1a2332] overflow-hidden"
+          className="fixed z-50 flex flex-col rounded-xl shadow-2xl border border-white/10 bg-[#12241a] overflow-hidden"
           style={{ left: panelLeft, top: panelTop, width: panelW, maxHeight: Math.min(PANEL_H, window.innerHeight - 2 * EDGE_PAD) }}
         >
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3 bg-amber/10 border-b border-white/10">
-            <HardHat size={18} className="text-amber" />
-            <span className="text-sm font-semibold text-white">The Foreman</span>
+            <Sprout size={18} className="text-amber" />
+            <span className="text-sm font-semibold text-white">{EVENT_CONFIG.chat.agentName}</span>
+            {!isOnline && (
+              <span className="ml-1 flex items-center gap-1 text-[10px] text-slate-400 bg-slate-700/60 px-2 py-0.5 rounded-full">
+                <WifiOff size={9} /> offline
+              </span>
+            )}
             <button onClick={() => setOpen(false)} className="ml-auto text-slate-400 hover:text-white">
               <X size={16} />
             </button>
@@ -552,8 +575,8 @@ export default function ChatWidget() {
           <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0" style={{ maxHeight: '400px' }}>
             {messages.length === 0 && (
               <div className="text-center py-6 text-slate-400 text-sm">
-                <HardHat size={32} className="mx-auto mb-2 text-amber/50" />
-                <p className="font-medium text-slate-300">The Foreman, reporting for duty.</p>
+                <Sprout size={32} className="mx-auto mb-2 text-amber/50" />
+                <p className="font-medium text-slate-300">{EVENT_CONFIG.chat.agentName}, at your service.</p>
                 <p className="mt-1 text-xs">Exhibitors, schedule, venue — I know things. Possibly too many things. Ask away, I won't judge. Much.</p>
                 {!user && (
                   <p className="mt-3 text-xs text-amber/70">
@@ -565,7 +588,17 @@ export default function ChatWidget() {
             )}
 
             {messages.map((m, i) => (
-              m.role === 'gate'    ? <AuthGate key={i} />
+              m.role === 'offline-block' ? (
+                <div key={i} className="flex justify-start">
+                  <div className="rounded-lg px-4 py-3 bg-gray-700 border border-slate-600 text-sm max-w-[85%] flex items-start gap-2.5">
+                    <WifiOff size={15} className="text-slate-400 shrink-0 mt-0.5" />
+                    <p className="text-slate-300 text-xs leading-relaxed">
+                      You're offline. Registration and meeting bookings need an internet connection — reconnect and try again.
+                    </p>
+                  </div>
+                </div>
+              )
+              : m.role === 'gate'    ? <AuthGate key={i} />
               : m.role === 'regform' ? (
                 <RegistrationForm
                   key={i}
@@ -619,13 +652,14 @@ export default function ChatWidget() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ask anything about MineCon…"
+              placeholder={EVENT_CONFIG.chat.placeholder}
               className="flex-1 resize-none bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-amber/50 leading-relaxed"
               style={{ maxHeight: '120px' }}
             />
             <button onClick={send} disabled={!input.trim() || loading}
-              className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber hover:bg-amber/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors">
-              <Send size={15} className="text-slate-900" />
+              className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber hover:bg-amber/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+              title={!isOnline ? 'Offline — general questions only' : undefined}>
+              {!isOnline ? <WifiOff size={15} className="text-slate-900" /> : <Send size={15} className="text-slate-900" />}
             </button>
           </div>
         </div>
@@ -637,9 +671,9 @@ export default function ChatWidget() {
         onClick={handleBubbleClick}
         className={`fixed z-50 rounded-full bg-amber shadow-lg flex items-center justify-center transition-transform select-none touch-none ${dragging ? 'scale-110 cursor-grabbing' : 'hover:scale-105 active:scale-95 cursor-grab'}`}
         style={{ left: pos.x, top: pos.y, width: BUBBLE_SIZE, height: BUBBLE_SIZE }}
-        aria-label="Open The Foreman"
+        aria-label={`Open ${EVENT_CONFIG.chat.agentName}`}
       >
-        {open ? <X size={22} className="text-slate-900" /> : <HardHat size={22} className="text-slate-900" />}
+        {open ? <X size={22} className="text-slate-900" /> : <Sprout size={22} className="text-slate-900" />}
       </button>
     </>
   );

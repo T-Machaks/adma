@@ -1,3 +1,5 @@
+import { EVENT_CONFIG } from '@/lib/eventConfig';
+
 export async function apiFetch(path, options = {}) {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
@@ -11,4 +13,4 @@ export async function apiFetch(path, options = {}) {
   return res.json();
 }
 
-export const client = { appId: 'minecon', isAuthenticated: () => true };
+export const client = { appId: EVENT_CONFIG.appId, isAuthenticated: () => true };

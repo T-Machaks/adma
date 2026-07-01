@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 export default function ConsoleGuard() {
   const { isAuthenticated, isLoadingAuth, authChecked, hasConsoleAccess } = useAuth();
@@ -28,7 +29,7 @@ export default function ConsoleGuard() {
           </div>
           <h2 className="text-lg font-bold mb-2">Access Restricted</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            The Management Console is only available to MineCon organizers and marketing partners.
+            The Management Console is only available to {EVENT_CONFIG.eventName} organizers and marketing partners.
           </p>
           <a href="/" className="inline-block w-full py-2.5 rounded-xl bg-amber text-white text-sm font-semibold hover:opacity-90 transition-opacity">
             Back to Attendee App

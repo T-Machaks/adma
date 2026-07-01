@@ -2,7 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3 = new S3Client({ region: 'af-south-1' });
-const BUCKET = 'minecon';
+const BUCKET = 'adma-zw';
 
 export async function createPresignedPut(key, contentType) {
   const cmd = new PutObjectCommand({ Bucket: BUCKET, Key: key, ContentType: contentType });

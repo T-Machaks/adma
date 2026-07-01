@@ -24,8 +24,9 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        amber: { DEFAULT: 'hsl(30 95% 54%)', dark: 'hsl(28 92% 42%)' },
-        steel: { DEFAULT: 'hsl(220 14% 18%)', light: 'hsl(220 12% 28%)' },
+        amber: { DEFAULT: 'hsl(45 90% 51%)', dark: 'hsl(38 85% 42%)' },
+        steel: { DEFAULT: 'hsl(150 35% 16%)', light: 'hsl(150 25% 26%)' },
+        earth: { DEFAULT: 'hsl(28 55% 38%)', light: 'hsl(28 45% 52%)' },
         chart: {
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',

@@ -5,9 +5,9 @@ import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 
-const APP_TABLE  = 'minecon_exhibitor_applications';
-const USER_TABLE = 'minecon_users';
-const EXH_TABLE  = 'minecon_exhibitors';
+const APP_TABLE  = 'adma_exhibitor_applications';
+const USER_TABLE = 'adma_users';
+const EXH_TABLE  = 'adma_exhibitors';
 
 const router = Router();
 
@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
     if (description.length > 150)
       return res.status(400).json({ error: 'Description must be 150 characters or fewer.' });
 
-    const validTiers = ['Diamond', 'Gold', 'Chrome', 'Copper'];
+    const validTiers = ['Platinum', 'Gold', 'Silver', 'Bronze'];
     if (!validTiers.includes(tier))
       return res.status(400).json({ error: 'Invalid tier.' });
 
@@ -117,7 +117,7 @@ router.put('/:id/approve', async (req, res) => {
     }));
 
     // Create exhibitor record
-    const tierMap = { Diamond: 'diamond', Gold: 'gold', Chrome: 'chrome', Copper: 'copper' };
+    const tierMap = { Platinum: 'platinum', Gold: 'gold', Silver: 'silver', Bronze: 'bronze' };
     await ddb.send(new PutCommand({
       TableName: EXH_TABLE,
       Item: {
@@ -125,11 +125,11 @@ router.put('/:id/approve', async (req, res) => {
         created_date: new Date().toISOString(),
         company_name: app.company,
         user_id: userId,
-        tier: tierMap[tier] || 'copper',
-        featured: tier === 'Diamond',
+        tier: tierMap[tier] || 'bronze',
+        featured: tier === 'Platinum',
         logo_url: app.logo_url,
         description: app.description,
-        booth_section: 'Exhibition Hall',
+        booth_section: 'Machinery Hall',
         status: 'active',
       },
     }));
@@ -146,12 +146,12 @@ router.put('/:id/approve', async (req, res) => {
     // Notify applicant
     try {
       await sendOtpEmail(app.email, null, {
-        subject: 'MineCon 2026 — Exhibitor Application Approved',
+        subject: 'ADMA Agri Show 2026 — Exhibitor Application Approved',
         html: `
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
-            <h2 style="margin:0 0 8px;color:#111">Welcome to MineCon 2026, ${app.full_name}!</h2>
+            <h2 style="margin:0 0 8px;color:#111">Welcome to ADMA Agri Show 2026, ${app.full_name}!</h2>
             <p style="color:#555">Your exhibitor application for <strong>${app.company}</strong> has been approved at the <strong>${tier}</strong> tier.</p>
-            <p style="color:#555">You can now log in to the Exhibitor Portal at <a href="https://app.minecon.global/login">app.minecon.global</a> using your registered email and password.</p>
+            <p style="color:#555">You can now log in to the Exhibitor Portal at <a href="https://adma.tyflex.co.zw/exhibitor-login">adma.tyflex.co.zw</a> using your registered email and password.</p>
           </div>
         `,
       });
@@ -187,13 +187,13 @@ router.put('/:id/reject', async (req, res) => {
 
     try {
       await sendOtpEmail(app.email, null, {
-        subject: 'MineCon 2026 — Exhibitor Application Update',
+        subject: 'ADMA Agri Show 2026 — Exhibitor Application Update',
         html: `
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
-            <h2 style="margin:0 0 8px;color:#111">MineCon 2026 Exhibitor Application</h2>
+            <h2 style="margin:0 0 8px;color:#111">ADMA Agri Show 2026 Exhibitor Application</h2>
             <p style="color:#555">Thank you for applying, ${app.full_name}. Unfortunately, your application for <strong>${app.company}</strong> was not approved at this time.</p>
             ${reason ? `<p style="color:#555"><strong>Reason:</strong> ${reason}</p>` : ''}
-            <p style="color:#555">If you believe this is an error, please contact <a href="mailto:info@minecon.global">info@minecon.global</a>.</p>
+            <p style="color:#555">If you believe this is an error, please contact <a href="mailto:info@agrishow.co.zw">info@agrishow.co.zw</a>.</p>
           </div>
         `,
       });

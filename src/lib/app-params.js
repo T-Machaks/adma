@@ -1,3 +1,5 @@
+import { EVENT_CONFIG } from './eventConfig';
+
 const isNode = typeof window === 'undefined';
 const windowObj = isNode ? { localStorage: new Map() } : window;
 const storage = windowObj.localStorage;
@@ -9,7 +11,7 @@ const toSnakeCase = (str) => {
 const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl = false } = {}) => {
   if (isNode) return defaultValue;
 
-  const storageKey = `minecon_${toSnakeCase(paramName)}`;
+  const storageKey = `${EVENT_CONFIG.storagePrefix}_${toSnakeCase(paramName)}`;
   const urlParams = new URLSearchParams(window.location.search);
   const searchParam = urlParams.get(paramName);
 
@@ -30,7 +32,7 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 
 const getAppParams = () => {
   return {
-    appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_APP_ID || "minecon" }),
+    appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_APP_ID || EVENT_CONFIG.appId }),
     fromUrl: getAppParamValue("from_url", { defaultValue: isNode ? "/" : window.location.href }),
   };
 }

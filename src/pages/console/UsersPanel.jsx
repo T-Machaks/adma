@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User } from '@/api/entities';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAuth } from '@/lib/AuthContext';
 import {
   Users, Plus, Trash2, Edit2, Shield, Building2,
@@ -8,7 +9,7 @@ import {
 } from 'lucide-react';
 
 const ROLES = [
-  { id: 'organizer',         label: 'Organizer',         icon: Shield,    color: 'bg-violet-500', desc: 'Full console access — MineCon team only.' },
+  { id: 'organizer',         label: 'Organizer',         icon: Shield,    color: 'bg-violet-500', desc: `Full console access — ${EVENT_CONFIG.eventName} team only.` },
   { id: 'marketing_partner', label: 'Marketing Partner',  icon: Briefcase, color: 'bg-rose-500',   desc: 'Console access for approved marketing partners.' },
   { id: 'exhibitor',         label: 'Exhibitor',          icon: Building2, color: 'bg-amber-500',  desc: 'Exhibitor portal — booth, meetings, analytics.' },
   { id: 'attendee',          label: 'Attendee',           icon: UserIcon,  color: 'bg-blue-500',   desc: 'Attendee PWA — browse, book meetings, schedule.' },

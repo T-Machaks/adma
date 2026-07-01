@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 
-const TABLE = 'minecon_magazine_pages';
+const TABLE = 'adma_magazine_pages';
 const r = Router();
 
 r.get('/', async (_req, res) => {

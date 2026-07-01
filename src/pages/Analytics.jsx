@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Registration, MeetingRequest, Exhibitor, Announcement } from '@/api/entities';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 import { TrendingUp, Users, Calendar, QrCode, Eye, MousePointer, BookOpen, Smartphone, CheckSquare } from 'lucide-react';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const ENGAGEMENT_DATA = [
   { day: 'Day 1', visits: 1248, qr: 284, meetings: 47 },
@@ -17,10 +18,11 @@ const CHECKIN_DATA = [
 ];
 
 const CATEGORY_DATA = [
-  { name: 'Equipment', value: 38, fill: '#f59e0b' },
-  { name: 'Services', value: 24, fill: '#3b82f6' },
-  { name: 'Suppliers', value: 22, fill: '#10b981' },
-  { name: 'Solutions', value: 16, fill: '#8b5cf6' },
+  { name: 'Machinery', value: 34, fill: '#f59e0b' },
+  { name: 'Fertilizers & Inputs', value: 26, fill: '#16a34a' },
+  { name: 'Livestock', value: 18, fill: '#92400e' },
+  { name: 'Irrigation', value: 12, fill: '#3b82f6' },
+  { name: 'Agri-Tech', value: 10, fill: '#8b5cf6' },
 ];
 
 export default function Analytics() {
@@ -53,7 +55,7 @@ export default function Analytics() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Analytics</h1>
-          <p className="text-muted-foreground text-sm">MineCon 2026 — Event performance overview</p>
+          <p className="text-muted-foreground text-sm">{EVENT_CONFIG.eventFullName} — Event performance overview</p>
         </div>
         <div className="bg-amber/10 border border-amber/30 text-amber text-xs font-bold px-2.5 py-1.5 rounded-lg">DEMO DATA</div>
       </div>

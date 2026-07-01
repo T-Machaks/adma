@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, PauseCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { AdSlot } from '@/api/entities';
 import { track } from '@/lib/tracking';
-import { ADS } from '@/lib/adBanners';
 
 const KEYFRAMES = `
   @keyframes adProgress { from { width: 0 } to { width: 100% } }
@@ -21,7 +20,7 @@ export default function AdBannerCarousel() {
     queryFn: () => AdSlot.listActive(),
   });
 
-  const slots = dynamicSlots.length > 0 ? dynamicSlots : ADS;
+  const slots = dynamicSlots;
 
   useEffect(() => { setCurrent(0); }, [slots.length]);
 

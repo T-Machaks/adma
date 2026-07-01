@@ -3,7 +3,7 @@ import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 
-const TABLE = 'minecon_engagements';
+const TABLE = 'adma_engagements';
 
 export default crudRouter(TABLE, {
   gsiFields: { exhibitor_id: 'exhibitor-index' },

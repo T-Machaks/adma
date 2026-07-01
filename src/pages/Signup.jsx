@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Mail, User, Loader2, Building2, Lock, Phone } from 'lucide-react';
+import { UserPlus, Mail, User, Loader2, Building2, Lock, Phone, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,8 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -191,14 +193,23 @@ export default function Signup() {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="password"
-              type="password"
+              type={showPass ? 'text' : 'password'}
               placeholder="At least 6 characters"
               autoComplete="new-password"
               value={form.password}
               onChange={e => set('password', e.target.value)}
-              className="pl-10 h-12"
+              className="pl-10 pr-10 h-12"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPass(p => !p)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+              aria-label={showPass ? 'Hide password' : 'Show password'}
+            >
+              {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
@@ -208,14 +219,23 @@ export default function Signup() {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               id="confirmPassword"
-              type="password"
+              type={showConfirm ? 'text' : 'password'}
               placeholder="Repeat your password"
               autoComplete="new-password"
               value={form.confirmPassword}
               onChange={e => set('confirmPassword', e.target.value)}
-              className="pl-10 h-12"
+              className="pl-10 pr-10 h-12"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirm(p => !p)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              tabIndex={-1}
+              aria-label={showConfirm ? 'Hide password' : 'Show password'}
+            >
+              {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
@@ -229,6 +249,14 @@ export default function Signup() {
             'Create free account'
           )}
         </Button>
+
+        {/* Security assurance */}
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+          <ShieldCheck className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Your information is protected with SSL encryption. We never sell or share your personal data with third parties.
+          </p>
+        </div>
 
         <p className="text-xs text-muted-foreground text-center">
           This is a platform account for booking meetings and managing enquiries.

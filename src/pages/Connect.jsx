@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { MeetingRequest, Exhibitor } from '@/api/entities';
+import { useAuth } from '@/lib/AuthContext';
 import { Users, Calendar, BarChart2, Bell, Shield, BookOpen, Star, MessageSquare, FileText, Map, Clock, Smartphone, TrendingUp, ChevronRight, Zap } from 'lucide-react';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const MODULES = [
   {
@@ -9,7 +11,7 @@ const MODULES = [
     items: [
       { label: 'Event Registration', desc: 'Register attendees, exhibitors, sponsors, speakers, and VIPs', path: '/register', icon: Users, color: 'bg-amber-500' },
       { label: 'Attendee Dashboard', desc: 'Personal schedule, saved exhibitors, notes, and meetings', path: '/attendee-dashboard', icon: Smartphone, color: 'bg-blue-500' },
-      { label: 'Admin & Security', desc: 'Roles, permissions, OTP verification, and user management', path: '/admin', icon: Shield, color: 'bg-red-500' },
+      { label: 'Admin & Security', desc: 'Roles, permissions, OTP verification, and user management', path: '/admin', icon: Shield, color: 'bg-red-500', consoleOnly: true },
     ],
   },
   {
@@ -31,7 +33,7 @@ const MODULES = [
   {
     section: 'Communications & Content',
     items: [
-      { label: 'Communications Hub', desc: 'Countdown, announcements, venue notices, and campaign messaging', path: '/communications', icon: MessageSquare, color: 'bg-orange-500' },
+      { label: 'Communications Hub', desc: 'Countdown, announcements, venue notices, and campaign messaging', path: '/communications', icon: MessageSquare, color: 'bg-orange-500', consoleOnly: true },
       { label: 'Publications', desc: 'Interactive exhibition guide with product spotlights, sponsor ads and videos', path: '/magazine', icon: BookOpen, color: 'bg-indigo-500' },
       { label: 'QR Resources', desc: 'How to use QR codes to access brochures, videos, and contacts', path: '/qr-resources', icon: Zap, color: 'bg-lime-600' },
     ],
@@ -39,12 +41,13 @@ const MODULES = [
   {
     section: 'Analytics & Reporting',
     items: [
-      { label: 'Analytics Dashboard', desc: 'Registrations, check-ins, meetings, QR scans, and engagement data', path: '/analytics', icon: BarChart2, color: 'bg-slate-600' },
+      { label: 'Analytics Dashboard', desc: 'Registrations, check-ins, meetings, QR scans, and engagement data', path: '/analytics', icon: BarChart2, color: 'bg-slate-600', consoleOnly: true },
     ],
   },
 ];
 
 export default function Connect() {
+  const { hasConsoleAccess } = useAuth();
   const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => MeetingRequest.list() });
   const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors'], queryFn: () => Exhibitor.list() });
 
@@ -54,9 +57,9 @@ export default function Connect() {
       <div className="bg-steel text-white rounded-2xl p-5 mb-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '20px 20px' }} />
         <div className="relative flex items-center gap-4">
-          <img src="/minecon-logo.png" alt="MineCon" className="w-14 h-14 object-contain flex-shrink-0" />
+          <img src={EVENT_CONFIG.logo.transparent} alt={EVENT_CONFIG.eventName} className="w-14 h-14 object-contain flex-shrink-0" />
           <div>
-            <p className="text-amber text-xs font-bold uppercase tracking-widest mb-0.5">MineCon Connect</p>
+            <p className="text-amber text-xs font-bold uppercase tracking-widest mb-0.5">{EVENT_CONFIG.eventName} Connect</p>
             <h1 className="font-heading text-2xl font-bold tracking-wide">Event Management Platform</h1>
             <p className="text-slate-300 text-xs mt-1">Complete dashboard for registration, engagement, exhibitors, communications, and analytics.</p>
           </div>
@@ -70,11 +73,14 @@ export default function Connect() {
       </div>
 
       {/* Module sections */}
-      {MODULES.map(section => (
+      {MODULES.map(section => {
+        const visibleItems = section.items.filter(item => !item.consoleOnly || hasConsoleAccess());
+        if (visibleItems.length === 0) return null;
+        return (
         <div key={section.section} className="mb-6">
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3 px-1">{section.section}</p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {section.items.map(item => {
+            {visibleItems.map(item => {
               const Icon = item.icon;
               return (
                 <Link key={item.path} to={item.path}
@@ -92,7 +98,8 @@ export default function Connect() {
             })}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* PWA access link */}
       <div className="bg-muted/50 border border-border rounded-xl p-4 flex items-center gap-3">

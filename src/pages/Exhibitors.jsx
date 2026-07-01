@@ -6,10 +6,11 @@ import { Link } from 'react-router-dom';
 import TierBadge from '@/components/ui/TierBadge';
 import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
-const CATEGORIES = ['All', 'Equipment', 'Services', 'Suppliers', 'Solutions'];
-const TIERS = ['All', 'Diamond', 'Gold', 'Chrome', 'Copper'];
-const SECTIONS = ['All', 'Main Hall', 'Exhibition Hall', 'Suppliers Zone', 'Solutions Zone'];
+const CATEGORIES = ['All', ...EVENT_CONFIG.exhibitorCategories];
+const TIERS      = ['All', ...EVENT_CONFIG.exhibitorTiers];
+const SECTIONS   = ['All', ...EVENT_CONFIG.exhibitorSections];
 
 export default function Exhibitors() {
   const [search, setSearch] = useState('');

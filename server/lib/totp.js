@@ -1,7 +1,7 @@
 import { generateSecret as _generateSecret, generateURI, verify } from 'otplib';
 import QRCode from 'qrcode';
 
-const ISSUER = 'MineCon 2026';
+const ISSUER = 'ADMA Agri Show 2026';
 
 export function generateSecret() {
   return _generateSecret();

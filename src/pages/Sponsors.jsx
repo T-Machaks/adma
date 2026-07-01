@@ -1,41 +1,48 @@
 import { useQuery } from '@tanstack/react-query';
 import { Sponsor } from '@/api/entities';
 import { Globe, Mail, ExternalLink, Star } from 'lucide-react';
+import { SponsorBannerCarousel } from '@/components/SponsorBannerCarousel';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
-const BASE = 'https://minecon.global/wp-content/uploads/2025';
-const DEMO_SPONSORS = [
-  { id: 'd1', name: 'SANY Group',              tier: 'Platinum', description: 'Global leader in construction and mining equipment. Proud Platinum sponsor of MineCon 2026.',         website: 'https://www.sanyglobal.com',    logo_url: `${BASE}/08/SANY.png`,               featured: true  },
-  { id: 'd2', name: 'Zimplow Holdings',         tier: 'Platinum', description: 'Diversified Zimbabwean industrial group supporting mining and construction across Southern Africa.',   website: 'http://www.zimplow.co.zw',     logo_url: `${BASE}/08/ZINMPLOW.png`,           featured: true  },
-  { id: 'd3', name: 'Steel Warehouse Holdings', tier: 'Platinum', description: 'Zimbabwe\'s leading steel and metal products supplier to the mining and construction sector.',         website: 'http://www.swh.co.zw',         logo_url: `${BASE}/08/STEEL-WAREHOUSE.png`,    featured: true  },
-  { id: 'd4', name: 'Agricon Equipment',        tier: 'Gold',     description: 'Comprehensive equipment solutions for mining, earthmoving and construction across Zimbabwe.',          website: 'http://www.agriconequipment.net', logo_url: `${BASE}/08/AGRICON.png`,          featured: false },
-  { id: 'd5', name: 'LiuGong Zimbabwe',         tier: 'Gold',     description: 'Official LiuGong heavy equipment distributor for Zimbabwe and the wider region.',                     website: 'http://www.liugongzw.com',     logo_url: `${BASE}/09/LIUGONG.png`,            featured: false },
-  { id: 'd6', name: 'Kanu Equipment',           tier: 'Gold',     description: 'Construction and mining equipment dealer with full aftersales support across Zimbabwe.',              website: '',                             logo_url: `${BASE}/08/KANU-EQUIPMENT.png`,     featured: false },
-  { id: 'd7', name: 'R&S Diesel Professionals', tier: 'Silver',   description: 'Specialist diesel engine service and parts supply for heavy plant and mining fleet.',                 website: '',                             logo_url: `${BASE}/08/RS-DIESEL.png`,          featured: false },
-  { id: 'd8', name: 'Electrosales Zimbabwe',    tier: 'Silver',   description: 'Electrical systems, lighting, and power solutions for mining and industrial operations.',             website: '',                             logo_url: `${BASE}/09/ELECTROSALES.png`,       featured: false },
-  { id: 'd9', name: 'Scout Aerial Africa',      tier: 'Bronze',   description: 'Drone surveys, aerial photography, and LiDAR mapping for mining exploration and site monitoring.',   website: 'https://scoutaerialafrica.com', logo_url: `${BASE}/08/SCOUT-AERIAL.png`,      featured: false },
-  { id: 'd10', name: 'EcoCash',                 tier: 'Bronze',   description: 'Zimbabwe\'s leading mobile money platform powering cashless transactions at the exhibition.',         website: '',                             logo_url: `${BASE}/09/ECOCASH.png`,            featured: false },
-];
+const BASE = EVENT_CONFIG.cdnBase;
+const S3   = EVENT_CONFIG.s3Base;
+const C    = `${S3}/banners/carousel`;
+
+// Carousel images keyed by sponsor name (normalised) — for DB sponsors that lack carousel_images
+const CAROUSEL_MAP = {
+  'sany group':              [`${C}/sany-1.jpg`,    `${C}/sany-2.jpg`,    `${C}/sany-3.jpg`],
+  'steel warehouse holdings':[`${C}/swh-1.jpg`,     `${C}/swh-2.jpg`,     `${C}/swh-3.jpg`],
+  'zimtile':                 [`${C}/zimtile-1.jpg`, `${C}/zimtile-2.jpg`, `${C}/zimtile-3.jpg`],
+  'zimplow holdings':        [`${C}/zimplow-1.png`, `${C}/zimplow-2.png`, `${C}/zimplow-3.png`],
+};
+
+function injectBanners(list) {
+  return list.map(s => ({
+    ...s,
+    carousel_images: s.carousel_images?.length ? s.carousel_images : (CAROUSEL_MAP[s.name?.toLowerCase()] ?? null),
+  }));
+}
 
 const TIER_STYLE = {
-  Platinum: { bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-slate-300 dark:border-slate-600', badge: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200', dot: 'bg-slate-400' },
+  Platinum: { bg: 'bg-emerald-50 dark:bg-emerald-950/20', border: 'border-emerald-300 dark:border-emerald-700', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200', dot: 'bg-emerald-400' },
   Gold: { bg: 'bg-yellow-50 dark:bg-yellow-950/20', border: 'border-yellow-300 dark:border-yellow-800', badge: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-400' },
-  Silver: { bg: 'bg-blue-50 dark:bg-blue-950/20', border: 'border-blue-200 dark:border-blue-800', badge: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
-  Bronze: { bg: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-200 dark:border-orange-800', badge: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
+  Silver: { bg: 'bg-slate-50 dark:bg-slate-800/40', border: 'border-slate-200 dark:border-slate-700', badge: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+  Bronze: { bg: 'bg-orange-50 dark:bg-orange-950/20', border: 'border-orange-200 dark:border-orange-800', badge: 'bg-orange-100 text-orange-800', dot: 'bg-orange-700' },
 };
 
 export default function Sponsors() {
-  const { data: dbSponsors = [] } = useQuery({
+  const { data: dbSponsors = [], isLoading } = useQuery({
     queryKey: ['sponsors'],
     queryFn: () => Sponsor.list('-created_date'),
   });
 
-  const sponsors = dbSponsors.length > 0 ? dbSponsors : DEMO_SPONSORS;
+  const sponsors = injectBanners(dbSponsors);
   const tiers = ['Platinum', 'Gold', 'Silver', 'Bronze'];
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-5xl mx-auto px-4 pt-5">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Sponsors & Partners</h1>
-      <p className="text-muted-foreground text-sm mb-5">MineCon 2026 is made possible by the support of our valued sponsors and industry partners.</p>
+      <p className="text-muted-foreground text-sm mb-5">{EVENT_CONFIG.eventFullName} is made possible by the support of our valued sponsors and industry partners.</p>
 
       {/* Sponsorship tier legend */}
       <div className="flex gap-2 flex-wrap mb-6">
@@ -48,7 +55,14 @@ export default function Sponsors() {
       </div>
 
       {/* Tier sections */}
-      {tiers.map(tier => {
+      {isLoading ? (
+        <div className="py-12 text-center text-muted-foreground text-sm">Loading sponsors…</div>
+      ) : sponsors.length === 0 ? (
+        <div className="py-12 text-center text-muted-foreground">
+          <Star className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">Sponsor listings coming soon.</p>
+        </div>
+      ) : tiers.map(tier => {
         const tierSponsors = sponsors.filter(s => s.tier === tier);
         if (tierSponsors.length === 0) return null;
         const style = TIER_STYLE[tier];
@@ -78,10 +92,15 @@ export default function Sponsors() {
                     </div>
                   </div>
 
-                  {tier === 'Platinum' && (
-                    <div className="w-full h-16 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-lg flex items-center justify-center mb-3 border border-dashed border-slate-400">
-                      <p className="text-xs text-muted-foreground font-medium">Banner Ad Space — {s.name}</p>
-                    </div>
+                  {tier === 'Platinum' && s.carousel_images?.length > 0 && (
+                    <SponsorBannerCarousel
+                      images={s.carousel_images}
+                      name={s.name}
+                      tagline={s.description?.split('.')[0]}
+                      booth={s.booth}
+                      website={s.website}
+                      logoUrl={s.logo_url}
+                    />
                   )}
 
                   <p className="text-xs text-muted-foreground leading-relaxed mb-3">{s.description}</p>
@@ -110,10 +129,10 @@ export default function Sponsors() {
       {/* Become a sponsor CTA */}
       <div className="bg-steel text-white rounded-xl p-5 text-center">
         <p className="font-heading text-lg font-bold tracking-wide mb-2">Become a Sponsor</p>
-        <p className="text-sm text-slate-300 mb-4">Partner with MineCon 2026 to reach decision-makers across the mining and construction sector in Southern Africa.</p>
-        <a href="https://minecon.global" target="_blank" rel="noreferrer"
+        <p className="text-sm text-slate-300 mb-4">Partner with {EVENT_CONFIG.eventFullName} to reach decision-makers across Zimbabwe's agricultural sector.</p>
+        <a href={EVENT_CONFIG.website} target="_blank" rel="noreferrer"
           className="inline-flex items-center gap-2 bg-amber text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">
-          <ExternalLink className="w-4 h-4" /> Enquire at minecon.global
+          <ExternalLink className="w-4 h-4" /> Enquire at {EVENT_CONFIG.website.replace('https://', '')}
         </a>
       </div>
     </div>

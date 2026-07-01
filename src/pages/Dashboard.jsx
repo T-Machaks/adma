@@ -6,8 +6,10 @@ import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useAuth } from '@/lib/AuthContext';
 import { Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
-const VALID_SECTIONS = ['Main Hall', 'Exhibition Hall', 'Suppliers Zone', 'Solutions Zone'];
+const VALID_SECTIONS = EVENT_CONFIG.exhibitorSections;
+const TIER_COLORS = { Platinum: '#16a34a', Gold: '#eab308', Silver: '#94a3b8', Bronze: '#92400e' };
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -26,13 +28,13 @@ export default function Dashboard() {
     setToggling(false);
   }
 
-  const tierCounts = ['Diamond', 'Gold', 'Chrome', 'Copper'].map(t => ({
+  const tierCounts = EVENT_CONFIG.exhibitorTiers.map(t => ({
     name: t,
     count: exhibitors.filter(e => e.tier === t).length,
-    color: { Diamond: '#3b82f6', Gold: '#eab308', Chrome: '#94a3b8', Copper: '#f97316' }[t],
+    color: TIER_COLORS[t] || '#94a3b8',
   }));
 
-  const catCounts = ['Equipment', 'Services', 'Suppliers', 'Solutions'].map(c => ({
+  const catCounts = EVENT_CONFIG.exhibitorCategories.map(c => ({
     name: c,
     count: exhibitors.filter(e => e.category === c).length,
   }));

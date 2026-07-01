@@ -29,7 +29,7 @@ export default function AdminPanel() {
 
   const [selectedRole, setSelectedRole] = useState('admin');
   const [showOtp, setShowOtp] = useState(false);
-  const [profile, setProfile] = useState({ name: 'Demo Admin', email: 'admin@minecon.global', role: 'admin' });
+  const [profile, setProfile] = useState({ name: 'Demo Admin', email: 'admin@agrishow.co.zw', role: 'admin' });
   const queryClient = useQueryClient();
 
   const { data: registrations = [] } = useQuery({

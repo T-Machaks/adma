@@ -1,21 +1,23 @@
 import { Link } from 'react-router-dom';
-import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, BookOpen, MessageSquare, UserCheck, Sparkles, UserPlus, Ticket } from 'lucide-react';
+import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, BookOpen, MessageSquare, UserCheck, Sparkles, UserPlus, Ticket, Video } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Announcement, Exhibitor } from '@/api/entities';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
 import VirtualBanner from '@/components/VirtualBanner';
+import CountdownBanner from '@/components/CountdownBanner';
 import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const quickActions = [
   { label: 'Exhibitors', path: '/exhibitors', icon: Users, color: 'bg-gradient-to-br from-blue-500 to-blue-700', shadow: 'shadow-blue-500/30' },
   { label: 'Site Plan', path: '/site-plan', icon: Map, color: 'bg-gradient-to-br from-emerald-500 to-emerald-700', shadow: 'shadow-emerald-500/30' },
+  { label: 'Live Sessions', path: '/sessions', icon: Video, color: 'bg-gradient-to-br from-red-500 to-red-700', shadow: 'shadow-red-500/30' },
   { label: 'Meetings', path: '/meetings', icon: Calendar, color: 'bg-gradient-to-br from-violet-500 to-violet-700', shadow: 'shadow-violet-500/30' },
   { label: 'Schedule', path: '/schedule', icon: Clock, color: 'bg-gradient-to-br from-rose-500 to-rose-700', shadow: 'shadow-rose-500/30' },
   { label: 'Register', path: '/register', icon: UserCheck, color: 'bg-gradient-to-br from-amber-400 to-amber-600', shadow: 'shadow-amber-500/30' },
   { label: 'Publications', path: '/magazine', icon: BookOpen, color: 'bg-gradient-to-br from-indigo-500 to-indigo-700', shadow: 'shadow-indigo-500/30' },
-  { label: 'My Dashboard', path: '/attendee-dashboard', icon: LayoutDashboard, color: 'bg-gradient-to-br from-yellow-400 to-yellow-600', shadow: 'shadow-yellow-500/30' },
   { label: 'QR Resources', path: '/qr-resources', icon: QrCode, color: 'bg-gradient-to-br from-slate-500 to-slate-700', shadow: 'shadow-slate-500/30' },
 ];
 
@@ -49,17 +51,17 @@ export default function Home() {
         <div className="absolute inset-0" style={{background: 'radial-gradient(ellipse at 50% 0%, rgba(249,138,26,0.15) 0%, transparent 60%)'}} />
         <div className="absolute top-0 left-1/2 w-64 h-64 rounded-full blur-3xl bg-amber/20" style={{animation: 'hero-glow 6s ease-in-out infinite'}} />
         <div className="relative max-w-2xl mx-auto text-center">
-          <img src="/minecon-logo.png" alt="" className="w-20 h-20 lg:w-28 lg:h-28 object-contain drop-shadow-2xl mx-auto mb-4" />
+          <img src={EVENT_CONFIG.logo.transparent} alt="" className="w-20 h-20 lg:w-28 lg:h-28 object-contain drop-shadow-2xl mx-auto mb-4" />
           <div className="inline-block bg-amber text-white text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-widest uppercase">
-            2026 Edition · Dates TBC
+            05–07 June 2026
           </div>
           <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold tracking-wider mb-2">
-            <span className="gradient-text">MINECON</span> <span className="text-white">2026</span>
+            <span className="gradient-text">ADMA</span> <span className="text-white">AGRI SHOW</span>
           </h1>
-          <p className="text-slate-300 text-base mb-1">Mining & Construction Exhibition</p>
-          <p className="text-amber font-medium text-sm mb-6">Artfarm Grounds, Pomona, Harare, Zimbabwe</p>
+          <p className="text-slate-300 text-base mb-1">Agricultural Machinery, Inputs & Livestock Exhibition</p>
+          <p className="text-amber font-medium text-sm mb-6">{EVENT_CONFIG.venue}, Zimbabwe</p>
           <p className="text-slate-300 text-sm max-w-lg mx-auto leading-relaxed">
-            Southern Africa's premier B2B platform connecting suppliers, equipment providers, and professional services with buyers across the mining and construction sectors.
+            Zimbabwe's largest agricultural exhibition connecting machinery dealers, input suppliers, and service providers with farmers and buyers across the agricultural value chain.
           </p>
           <div className="mt-6 flex justify-center">
             <div className="flex gap-3 glass rounded-2xl p-2">
@@ -73,6 +75,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Countdown banner */}
+      <CountdownBanner />
 
       {/* Ad banner carousel */}
       <div className="pt-4">

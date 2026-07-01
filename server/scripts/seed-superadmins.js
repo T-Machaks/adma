@@ -1,6 +1,6 @@
 /**
  * Creates the two superadmin organizer accounts if they don't already exist.
- * Default password: @MineCon2026  (must be changed on first login)
+ * Default password: @AgriShow2026  (must be changed on first login)
  *
  * Usage: node server/scripts/seed-superadmins.js
  */
@@ -10,12 +10,12 @@ import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 
-const TABLE = 'minecon_users';
-const DEFAULT_PASSWORD = '@MineCon2026';
+const TABLE = 'adma_users';
+const DEFAULT_PASSWORD = '@AgriShow2026';
 
 const SUPERADMINS = [
-  { email: 'info@minecon.global',  full_name: 'MineCon Admin' },
-  { email: 'tamuka@tyflex.co.zw',  full_name: 'Tamuka' },
+  { email: 'info@agrishow.co.zw', full_name: 'ADMA Admin' },
+  { email: 'tamuka@tyflex.co.zw', full_name: 'Tamuka' },
 ];
 
 const password_hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
@@ -41,7 +41,7 @@ for (const sa of SUPERADMINS) {
       created_date: new Date().toISOString(),
       full_name: sa.full_name,
       email: sa.email,
-      company: 'MineCon',
+      company: 'ADMA',
       phone: '',
       role: 'organizer',
       status: 'active',

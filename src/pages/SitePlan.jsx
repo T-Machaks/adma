@@ -4,52 +4,53 @@ import { Link } from 'react-router-dom';
 import { Upload, ZoomIn, ZoomOut, Info, Navigation2, Calendar, Phone, Globe, Mail, X, MapPin } from 'lucide-react';
 import { Exhibitor } from '@/api/entities';
 import TierBadge from '@/components/ui/TierBadge';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const LEGEND = [
-  { label: 'Diamond', color: 'bg-blue-500' },
+  { label: 'Platinum', color: 'bg-emerald-600' },
   { label: 'Gold', color: 'bg-yellow-400' },
-  { label: 'Chrome', color: 'bg-slate-400' },
-  { label: 'Copper', color: 'bg-orange-500' },
+  { label: 'Silver', color: 'bg-slate-400' },
+  { label: 'Bronze', color: 'bg-orange-800' },
 ];
 
 const ZONES = [
-  { id: 'M1',  label: 'M1',  x: 4,  y: 30, w: 8,  h: 18, tier: 'Diamond', section: 'Mining',        company: 'Steel Warehouse' },
-  { id: 'M4',  label: 'M4',  x: 4,  y: 50, w: 8,  h: 16, tier: 'Diamond', section: 'Mining',        company: 'SANY' },
-  { id: 'M5',  label: 'M5',  x: 4,  y: 68, w: 8,  h: 10, tier: 'Gold',    section: 'Mining',        company: 'Zimoco' },
-  { id: 'C8',  label: 'C8',  x: 30, y: 25, w: 16, h: 10, tier: 'Diamond', section: 'Construction',  company: 'Isuzu / Autoworld' },
-  { id: 'C9',  label: 'C9',  x: 60, y: 25, w: 16, h: 10, tier: 'Diamond', section: 'Construction',  company: 'Viking' },
-  { id: 'E10', label: 'E10', x: 30, y: 40, w: 16, h: 10, tier: 'Gold',    section: 'Construction',  company: 'Agricon Equipment' },
-  { id: 'E11', label: 'E11', x: 60, y: 40, w: 16, h: 10, tier: 'Gold',    section: 'Construction',  company: 'Nicnel' },
-  { id: 'H10', label: 'H10', x: 30, y: 55, w: 16, h: 10, tier: 'Chrome',  section: 'Construction',  company: 'Kanu Equipment' },
-  { id: 'H11', label: 'H11', x: 60, y: 55, w: 16, h: 10, tier: 'Chrome',  section: 'Construction',  company: 'LiuGong' },
-  { id: 'J8',  label: 'J8',  x: 30, y: 68, w: 16, h: 10, tier: 'Gold',    section: 'Construction',  company: 'R&S Diesel' },
-  { id: 'J9',  label: 'J9',  x: 60, y: 68, w: 16, h: 10, tier: 'Gold',    section: 'Construction',  company: 'National Propshaft' },
-  { id: 'L7',  label: 'L7',  x: 18, y: 80, w: 10, h: 8,  tier: 'Diamond', section: 'Mining',        company: 'Zimplow' },
-  { id: 'L10', label: 'L10', x: 30, y: 80, w: 16, h: 8,  tier: 'Gold',    section: 'Mining',        company: 'Tsapo Group' },
-  { id: 'L11', label: 'L11', x: 60, y: 80, w: 16, h: 8,  tier: 'Chrome',  section: 'Mining',        company: 'Great Dyke' },
+  { id: 'M1',  label: 'M1',  x: 4,  y: 30, w: 8,  h: 18, tier: 'Platinum', section: 'Machinery',  company: 'Afritractors' },
+  { id: 'M4',  label: 'M4',  x: 4,  y: 50, w: 8,  h: 16, tier: 'Platinum', section: 'Machinery',  company: 'Agricon' },
+  { id: 'M5',  label: 'M5',  x: 4,  y: 68, w: 8,  h: 10, tier: 'Gold',    section: 'Machinery',   company: 'Croco Motors' },
+  { id: 'C8',  label: 'C8',  x: 30, y: 25, w: 16, h: 10, tier: 'Platinum', section: 'Suppliers',  company: 'Agriforce' },
+  { id: 'C9',  label: 'C9',  x: 60, y: 25, w: 16, h: 10, tier: 'Platinum', section: 'Suppliers',  company: 'Amcotts' },
+  { id: 'E10', label: 'E10', x: 30, y: 40, w: 16, h: 10, tier: 'Gold',    section: 'Suppliers',   company: 'Amtec' },
+  { id: 'E11', label: 'E11', x: 60, y: 40, w: 16, h: 10, tier: 'Gold',    section: 'Suppliers',   company: 'Bain' },
+  { id: 'H10', label: 'H10', x: 30, y: 55, w: 16, h: 10, tier: 'Silver',  section: 'Suppliers',   company: 'Brown Engineering Group' },
+  { id: 'H11', label: 'H11', x: 60, y: 55, w: 16, h: 10, tier: 'Silver',  section: 'Suppliers',   company: 'Centre Pivot Irrigation' },
+  { id: 'J8',  label: 'J8',  x: 30, y: 68, w: 16, h: 10, tier: 'Gold',    section: 'Suppliers',   company: 'Cloverleaf Motors' },
+  { id: 'J9',  label: 'J9',  x: 60, y: 68, w: 16, h: 10, tier: 'Gold',    section: 'Suppliers',   company: 'Zimplow' },
+  { id: 'L7',  label: 'L7',  x: 18, y: 80, w: 10, h: 8,  tier: 'Platinum', section: 'Machinery',  company: 'Bulawayo Steel' },
+  { id: 'L10', label: 'L10', x: 30, y: 80, w: 16, h: 8,  tier: 'Gold',    section: 'Machinery',   company: 'CBZ Agro-Yield' },
+  { id: 'L11', label: 'L11', x: 60, y: 80, w: 16, h: 8,  tier: 'Silver',  section: 'Machinery',   company: 'Windmill' },
 ];
 
 const SMALL_BOOTHS = [
-  { id: 'B5',  label: 'B5',  x: 20, y: 26, tier: 'Copper' },
-  { id: 'B6',  label: 'B6',  x: 25, y: 26, tier: 'Copper' },
-  { id: 'B7',  label: 'B7',  x: 30, y: 26, tier: 'Copper' },
-  { id: 'C5',  label: 'C5',  x: 20, y: 30, tier: 'Chrome' },
-  { id: 'C6',  label: 'C6',  x: 25, y: 30, tier: 'Chrome' },
-  { id: 'CP1', label: 'CP1', x: 48, y: 88, tier: 'Copper' },
-  { id: 'CP2', label: 'CP2', x: 53, y: 88, tier: 'Copper' },
-  { id: 'CP3', label: 'CP3', x: 58, y: 88, tier: 'Copper' },
-  { id: 'CP7', label: 'CP7', x: 63, y: 88, tier: 'Copper' },
-  { id: 'CP8', label: 'CP8', x: 68, y: 88, tier: 'Copper' },
+  { id: 'B5',  label: 'B5',  x: 20, y: 26, tier: 'Bronze' },
+  { id: 'B6',  label: 'B6',  x: 25, y: 26, tier: 'Bronze' },
+  { id: 'B7',  label: 'B7',  x: 30, y: 26, tier: 'Bronze' },
+  { id: 'C5',  label: 'C5',  x: 20, y: 30, tier: 'Silver' },
+  { id: 'C6',  label: 'C6',  x: 25, y: 30, tier: 'Silver' },
+  { id: 'CP1', label: 'CP1', x: 48, y: 88, tier: 'Bronze' },
+  { id: 'CP2', label: 'CP2', x: 53, y: 88, tier: 'Bronze' },
+  { id: 'CP3', label: 'CP3', x: 58, y: 88, tier: 'Bronze' },
+  { id: 'CP7', label: 'CP7', x: 63, y: 88, tier: 'Bronze' },
+  { id: 'CP8', label: 'CP8', x: 68, y: 88, tier: 'Bronze' },
 ];
 
 const tierColors = {
-  Diamond: '#3b82f6',
-  Gold:    '#eab308',
-  Chrome:  '#94a3b8',
-  Copper:  '#f97316',
+  Platinum: '#16a34a',
+  Gold:     '#eab308',
+  Silver:   '#94a3b8',
+  Bronze:   '#92400e',
 };
 
-// Artfarm Grounds, Pomona, Harare
+// ART Farm, Pomona, Harare
 const VENUE_LAT = -17.8087;
 const VENUE_LNG = 31.0510;
 
@@ -121,7 +122,7 @@ export default function SitePlan() {
     <div className="pb-24 max-w-2xl lg:max-w-5xl mx-auto">
       <div className="px-4 pt-5 mb-4">
         <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Site Plan</h1>
-        <p className="text-muted-foreground text-sm mt-1">Artfarm Grounds, Pomona, Harare — tap a booth for details</p>
+        <p className="text-muted-foreground text-sm mt-1">{EVENT_CONFIG.venue} — tap a booth for details</p>
       </div>
 
       {/* 2-col on desktop: map left, controls+legend+info right */}
@@ -173,8 +174,8 @@ export default function SitePlan() {
                   </defs>
                   <rect width="100" height="100" fill="url(#grid)" />
 
-                  <text x="22" y="94" fill="#f59e0b" fontSize="3.5" fontWeight="bold" fontFamily="Barlow Condensed, sans-serif">← MINING</text>
-                  <text x="62" y="94" fill="#f59e0b" fontSize="3.5" fontWeight="bold" fontFamily="Barlow Condensed, sans-serif">CONSTRUCTION →</text>
+                  <text x="22" y="94" fill="#f59e0b" fontSize="3.5" fontWeight="bold" fontFamily="Barlow Condensed, sans-serif">← MACHINERY</text>
+                  <text x="62" y="94" fill="#f59e0b" fontSize="3.5" fontWeight="bold" fontFamily="Barlow Condensed, sans-serif">SUPPLIERS & INPUTS →</text>
 
                   <rect x="44" y="8" width="12" height="5" rx="1" fill="#f59e0b" />
                   <text x="50" y="11.5" fill="white" fontSize="2" textAnchor="middle" fontWeight="bold">PUBLIC ENTRANCE</text>

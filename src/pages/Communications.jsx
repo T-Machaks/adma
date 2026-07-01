@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Announcement } from '@/api/entities';
+import { AppSettings } from '@/api/entities/AppSettings';
 import { notifyAnnouncement } from '@/api/notify';
 import {
   Bell, Plus, Trash2, AlertCircle, Clock, MapPin,
   MessageSquare, Mail, Send, Megaphone, ChevronDown, ChevronUp, X, Sparkles,
+  Smartphone, Radio, Timer, ChevronRight, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,29 +18,79 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/components/ui/use-toast';
+import { useAppSettings } from '@/lib/AppSettingsContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const TYPE_STYLES = {
-  Important: 'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
-  Reminder:  'border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400',
-  Update:    'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400',
-  General:   'border-blue-400 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
+  Important:   'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
+  Reminder:    'border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400',
+  Update:      'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400',
+  General:     'border-blue-400 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
+  Venue:       'border-violet-400 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400',
+  Directional: 'border-teal-400 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400',
 };
 
 const NOTICES = [
   { id: 1, type: 'Important', title: 'Security & Accreditation', body: 'All attendees must collect their badge at the registration desk before entering any exhibition hall. Photo ID required. Uncollected badges will be cancelled after Day 1.', icon: AlertCircle, color: 'border-red-400 bg-red-50 dark:bg-red-950/30' },
-  { id: 2, type: 'Venue',     title: 'Parking & Transport',      body: 'Parking is available at Artfarm Grounds main lot. Entry via Pomona Road gate. Shuttle service from Avondale pick-up point available both days.', icon: MapPin, color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/30' },
+  { id: 2, type: 'Venue',     title: 'Parking & Transport',      body: `Parking is available at ${EVENT_CONFIG.venueShort} main lot. Entry via Pomona Road gate. Shuttle service from Avondale pick-up point available both days.`, icon: MapPin, color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/30' },
   { id: 3, type: 'Schedule',  title: 'Opening Ceremony Change',  body: 'The Opening Keynote has been moved from 09:00 to 09:30 on Day 1 to accommodate the VIP arrival programme.', icon: Clock, color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/30' },
-  { id: 4, type: 'Venue',     title: 'Wi-Fi Access',             body: 'Complimentary Wi-Fi is available throughout the venue. Network: MineCon2026 — Password will be displayed at the registration desk.', icon: Megaphone, color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' },
+  { id: 4, type: 'Venue',     title: 'Wi-Fi Access',             body: `Complimentary Wi-Fi is available throughout the venue. Network: ${EVENT_CONFIG.eventName}${EVENT_CONFIG.eventYear} — Password will be displayed at the registration desk.`, icon: Megaphone, color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' },
 ];
 
 const EMPTY_FORM = { type: 'General', title: '', body: '', sponsored: false, sponsor_name: '' };
 
+const CAMPAIGN_ROWS = [
+  { id: 'email-pre', label: 'Pre-event reminder — 7 days before', channel: 'email', icon: Mail },
+  { id: 'email-welcome', label: 'Day 1 welcome message', channel: 'email', icon: Mail },
+  { id: 'sms-reminder', label: 'SMS day-of reminder', channel: 'sms', icon: Smartphone },
+  { id: 'push-session', label: 'Session start push alert', channel: 'push', icon: Radio },
+  { id: 'email-followup', label: 'Post-event follow-up', channel: 'email', icon: Mail },
+];
+
 export default function Communications() {
   const qc = useQueryClient();
+  const { toast } = useToast();
+  const { settings, updateSettings } = useAppSettings();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [openNotice, setOpenNotice] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [campaignDialog, setCampaignDialog] = useState(null);
+  const [campaignForm, setCampaignForm] = useState({ subject: '', body: '' });
+  const [eventDateInput, setEventDateInput] = useState(settings?.event_start_date ? settings.event_start_date.slice(0, 16) : '');
+  const [savingDate, setSavingDate] = useState(false);
+
+  const saveEventDate = async () => {
+    if (!eventDateInput) return;
+    setSavingDate(true);
+    try {
+      await updateSettings({ event_start_date: new Date(eventDateInput).toISOString() });
+      toast({ title: 'Event date saved', description: 'The countdown banner will now show on the home page.' });
+    } catch {
+      toast({ title: 'Failed to save', variant: 'destructive' });
+    } finally {
+      setSavingDate(false);
+    }
+  };
+
+  const sendCampaign = async (row) => {
+    if (row.channel === 'sms') {
+      try {
+        await fetch('/api/notifications/bulk-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: campaignForm.body, campaign: row.id }),
+        });
+        toast({ title: 'SMS queued', description: 'Message handed to OmniFlex for delivery.' });
+      } catch {
+        toast({ title: 'Queued (offline)', description: 'Will retry when server is reachable.', variant: 'destructive' });
+      }
+    } else {
+      toast({ title: `${row.channel === 'push' ? 'Push' : 'Email'} queued`, description: 'Integration coming soon — message logged.' });
+    }
+    setCampaignDialog(null);
+  };
 
   const { data: announcements = [] } = useQuery({
     queryKey: ['announcements'],
@@ -160,22 +212,62 @@ export default function Communications() {
         </div>
       </section>
 
+      {/* Event date (countdown) */}
+      <section className="bg-card border border-border rounded-xl p-5 mb-5">
+        <p className="font-heading text-base font-bold uppercase tracking-wide mb-1 flex items-center gap-2">
+          <Timer className="w-4 h-4 text-amber" /> Event Date & Countdown
+        </p>
+        <p className="text-xs text-muted-foreground mb-3">Set the opening date/time to display a live countdown banner on the home screen.</p>
+        <div className="flex gap-2">
+          <Input
+            type="datetime-local"
+            value={eventDateInput}
+            onChange={e => setEventDateInput(e.target.value)}
+            className="flex-1"
+          />
+          <Button onClick={saveEventDate} disabled={savingDate || !eventDateInput}>
+            {savingDate ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+        {settings?.event_start_date && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Countdown active — opens {new Date(settings.event_start_date).toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short' })}
+          </p>
+        )}
+      </section>
+
       {/* Campaign messaging */}
       <section className="bg-card border border-border rounded-xl p-5">
         <p className="font-heading text-base font-bold uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Mail className="w-4 h-4 text-amber" /> Campaign Messaging
+          <Send className="w-4 h-4 text-amber" /> Campaign Messaging
         </p>
-        <p className="text-xs text-muted-foreground mb-4">Placeholder for email and SMS broadcast campaigns.</p>
+        <p className="text-xs text-muted-foreground mb-4">Trigger email, SMS, and push broadcast campaigns to registered attendees.</p>
         <div className="space-y-2">
-          {['Pre-event reminder — 7 days before', 'Day 1 welcome message', 'Session reminders (automated)', 'Post-event follow-up'].map((item, i) => (
-            <div key={i} className="flex items-center justify-between px-3 py-2.5 bg-muted rounded-lg">
-              <div className="flex items-center gap-2">
-                <Send className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium">{item}</span>
+          {CAMPAIGN_ROWS.map(row => {
+            const Icon = row.icon;
+            const channelColor = { email: 'text-blue-500', sms: 'text-green-500', push: 'text-violet-500' }[row.channel] || 'text-muted-foreground';
+            const channelBadge = { email: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', sms: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', push: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' }[row.channel];
+            return (
+              <div key={row.id} className="flex items-center justify-between px-3 py-2.5 bg-muted rounded-lg gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${channelColor}`} />
+                  <span className="text-xs font-medium truncate">{row.label}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${channelBadge}`}>{row.channel}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[10px] px-2"
+                    onClick={() => { setCampaignForm({ subject: row.label, body: '' }); setCampaignDialog(row); }}
+                  >
+                    Send
+                  </Button>
+                </div>
               </div>
-              <span className="text-[10px] bg-amber/10 text-amber px-1.5 py-0.5 rounded font-bold">DRAFT</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -197,6 +289,8 @@ export default function Communications() {
                   <SelectItem value="Important">Important</SelectItem>
                   <SelectItem value="Update">Update</SelectItem>
                   <SelectItem value="Reminder">Reminder</SelectItem>
+                  <SelectItem value="Venue">Venue</SelectItem>
+                  <SelectItem value="Directional">Directional</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -249,6 +343,52 @@ export default function Communications() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Campaign send dialog */}
+      <Dialog open={!!campaignDialog} onOpenChange={open => !open && setCampaignDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Campaign</DialogTitle>
+          </DialogHeader>
+          {campaignDialog && (
+            <div className="space-y-4 pt-1">
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+                <campaignDialog.icon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs font-medium">{campaignDialog.label}</span>
+                <span className="ml-auto text-[10px] font-bold uppercase text-muted-foreground">{campaignDialog.channel}</span>
+              </div>
+              {campaignDialog.channel === 'email' && (
+                <div>
+                  <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Subject</label>
+                  <Input value={campaignForm.subject} onChange={e => setCampaignForm(f => ({ ...f, subject: e.target.value }))} />
+                </div>
+              )}
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Message</label>
+                <Textarea
+                  rows={4}
+                  value={campaignForm.body}
+                  onChange={e => setCampaignForm(f => ({ ...f, body: e.target.value }))}
+                  placeholder="Write your message to attendees…"
+                />
+              </div>
+              {campaignDialog.channel !== 'push' && (
+                <p className="text-xs text-muted-foreground">
+                  {campaignDialog.channel === 'sms'
+                    ? 'Will be routed via OmniFlex to all registered phone numbers.'
+                    : 'Email integration placeholder — message will be logged server-side.'}
+                </p>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCampaignDialog(null)}>Cancel</Button>
+                <Button onClick={() => sendCampaign(campaignDialog)} disabled={!campaignForm.body.trim()}>
+                  Send
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

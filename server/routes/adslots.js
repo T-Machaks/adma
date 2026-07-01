@@ -3,7 +3,7 @@ import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 
-const TABLE = 'minecon_adslots';
+const TABLE = 'adma_adslots';
 
 export default crudRouter(TABLE, {
   defaults: () => ({ active: true, internal: false, accent: '#f59e0b', bg: 'from-slate-700 to-slate-900' }),

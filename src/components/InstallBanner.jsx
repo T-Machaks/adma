@@ -1,5 +1,6 @@
 import { X, Download, Share } from 'lucide-react';
 import { useState } from 'react';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 export default function InstallBanner({ isIOS, onInstall, onDismiss }) {
   const [showIOSSteps, setShowIOSSteps] = useState(false);
@@ -25,7 +26,7 @@ export default function InstallBanner({ isIOS, onInstall, onDismiss }) {
           <div className="flex items-center gap-3">
             <Download className="w-4 h-4 text-amber flex-shrink-0" />
             <p className="flex-1 text-sm text-slate-200">
-              Install <span className="font-semibold text-white">MineCon 2026</span> for quick access
+              Install <span className="font-semibold text-white">{EVENT_CONFIG.eventFullName}</span> for quick access
             </p>
             <button
               onClick={() => setShowIOSSteps(true)}
@@ -46,7 +47,7 @@ export default function InstallBanner({ isIOS, onInstall, onDismiss }) {
     <div className="bg-amber/10 border-b border-amber/20 px-4 py-2.5 flex items-center gap-3">
       <Download className="w-4 h-4 text-amber flex-shrink-0" />
       <p className="flex-1 text-sm text-slate-200">
-        Install <span className="font-semibold text-white">MineCon 2026</span> for quick access
+        Install <span className="font-semibold text-white">{EVENT_CONFIG.eventFullName}</span> for quick access
       </p>
       <button
         onClick={onInstall}

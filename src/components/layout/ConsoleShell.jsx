@@ -1,10 +1,10 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart2, MessageSquare, Shield,
-  LogOut, Users, Menu, X, ChevronLeft, UserCog, ScanLine, Megaphone, ClipboardList, Inbox,
+  LogOut, Users, Menu, X, ChevronLeft, UserCog, ScanLine, Megaphone, ClipboardList, Inbox, Video,
 } from 'lucide-react';
 import { useState } from 'react';
-import MineConLogo from './MineConLogo.jsx';
+import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
 
 const consoleNav = [
@@ -12,6 +12,7 @@ const consoleNav = [
   { path: '/console/registrations',  label: 'Registrations',    icon: Users,                        roles: ['organizer', 'superadmin'] },
   { path: '/console/check-in',       label: 'Gate Check-In',    icon: ScanLine,                     roles: ['organizer', 'superadmin'] },
   { path: '/console/analytics',      label: 'Analytics',        icon: BarChart2,                    roles: ['organizer', 'marketing_partner', 'superadmin'] },
+  { path: '/console/sessions',        label: 'Sessions',         icon: Video,                        roles: ['organizer', 'superadmin'] },
   { path: '/console/communications', label: 'Communications',   icon: MessageSquare,                roles: ['organizer', 'superadmin'] },
   { path: '/console/marketing',      label: 'Marketing Hub',    icon: Megaphone,                    roles: ['marketing_partner', 'superadmin'] },
   { path: '/console/exhibitor-applications', label: 'Exhibitor Applications', icon: ClipboardList, roles: ['organizer', 'superadmin'] },
@@ -103,7 +104,7 @@ export default function ConsoleShell() {
       <aside className="hidden lg:flex w-60 flex-col flex-shrink-0 bg-steel sticky top-0 h-screen">
         <div className="p-4 border-b border-white/10">
           <Link to="/" className="block">
-            <MineConLogo />
+            <EventLogo />
           </Link>
           <p className="text-[10px] text-amber font-bold uppercase tracking-widest mt-2">
             {user?.role === 'marketing_partner' ? 'Marketing Console' : 'Management Console'}
@@ -121,7 +122,7 @@ export default function ConsoleShell() {
           <div className="w-64 bg-steel flex flex-col h-full shadow-xl">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <div>
-                <MineConLogo />
+                <EventLogo />
                 <p className="text-[10px] text-amber font-bold uppercase tracking-widest mt-1">Console</p>
               </div>
               <button onClick={() => setMobileOpen(false)} className="text-slate-400 hover:text-white p-1">
@@ -154,7 +155,7 @@ export default function ConsoleShell() {
               <Menu className="w-5 h-5" />
             </button>
           )}
-          <MineConLogo />
+          <EventLogo />
           <span className="text-amber text-xs font-bold uppercase tracking-widest">Console</span>
           <div className="flex-1" />
           {/* Logout button in mobile top bar */}

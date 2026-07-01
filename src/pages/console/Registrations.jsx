@@ -41,10 +41,11 @@ export default function Registrations() {
   }, [registrations, search, roleFilter, statusFilter]);
 
   const counts = useMemo(() => ({
-    total: registrations.length,
-    pending: registrations.filter(r => r.status === 'Pending').length,
-    confirmed: registrations.filter(r => r.status === 'Confirmed').length,
-    checkedIn: registrations.filter(r => r.status === 'Checked In').length,
+    total:      registrations.length,
+    tickets:    registrations.reduce((s, r) => s + (Number(r.quantity) || 1), 0),
+    pending:    registrations.filter(r => r.status === 'Pending').length,
+    confirmed:  registrations.filter(r => r.status === 'Confirmed').length,
+    checkedIn:  registrations.filter(r => r.status === 'Checked In').length,
   }), [registrations]);
 
   function exportCsv() {
@@ -53,7 +54,7 @@ export default function Registrations() {
     const rows = registrations.map(r => cols.map(c => `"${(r[c] ?? '').toString().replace(/"/g, '""')}"`).join(','));
     const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `minecon-registrations-${Date.now()}.csv`; a.click();
+    a.download = `adma-registrations-${Date.now()}.csv`; a.click();
   }
 
   return (
@@ -62,7 +63,9 @@ export default function Registrations() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Registrations</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{counts.total} total registrations</p>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {counts.total} registration{counts.total !== 1 ? 's' : ''} · {counts.tickets} ticket{counts.tickets !== 1 ? 's' : ''}
+          </p>
         </div>
         <button onClick={exportCsv}
           className="flex items-center gap-2 text-xs font-semibold border border-border px-3 py-2 rounded-lg hover:bg-muted transition-colors">
@@ -71,12 +74,13 @@ export default function Registrations() {
       </div>
 
       {/* Summary pills */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-5 gap-3 mb-5">
         {[
-          { label: 'Total',      value: counts.total,     icon: Users,        color: 'text-foreground',     bg: 'bg-muted' },
-          { label: 'Pending',    value: counts.pending,   icon: Clock,        color: 'text-amber-600',      bg: 'bg-amber-50 dark:bg-amber-900/20' },
-          { label: 'Confirmed',  value: counts.confirmed, icon: CheckCircle,  color: 'text-emerald-600',    bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-          { label: 'Checked In', value: counts.checkedIn, icon: CheckCircle,  color: 'text-blue-600',       bg: 'bg-blue-50 dark:bg-blue-900/20' },
+          { label: 'Registrations', value: counts.total,     icon: Users,        color: 'text-foreground',     bg: 'bg-muted' },
+          { label: 'Tickets',       value: counts.tickets,   icon: Users,        color: 'text-violet-600',     bg: 'bg-violet-50 dark:bg-violet-900/20' },
+          { label: 'Pending',       value: counts.pending,   icon: Clock,        color: 'text-amber-600',      bg: 'bg-amber-50 dark:bg-amber-900/20' },
+          { label: 'Confirmed',     value: counts.confirmed, icon: CheckCircle,  color: 'text-emerald-600',    bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          { label: 'Checked In',    value: counts.checkedIn, icon: CheckCircle,  color: 'text-blue-600',       bg: 'bg-blue-50 dark:bg-blue-900/20' },
         ].map(s => {
           const Icon = s.icon;
           return (

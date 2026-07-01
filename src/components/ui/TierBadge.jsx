@@ -1,8 +1,8 @@
 const TIER_STYLES = {
-  Diamond: 'badge-diamond',
-  Gold:    'badge-gold',
-  Chrome:  'badge-chrome',
-  Copper:  'badge-copper',
+  Platinum: 'badge-platinum',
+  Gold:     'badge-gold',
+  Silver:   'badge-silver',
+  Bronze:   'badge-bronze',
 };
 
 export default function TierBadge({ tier }) {

@@ -1,12 +1,11 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User } from '@/api/entities';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const AuthContext = createContext();
 
-// Roles with console access
-const CONSOLE_ROLES = ['organizer', 'marketing_partner', 'superadmin'];
-// Roles with exhibitor portal access
-const EXHIBITOR_ROLES = ['exhibitor'];
+const CONSOLE_ROLES  = EVENT_CONFIG.consoleRoles;
+const EXHIBITOR_ROLES = EVENT_CONFIG.exhibitorRoles;
 
 function redirectForRole(role) {
   if (CONSOLE_ROLES.includes(role)) return '/console';
@@ -35,7 +34,7 @@ export const AuthProvider = ({ children }) => {
   const checkUserAuth = async () => {
     setIsLoadingAuth(true);
     try {
-      const stored = localStorage.getItem('minecon_user');
+      const stored = localStorage.getItem(EVENT_CONFIG.storageUserKey);
       if (stored) {
         setUser(JSON.parse(stored));
         setIsAuthenticated(true);
@@ -88,7 +87,7 @@ export const AuthProvider = ({ children }) => {
         role: found.role,
         company: found.company || '',
       };
-      localStorage.setItem('minecon_user', JSON.stringify(session));
+      localStorage.setItem(EVENT_CONFIG.storageUserKey, JSON.stringify(session));
       setUser(session);
       setIsAuthenticated(true);
       return { success: true, redirectTo: redirectForRole(found.role) };
@@ -113,7 +112,7 @@ export const AuthProvider = ({ children }) => {
         role: found.role,
         company: found.company || '',
       };
-      localStorage.setItem('minecon_user', JSON.stringify(session));
+      localStorage.setItem(EVENT_CONFIG.storageUserKey, JSON.stringify(session));
       setUser(session);
       setIsAuthenticated(true);
       return { success: true, redirectTo: redirectForRole(found.role) };
@@ -163,7 +162,7 @@ export const AuthProvider = ({ children }) => {
         role: found.role,
         company: found.company || '',
       };
-      localStorage.setItem('minecon_user', JSON.stringify(session));
+      localStorage.setItem(EVENT_CONFIG.storageUserKey, JSON.stringify(session));
       setUser(session);
       setIsAuthenticated(true);
       return { success: true, redirectTo: redirectForRole(found.role) };
@@ -197,7 +196,7 @@ export const AuthProvider = ({ children }) => {
       const newUser = await res.json();
       if (!res.ok) return { success: false, error: newUser.error || 'Registration failed.' };
       const session = { id: newUser.id, email: newUser.email, full_name: newUser.full_name, role: newUser.role, company: newUser.company || '' };
-      localStorage.setItem('minecon_user', JSON.stringify(session));
+      localStorage.setItem(EVENT_CONFIG.storageUserKey, JSON.stringify(session));
       setUser(session);
       setIsAuthenticated(true);
       return { success: true, redirectTo: '/' };
@@ -214,14 +213,14 @@ export const AuthProvider = ({ children }) => {
       role: userData.role,
       company: userData.company || '',
     };
-    localStorage.setItem('minecon_user', JSON.stringify(session));
+    localStorage.setItem(EVENT_CONFIG.storageUserKey, JSON.stringify(session));
     setUser(session);
     setIsAuthenticated(true);
     return { success: true, redirectTo: redirectForRole(userData.role) };
   };
 
   const logout = () => {
-    localStorage.removeItem('minecon_user');
+    localStorage.removeItem(EVENT_CONFIG.storageUserKey);
     setUser(null);
     setIsAuthenticated(false);
   };

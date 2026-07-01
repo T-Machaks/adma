@@ -12,6 +12,9 @@ export const Registration = {
   async findByEmail(email) {
     return apiFetch(`${BASE}/by-email?email=${encodeURIComponent(email)}`);
   },
+  async listByEmail(email) {
+    return apiFetch(`${BASE}/by-email-all?email=${encodeURIComponent(email)}`);
+  },
   async create(data) {
     return apiFetch(BASE, { method: 'POST', body: data });
   },

@@ -5,6 +5,7 @@ import { Star, Bookmark, FileText, Calendar, Bell, Trash2, X, MessageSquare } fr
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const SESSIONS = [
   { id: 's1', title: 'Opening Keynote: Future of Mining in Southern Africa', time: '09:00', day: 'Day 1', location: 'Main Stage' },
@@ -75,7 +76,7 @@ export default function AttendeeDashboard() {
   return (
     <div className="pb-24 max-w-2xl lg:max-w-5xl mx-auto px-4 pt-5">
       <div className="mb-5">
-        <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">My MineCon</h1>
+        <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">{EVENT_CONFIG.nav.myEventLabel}</h1>
         <p className="text-muted-foreground text-sm">
           Welcome, <span className="text-foreground font-medium">{user?.full_name || user?.email}</span>
         </p>

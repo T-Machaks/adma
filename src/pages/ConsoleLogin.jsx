@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { LogIn, Mail, Lock, Loader2, ShieldCheck, KeyRound } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import MineConLogo from '@/components/layout/MineConLogo';
+import EventLogo from '@/components/layout/EventLogo';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 export default function ConsoleLogin() {
   const { login, changePassword, verifyOtp, verifyTotp, user, hasConsoleAccess, isLoadingAuth, authChecked } = useAuth();
@@ -32,7 +33,7 @@ export default function ConsoleLogin() {
   const totpRef = useRef(null);
   const focusAfter = (ref) => setTimeout(() => ref.current?.focus(), 100);
 
-  const OTP_SESSION_KEY = 'minecon_console_otp_flow';
+  const OTP_SESSION_KEY = `${EVENT_CONFIG.storagePrefix}_console_otp_flow`;
 
   useEffect(() => {
     try {
@@ -142,7 +143,7 @@ export default function ConsoleLogin() {
     <div className="min-h-screen bg-steel flex flex-col items-center justify-center px-4">
       {/* Brand strip */}
       <div className="mb-8 flex flex-col items-center gap-3">
-        <MineConLogo />
+        <EventLogo />
         <div className="text-center">
           <p className="text-amber text-[11px] font-bold uppercase tracking-widest">Management Console</p>
           <p className="text-slate-400 text-xs mt-0.5">Authorised personnel only</p>
@@ -163,7 +164,7 @@ export default function ConsoleLogin() {
                step === 'totp_setup'    ? 'Set up authenticator':
                                           'Authenticator code'  }
             </p>
-            <p className="text-slate-400 text-[11px]">MineCon 2026</p>
+            <p className="text-slate-400 text-[11px]">{EVENT_CONFIG.eventFullName}</p>
           </div>
         </div>
 
@@ -340,7 +341,7 @@ export default function ConsoleLogin() {
 
       <p className="mt-6 text-slate-600 text-xs text-center">
         Not an organiser?{' '}
-        <a href="/" className="text-amber hover:underline">Back to MineCon app</a>
+        <a href="/" className="text-amber hover:underline">Back to {EVENT_CONFIG.eventName} app</a>
       </p>
     </div>
   );

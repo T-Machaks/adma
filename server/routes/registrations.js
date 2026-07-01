@@ -4,8 +4,8 @@ import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 
-const TABLE = 'minecon_registrations';
-const APP_URL = 'https://minecon.tyflex.co.zw';
+const TABLE = 'adma_registrations';
+const APP_URL = 'https://adma.tyflex.co.zw';
 
 function confirmationHtml(r) {
   const qty = r.quantity || 1;
@@ -32,14 +32,14 @@ function confirmationHtml(r) {
   return `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;">
       <!-- Header -->
-      <div style="background:#1a2332;padding:32px 24px;text-align:center;">
-        <h1 style="margin:0;color:#f59e0b;font-size:26px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">MineCon 2026</h1>
-        <p style="margin:8px 0 0;color:#94a3b8;font-size:13px;">The Mining Industry Exhibition &amp; Conference</p>
+      <div style="background:#0f2e1c;padding:32px 24px;text-align:center;">
+        <h1 style="margin:0;color:#eab308;font-size:26px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">ADMA Agri Show 2026</h1>
+        <p style="margin:8px 0 0;color:#94a3b8;font-size:13px;">Zimbabwe's Largest Agricultural Exhibition</p>
       </div>
 
       <div style="padding:32px 24px;">
         <h2 style="margin:0 0 6px;color:#111;font-size:20px;">Registration Confirmed ✓</h2>
-        <p style="margin:0 0 24px;color:#555;font-size:15px;">Hi <strong>${r.full_name}</strong>, your registration for MineCon 2026 has been confirmed.</p>
+        <p style="margin:0 0 24px;color:#555;font-size:15px;">Hi <strong>${r.full_name}</strong>, your registration for ADMA Agri Show 2026 has been confirmed.</p>
 
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">${tableRows}</table>
 
@@ -47,7 +47,7 @@ function confirmationHtml(r) {
         <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:12px;padding:20px;margin-bottom:24px;">
           <h3 style="margin:0 0 8px;color:#92400e;font-size:15px;">Access Your Entry Ticket QR Code${qty > 1 ? 's' : ''}</h3>
           <p style="margin:0 0 16px;color:#78350f;font-size:13px;">
-            Your digital visitor badge and entry ticket QR code${qty > 1 ? 's' : ''} are available in the MineCon app.
+            Your digital visitor badge and entry ticket QR code${qty > 1 ? 's' : ''} are available in the ADMA Agri Show app.
             ${qty > 1 ? `You have <strong>${qty} separate ticket codes</strong> — one per ticket purchased.` : ''}
             Log in with <strong>${r.email}</strong> to access them.
           </p>
@@ -71,7 +71,7 @@ function confirmationHtml(r) {
 
       <!-- Footer -->
       <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 24px;text-align:center;">
-        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">MineCon 2026 · Artfarm Grounds, Pomona, Harare, Zimbabwe</p>
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">ADMA Agri Show 2026 · ART Farm, Pomona, Harare, Zimbabwe</p>
         <p style="margin:0;color:#cbd5e1;font-size:11px;">If you did not register for this event, please ignore this email.</p>
       </div>
     </div>`;
@@ -109,6 +109,29 @@ export default crudRouter(TABLE, {
       }
     });
 
+    r.get('/by-email-all', async (req, res) => {
+      try {
+        const email = req.query.email?.toLowerCase();
+        if (!email) return res.status(400).json({ error: 'email required' });
+        let items = [];
+        let lastKey;
+        do {
+          const result = await ddb.send(new QueryCommand({
+            TableName: TABLE,
+            IndexName: 'email-index',
+            KeyConditionExpression: 'email = :e',
+            ExpressionAttributeValues: { ':e': email },
+            ExclusiveStartKey: lastKey,
+          }));
+          items = items.concat(result.Items || []);
+          lastKey = result.LastEvaluatedKey;
+        } while (lastKey);
+        res.json(items);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
     r.post('/confirm-email', async (req, res) => {
       try {
         const { id } = req.body;
@@ -120,7 +143,7 @@ export default crudRouter(TABLE, {
         if (!reg.email) return res.status(400).json({ error: 'No email on registration' });
 
         await sendOtpEmail(reg.email, null, {
-          subject: `MineCon 2026 — Registration Confirmed${reg.payment_ref ? ` (Ref: ${reg.payment_ref})` : ''}`,
+          subject: `ADMA Agri Show 2026 — Registration Confirmed${reg.payment_ref ? ` (Ref: ${reg.payment_ref})` : ''}`,
           html: confirmationHtml(reg),
         });
 

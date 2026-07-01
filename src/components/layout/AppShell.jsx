@@ -3,12 +3,13 @@ import {
   Home, Users, Map, Calendar, Info, Bell,
   LayoutDashboard, QrCode, Menu, X, Star, Zap,
   BookOpen, UserCheck, Clock, Shield, ChevronLeft, ChevronRight, Download,
-  LogIn, LogOut, UserCircle,
+  LogIn, LogOut, UserCircle, WifiOff, Video,
 } from 'lucide-react';
-import { useState } from 'react';
-import MineConLogo from './MineConLogo.jsx';
+import { useState, useEffect } from 'react';
+import EventLogo from './EventLogo.jsx';
 import { usePWAInstall } from '@/lib/PWAInstallContext';
 import { useAuth } from '@/lib/AuthContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const navGroups = [
   {
@@ -23,20 +24,21 @@ const navGroups = [
     ],
   },
   {
-    label: 'My MineCon',
+    label: EVENT_CONFIG.nav.myEventLabel,
     items: [
       { path: '/connect',             label: 'Connect Hub',     icon: Zap },
       { path: '/attendee-dashboard',  label: 'My Dashboard',    icon: LayoutDashboard },
       { path: '/register',            label: 'Registration',    icon: UserCheck },
+      { path: '/qr-resources',        label: 'QR Resources',    icon: QrCode },
     ],
   },
   {
     label: 'Content & Info',
     items: [
+      { path: '/sessions',      label: 'Live Sessions',      icon: Video },
       { path: '/magazine',      label: 'Publications',       icon: BookOpen },
       { path: '/announcements', label: 'Updates',            icon: Bell },
       { path: '/event-info',    label: 'Event Info',         icon: Info },
-      { path: '/qr-resources',  label: 'QR Resources',       icon: QrCode },
     ],
   },
 ];
@@ -44,7 +46,7 @@ const navGroups = [
 const bottomNav = [
   { path: '/',                    label: 'Home',       icon: Home },
   { path: '/exhibitors',          label: 'Exhibitors', icon: Users },
-  { path: '/attendee-dashboard',  label: 'My MineCon', icon: LayoutDashboard },
+  { path: '/attendee-dashboard',  label: EVENT_CONFIG.nav.myEventLabel, icon: LayoutDashboard },
   { path: '/meetings',            label: 'Meetings',   icon: Calendar },
   { path: '/magazine',            label: 'Publications', icon: BookOpen },
 ];
@@ -63,7 +65,36 @@ export default function AppShell({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
   });
-  const { showMenuLink, isIOS, hasBrowserPrompt, promptInstall, markSeen, openModal } = usePWAInstall();
+  const [installBarDismissed, setInstallBarDismissed] = useState(() => {
+    try { return sessionStorage.getItem('install-bar-dismissed') === '1'; } catch { return false; }
+  });
+  const { showMenuLink, isIOS, hasBrowserPrompt, promptInstall } = usePWAInstall();
+
+  const dismissInstallBar = () => {
+    try { sessionStorage.setItem('install-bar-dismissed', '1'); } catch {}
+    setInstallBarDismissed(true);
+  };
+
+  const handleInstallClick = async () => {
+    if (hasBrowserPrompt) {
+      await promptInstall();
+      dismissInstallBar();
+    } else if (isIOS) {
+      // Show iOS instructions inline in the bar — handled via state
+      setShowIOSHint(p => !p);
+    }
+  };
+
+  const [showIOSHint, setShowIOSHint] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    const up   = () => setIsOnline(true);
+    const down = () => setIsOnline(false);
+    window.addEventListener('online',  up);
+    window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, []);
 
   const isHome = location.pathname === '/';
   const isActive = (path) =>
@@ -82,7 +113,7 @@ export default function AppShell({ children }) {
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 shadow-2xl border-b border-white/10">
         <div className="h-0.5 bg-gradient-to-r from-amber via-amber/80 to-amber/40" />
-        <div style={{background: 'linear-gradient(to right, hsl(220,20%,8%), hsl(220,14%,18%), hsl(220,18%,13%))'}}>
+        <div style={{background: 'linear-gradient(to right, hsl(150,35%,8%), hsl(150,35%,16%), hsl(150,30%,13%))'}}>
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
           {/* Back button — mobile only, non-home pages */}
           {!isHome ? (
@@ -96,7 +127,7 @@ export default function AppShell({ children }) {
           ) : null}
 
           <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <MineConLogo />
+            <EventLogo />
           </Link>
 
           <div className="flex-1" />
@@ -197,9 +228,8 @@ export default function AppShell({ children }) {
                     setMenuOpen(false);
                     if (hasBrowserPrompt) {
                       await promptInstall();
-                      markSeen();
                     } else {
-                      openModal();
+                      setShowIOSHint(true);
                     }
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-amber hover:bg-amber/10 transition-all duration-150 active:scale-95"
@@ -237,6 +267,14 @@ export default function AppShell({ children }) {
           </div>
         )}
       </header>
+
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-2 text-sm text-slate-300">
+          <WifiOff className="w-4 h-4 text-amber flex-shrink-0" />
+          <span>You're offline — showing cached content. Some features may be unavailable.</span>
+        </div>
+      )}
 
       {/* ── Body: sidebar + main ── */}
       <div className="flex flex-1 relative">
@@ -329,9 +367,8 @@ export default function AppShell({ children }) {
                   onClick={async () => {
                     if (hasBrowserPrompt) {
                       await promptInstall();
-                      markSeen();
                     } else {
-                      openModal();
+                      setShowIOSHint(p => !p);
                     }
                   }}
                   title={sidebarCollapsed ? (isIOS ? 'Add to Home Screen' : 'Install App') : undefined}
@@ -379,10 +416,42 @@ export default function AppShell({ children }) {
         </main>
       </div>
 
+      {/* Install bar — mobile only, above bottom nav */}
+      {showMenuLink && !installBarDismissed && (
+        <div className="sticky bottom-[49px] z-40 lg:hidden border-t border-amber/20 bg-[hsl(150,35%,10%)]">
+          {showIOSHint ? (
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <p className="flex-1 text-xs text-slate-300 leading-snug">
+                Tap <span className="font-bold text-white">Share</span> in Safari, then <span className="font-bold text-white">"Add to Home Screen"</span>
+              </p>
+              <button onClick={dismissInstallBar} className="text-slate-500 hover:text-white p-1 shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 px-4 py-2">
+              <Download className="w-4 h-4 text-amber shrink-0" />
+              <p className="flex-1 text-xs text-slate-200">
+                <span className="font-semibold text-white">Get the app</span> — {EVENT_CONFIG.nav.installBarCopy}
+              </p>
+              <button
+                onClick={handleInstallClick}
+                className="text-xs font-semibold text-amber border border-amber/40 rounded-lg px-3 py-1.5 hover:bg-amber/10 active:scale-95 transition-all shrink-0"
+              >
+                {isIOS ? 'How' : 'Install'}
+              </button>
+              <button onClick={dismissInstallBar} className="text-slate-500 hover:text-white p-1 -mr-1 shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bottom tab bar — hidden on desktop */}
       <nav
         className="sticky bottom-0 z-50 border-t border-white/10 lg:hidden"
-        style={{backgroundColor: 'hsl(220 14% 18% / 0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)'}}
+        style={{backgroundColor: 'hsl(150 35% 16% / 0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)'}}
       >
         <div className="grid grid-cols-5 max-w-md mx-auto">
           {bottomNav.map(({ path, label, icon: Icon }) => (

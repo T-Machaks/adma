@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 
-const TABLE = 'minecon_app_settings';
+const TABLE = 'adma_app_settings';
 const KEY = { pk: 'singleton' };
 const DEFAULTS = { virtualExhibitionOpen: false };
 

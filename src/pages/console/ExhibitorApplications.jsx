@@ -3,7 +3,7 @@ import { CheckCircle, XCircle, Clock, Building2, Loader2, ChevronDown } from 'lu
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-const TIERS = ['Diamond', 'Gold', 'Chrome', 'Copper'];
+const TIERS = ['Platinum', 'Gold', 'Silver', 'Bronze'];
 
 const STATUS_CONFIG = {
   pending:  { label: 'Pending',  icon: Clock,        className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
@@ -12,10 +12,10 @@ const STATUS_CONFIG = {
 };
 
 const TIER_COLORS = {
-  Diamond: 'text-cyan-500',
-  Gold:    'text-amber-500',
-  Chrome:  'text-slate-400',
-  Copper:  'text-orange-600',
+  Platinum: 'text-emerald-500',
+  Gold:     'text-amber-500',
+  Silver:   'text-slate-400',
+  Bronze:   'text-orange-700',
 };
 
 function StatusBadge({ status }) {

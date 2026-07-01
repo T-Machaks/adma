@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration } from '@/api/entities';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 import QRScanner from '@/components/QRScanner';
 import {
   ScanLine, CheckCircle2, AlertCircle, XCircle, User,
@@ -39,7 +40,7 @@ const SUB_MESSAGES = {
   success:        'Ticket verified. Attendee may enter.',
   already_in:     'This ticket was already used for entry.',
   cancelled:      'This registration has been cancelled.',
-  invalid:        'This QR code is not a valid MineCon 2026 ticket.',
+  invalid:        `This QR code is not a valid ${EVENT_CONFIG.eventFullName} ticket.`,
   not_found:      'No registration matches this ticket ID.',
   token_mismatch: 'Token does not match registration record.',
 };
@@ -77,7 +78,7 @@ export default function CheckIn() {
 
   const handleScan = useCallback(
     async (parsed) => {
-      if (parsed?.t !== 'ticket' || parsed?.ev !== 'mc26') {
+      if (parsed?.t !== 'ticket' || parsed?.ev !== EVENT_CONFIG.qrEventCode) {
         setResult({ outcome: 'invalid', reg: null });
         return;
       }

@@ -1,24 +1,24 @@
 {
-  "name": "MineCon 2026",
-  "short_name": "MineCon",
-  "description": "Southern Africa's premier mining & construction exhibition — Harare, Zimbabwe.",
+  "name": "ADMA Agri Show 2026",
+  "short_name": "ADMA Agri Show",
+  "description": "Zimbabwe's largest agricultural exhibition — ART Farm, Pomona, Harare.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#1a1f2e",
-  "theme_color": "#f98a1a",
+  "background_color": "#0f2e1c",
+  "theme_color": "#eab308",
   "lang": "en",
   "categories": ["business", "events"],
   "icons": [
     {
-      "src": "/minecon-favicon-192.png",
+      "src": "/adma-favicon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/minecon-favicon-512.png",
+      "src": "/adma-favicon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

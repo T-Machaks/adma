@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, EngagementEvent } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
+import { EVENT_CONFIG } from '@/lib/eventConfig';
 import QRScanner from '@/components/QRScanner';
 import {
   ScanLine, CheckCircle2, AlertCircle, UserCheck,
@@ -34,7 +35,7 @@ export default function ExhibitorScanner() {
 
   const handleScan = useCallback(
     async (parsed) => {
-      if (parsed?.ev !== 'mc26' || parsed?.t !== 'visitor') {
+      if (parsed?.ev !== EVENT_CONFIG.qrEventCode || parsed?.t !== 'visitor') {
         setScanState('error');
         return;
       }
@@ -146,7 +147,7 @@ export default function ExhibitorScanner() {
                 Invalid Badge QR
               </p>
               <p className="text-sm text-muted-foreground">
-                This QR code is not a valid MineCon 2026 visitor badge.
+                This QR code is not a valid {EVENT_CONFIG.eventFullName} visitor badge.
               </p>
             </div>
             <button

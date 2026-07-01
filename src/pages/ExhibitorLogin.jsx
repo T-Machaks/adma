@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Store, ChevronDown, Search, LogIn, FlaskConical, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import MineConLogo from '@/components/layout/MineConLogo';
+import EventLogo from '@/components/layout/EventLogo';
 
-const DEMO_PASSWORD = '@MineCon2026';
+const DEMO_PASSWORD = '@AgriShow2026';
 
 export default function ExhibitorLogin() {
   const navigate = useNavigate();
@@ -62,14 +62,14 @@ export default function ExhibitorLogin() {
     }
   };
 
-  const tierColour = { diamond: 'text-cyan-300', gold: 'text-amber', chrome: 'text-slate-300', copper: 'text-orange-400' };
+  const tierColour = { platinum: 'text-emerald-400', gold: 'text-amber', silver: 'text-slate-300', bronze: 'text-orange-400' };
 
   return (
     <div className="min-h-screen bg-steel flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8 gap-3">
-          <MineConLogo size="lg" />
+          <EventLogo size="large" />
           <div className="flex items-center gap-2 text-amber font-bold uppercase tracking-widest text-xs">
             <Store className="w-4 h-4" />
             Exhibitor Portal
