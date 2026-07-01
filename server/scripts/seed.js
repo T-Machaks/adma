@@ -272,7 +272,7 @@ const SEED_SPONSORS = [
 ];
 
 const SEED_ANNOUNCEMENTS = [
-  { id: 'a1', title: 'Welcome to ADMA Agri Show 2026', body: "ADMA Agri Show 2026 is taking shape! Join us at ART Farm, Pomona, Harare — 25 acres, 280+ exhibitors and live livestock auctions. Register your interest today.", type: 'General',   pinned: true,  created_date: new Date().toISOString() },
+  { id: 'a1', title: 'Welcome to ADMA Agri Show 2026', body: "ADMA Agri Show 2026 is taking shape! Join us at ART Farm, Pomona, Harare — 25 acres, 231 exhibitors and live livestock auctions. Register your interest today.", type: 'General',   pinned: true,  created_date: new Date().toISOString() },
   { id: 'a2', title: 'Exhibitor Registrations Now Open', body: 'Companies wishing to exhibit at ADMA Agri Show 2026 can now register for a stand. Platinum, Gold, Silver, and Bronze packages are available. Contact us at info@agrishow.co.zw.', type: 'Important', pinned: true,  created_date: new Date(Date.now() - 86400000).toISOString() },
   { id: 'a3', title: 'Supplier & Vendor Registration Open', body: 'Suppliers and vendors wishing to trade on-site during the show can now submit their registration. Limited vendor slots are available across all zones — apply early to secure your spot.', type: 'Important', pinned: false, created_date: new Date(Date.now() - 2 * 86400000).toISOString() },
   { id: 'a4', title: 'ADMA 2026 Site Plan Now Available', body: 'The official ADMA 2026 site plan is now live in the app under Site Plan. Use it to find your favourite exhibitors across the Main Pavilion, Machinery Hall, Suppliers Village and Field Zone.', type: 'Update', pinned: false, created_date: new Date(Date.now() - 3 * 86400000).toISOString() },

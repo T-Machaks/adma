@@ -51,7 +51,7 @@ export default function EventInfo() {
             ADMA Agri Show is Zimbabwe's largest agricultural exhibition, bringing together machinery dealers, input suppliers, irrigation specialists, livestock breeders, financiers, and agri-tech innovators under one roof.
           </p>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Set on 25 acres at {EVENT_CONFIG.venue}, the show hosts 280+ exhibitors and live livestock auctions, providing a structured environment for serious business, product demonstrations, and contract opportunities across the full agricultural value chain.
+            Set on 25 acres at {EVENT_CONFIG.venue}, the show hosts 231 exhibitors and live livestock auctions, providing a structured environment for serious business, product demonstrations, and contract opportunities across the full agricultural value chain.
           </p>
         </div>
       </div>

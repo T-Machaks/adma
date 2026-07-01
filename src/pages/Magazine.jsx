@@ -116,7 +116,7 @@ function CoverPage() {
           </div>
         </div>
         <div className="w-full rounded-lg px-3 py-2 flex justify-between" style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.2)' }}>
-          {[['280+','Exhibitors'],['25','Acres'],['4','Zones']].map(([n,l]) => (
+          {[['231','Exhibitors'],['25','Acres'],['4','Zones']].map(([n,l]) => (
             <div key={l} className="text-center">
               <div className="text-amber-400 font-black" style={{ fontSize: 15, fontFamily: 'Barlow Condensed,sans-serif' }}>{n}</div>
               <div className="text-slate-400" style={{ fontSize: 8 }}>{l}</div>
@@ -164,7 +164,7 @@ function WelcomePage() {
         <div className="text-slate-600 leading-relaxed flex-1" style={{ fontSize: 9.5 }}>
           <p className="mb-2">Dear Visitor,</p>
           <p className="mb-2">On behalf of the ADMA Organising Committee, it is with great pride and excitement that we welcome you to Zimbabwe's largest agricultural exhibition.</p>
-          <p className="mb-2">This year's show brings together over <strong>280 exhibitors</strong> — from machinery dealers and irrigation specialists to livestock breeders, input suppliers, and agri-financiers — all set on 25 acres at <strong>{EVENT_CONFIG.venue}</strong>.</p>
+          <p className="mb-2">This year's show brings together over <strong>231 exhibitors</strong> — from machinery dealers and irrigation specialists to livestock breeders, input suppliers, and agri-financiers — all set on 25 acres at <strong>{EVENT_CONFIG.venue}</strong>.</p>
           <p className="mb-2">Zimbabwe's agricultural sector is entering a season of renewed growth. {EVENT_CONFIG.eventName} is the platform where deals are made, partnerships are forged, and the future of our farming community is shaped.</p>
           <p>Whether you are a farmer seeking the latest equipment or an investor exploring agribusiness opportunities — {EVENT_CONFIG.eventName} is the place to be.</p>
         </div>
@@ -386,7 +386,7 @@ function EventOverviewPage() {
           ))}
         </div>
         <div className="rounded-lg px-3 py-2 grid grid-cols-3 gap-2 shrink-0" style={{ background: 'linear-gradient(135deg,#0f2e1c 0%,#14532d 100%)' }}>
-          {[['280+','Exhibitors'],['25','Acres'],['4','Zones']].map(([n,l]) => (
+          {[['231','Exhibitors'],['25','Acres'],['4','Zones']].map(([n,l]) => (
             <div key={l} className="text-center">
               <div className="text-amber-400 font-black" style={{ fontSize: 16, fontFamily: 'Barlow Condensed,sans-serif' }}>{n}</div>
               <div className="text-slate-400" style={{ fontSize: 8 }}>{l}</div>
@@ -534,7 +534,7 @@ function IndustryInsightPage() {
           <div className="h-0.5 w-12 mt-1" style={{ background: '#eab308' }} />
         </div>
         <div className="grid grid-cols-3 gap-1.5 shrink-0">
-          {[['280+','Exhibitors\nconfirmed 2026'],['25','Acres of\nshowground'],['↑','Mechanisation\ndemand rising']].map(([n,l]) => (
+          {[['231','Exhibitors\nconfirmed 2026'],['25','Acres of\nshowground'],['↑','Mechanisation\ndemand rising']].map(([n,l]) => (
             <div key={n} className="rounded-lg p-2 text-center" style={{ background: '#0f2e1c' }}>
               <div className="text-amber-400 font-black" style={{ fontSize: 13, fontFamily: 'Barlow Condensed,sans-serif' }}>{n}</div>
               <div className="text-slate-400 whitespace-pre-line" style={{ fontSize: 7.5 }}>{l}</div>
@@ -596,7 +596,7 @@ function ExhibitorDirectoryPage() {
 
 // ── PAGE 13: Why Attend ───────────────────────────────────────────────────────
 function WhyAttendPage() {
-  const reasons = [['🤝','Network','Farmers, dealers & agribusiness leaders'],['🚜','See Equipment','280+ exhibitors, live demos'],['📊','Industry Intel','Keynotes from sector leaders'],['💰','Procurement','Compare & close deals on-site'],['📱','Go Digital','App for meetings, QR & schedules'],['🐄','Livestock Auctions','Buy and sell on the show floor']];
+  const reasons = [['🤝','Network','Farmers, dealers & agribusiness leaders'],['🚜','See Equipment','231 exhibitors, live demos'],['📊','Industry Intel','Keynotes from sector leaders'],['💰','Procurement','Compare & close deals on-site'],['📱','Go Digital','App for meetings, QR & schedules'],['🐄','Livestock Auctions','Buy and sell on the show floor']];
   return (
     <div className="absolute inset-0 bg-white flex flex-col">
       <Strip label={`Why Attend ${EVENT_CONFIG.eventName}?`} />

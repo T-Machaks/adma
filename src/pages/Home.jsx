@@ -40,6 +40,10 @@ export default function Home() {
     queryKey: ['featured-exhibitors'],
     queryFn: () => Exhibitor.filter({ featured: true }),
   });
+  const { data: allExhibitors = [] } = useQuery({
+    queryKey: ['exhibitors'],
+    queryFn: () => Exhibitor.list(),
+  });
 
   const pinned = announcements.filter(a => a.pinned);
   const recent = announcements.filter(a => !a.pinned).slice(0, 3);
@@ -128,8 +132,8 @@ export default function Home() {
         {/* Stats strip */}
         <div className="grid grid-cols-3 gap-3 mt-6">
           {[
-            { label: 'Exhibitors', value: '80+' },
-            { label: 'Booth Zones', value: '4' },
+            { label: 'Exhibitors', value: String(allExhibitors.length || 231) },
+            { label: 'Booth Zones', value: String(EVENT_CONFIG.exhibitorSections.length) },
             { label: 'Days', value: '3' },
           ].map(s => (
             <div key={s.label} className="bg-gradient-to-b from-card to-muted/30 rounded-2xl border border-border p-3 text-center shadow-sm">
