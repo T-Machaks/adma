@@ -57,7 +57,7 @@ export default function Home() {
         <div className="relative max-w-2xl mx-auto text-center">
           <img src={EVENT_CONFIG.logo.transparent} alt="" className="w-40 h-40 lg:w-56 lg:h-56 object-contain drop-shadow-2xl mx-auto mb-4" />
           <div className="inline-block bg-amber text-white text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-widest uppercase">
-            05–07 June 2026
+            04–06 June 2026
           </div>
           <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold tracking-wider mb-2">
             <span className="gradient-text">ADMA</span> <span className="text-white">AGRI SHOW</span>

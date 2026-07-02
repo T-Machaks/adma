@@ -36,7 +36,7 @@ export default function EventInfo() {
         <div className="bg-steel text-white rounded-xl p-5 mb-5 lg:mb-0">
           <p className="font-heading text-lg font-bold tracking-wide mb-3 text-amber">{EVENT_CONFIG.eventFullName.toUpperCase()}</p>
           <div className="space-y-2">
-            <InfoRow icon={Clock} label="Dates" value="05 – 07 June 2026" />
+            <InfoRow icon={Clock} label="Dates" value="04 – 06 June 2026" />
             <InfoRow icon={Clock} label="Opening Hours" value="08:00 – 17:00 daily (Gates: 07:30)" />
             <InfoRow icon={MapPin} label="Venue" value={`${EVENT_CONFIG.venue}, Zimbabwe`} />
             <InfoRow icon={Ticket} label="Entry" value="Free for visitors · Exhibitor packages available" />

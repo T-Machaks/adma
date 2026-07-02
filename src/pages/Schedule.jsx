@@ -4,7 +4,7 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const SCHEDULE = {
   'Day 1': {
-    date: '5 June 2026',
+    date: '4 June 2026',
     theme: 'Machinery & Mechanisation',
     sessions: [
       { time: '07:30', title: 'Gates Open & Registration', location: 'Main Entrance', type: 'logistics', duration: '30 min' },
@@ -20,7 +20,7 @@ const SCHEDULE = {
     ],
   },
   'Day 2': {
-    date: '6 June 2026',
+    date: '5 June 2026',
     theme: 'Livestock & Inputs',
     sessions: [
       { time: '07:30', title: 'Gates Open', location: 'Main Entrance', type: 'logistics', duration: '30 min' },
@@ -35,7 +35,7 @@ const SCHEDULE = {
     ],
   },
   'Day 3': {
-    date: '7 June 2026',
+    date: '6 June 2026',
     theme: 'Suppliers, Finance & Closing',
     sessions: [
       { time: '07:30', title: 'Gates Open', location: 'Main Entrance', type: 'logistics', duration: '30 min' },
@@ -70,7 +70,7 @@ export default function Schedule() {
     <div className="pb-24 max-w-2xl lg:max-w-4xl mx-auto">
       <div className="px-4 pt-5 mb-4">
         <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Event Schedule</h1>
-        <p className="text-muted-foreground text-sm mt-1">{EVENT_CONFIG.eventFullName} — 05–07 June 2026</p>
+        <p className="text-muted-foreground text-sm mt-1">{EVENT_CONFIG.eventFullName} — 04–06 June 2026</p>
       </div>
 
       {/* Day tabs */}

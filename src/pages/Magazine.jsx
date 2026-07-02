@@ -87,7 +87,7 @@ function CoverPage() {
     <div className="absolute inset-0 flex flex-col" style={{ background: 'linear-gradient(160deg,#0b1f14 0%,#123821 60%,#0b1f14 100%)' }}>
       <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ background: '#eab308' }}>
         <span className="text-slate-900 font-black uppercase tracking-widest" style={{ fontSize: 9 }}>Official Exhibition Guide</span>
-        <span className="text-slate-900 font-bold uppercase" style={{ fontSize: 9 }}>05–07 June 2026</span>
+        <span className="text-slate-900 font-bold uppercase" style={{ fontSize: 9 }}>04–06 June 2026</span>
       </div>
       <div className="flex-1 flex flex-col items-center justify-between px-5 py-4 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle,#eab308 1.5px,transparent 1.5px)', backgroundSize: '20px 20px' }} />
@@ -128,7 +128,7 @@ function CoverPage() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-amber-400 font-bold" style={{ fontSize: 10 }}>{EVENT_CONFIG.venue}</div>
-            <div className="text-slate-500" style={{ fontSize: 8 }}>Zimbabwe · 05–07 June 2026</div>
+            <div className="text-slate-500" style={{ fontSize: 8 }}>Zimbabwe · 04–06 June 2026</div>
           </div>
           <div className="text-right">
             <div className="text-slate-400 font-bold" style={{ fontSize: 9 }}>Machinery · Livestock</div>
@@ -377,7 +377,7 @@ function EventOverviewPage() {
           <div className="h-0.5 w-10 mt-0.5" style={{ background: '#eab308' }} />
         </div>
         <div className="grid grid-cols-2 gap-2 shrink-0">
-          {[['📅','Dates','05–07 June 2026'],['📍','Venue','ART Farm, Pomona'],['🕐','Hours','08:00 – 17:00'],['🎫','Entry','Free (Registered)']].map(([i,l,v]) => (
+          {[['📅','Dates','04–06 June 2026'],['📍','Venue','ART Farm, Pomona'],['🕐','Hours','08:00 – 17:00'],['🎫','Entry','Free (Registered)']].map(([i,l,v]) => (
             <div key={l} className="rounded-lg p-2" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 16 }}>{i}</div>
               <div className="text-slate-500 mt-0.5" style={{ fontSize: 8 }}>{l}</div>
@@ -645,7 +645,7 @@ function BackCoverPage() {
         </div>
         <div className="text-center">
           <div className="font-black text-white" style={{ fontSize: 28, fontFamily: 'Barlow Condensed,sans-serif', lineHeight: 1.1 }}>See you at<br />the show!</div>
-          <div className="text-amber-400 mt-2" style={{ fontSize: 10 }}>05–07 June 2026 · {EVENT_CONFIG.venue}</div>
+          <div className="text-amber-400 mt-2" style={{ fontSize: 10 }}>04–06 June 2026 · {EVENT_CONFIG.venue}</div>
         </div>
         <div className="w-full rounded-xl p-4" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)' }}>
           <div className="flex flex-col gap-1.5">
@@ -939,7 +939,7 @@ function MagazineLibrary({ onSelect }) {
               Zimbabwe's largest agricultural exhibition. Connect, discover and procure.
             </div>
             <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: '#d1c9b8' }}>
-              <span className="font-bold text-slate-800" style={{ fontSize: 7 }}>05–07 June 2026</span>
+              <span className="font-bold text-slate-800" style={{ fontSize: 7 }}>04–06 June 2026</span>
               <span className="text-slate-500" style={{ fontSize: 7 }}>ART Farm · Pomona · Harare</span>
             </div>
           </div>

@@ -7,7 +7,7 @@ import { Calendar, Clock, CheckCircle, Building2, User, Mail, Phone, FileText, L
 import { useLocation, Link } from 'react-router-dom';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
-const DATES = ['5 June 2026', '6 June 2026', '7 June 2026'];
+const DATES = ['4 June 2026', '5 June 2026', '6 June 2026'];
 const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
 const empty = { visitor_name: '', visitor_company: '', visitor_email: '', visitor_phone: '', exhibitor_name: '', exhibitor_id: '', exhibitor_booth: '', preferred_date: '', preferred_time: '', reason: '' };
