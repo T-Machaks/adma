@@ -1,8 +1,8 @@
 openapi: "3.0.0"
 info:
-  title: MineCon 2026 Agent API
+  title: ADMA Agri Show 2026 Agent API
   version: "1.0"
-  description: "Live API actions for the MineCon 2026 AI assistant"
+  description: "Live API actions for AgriBot, the ADMA Agri Show 2026 AI assistant. Event: ADMA Agri Show 2026, ART Farm, Pomona, Harare, Zimbabwe."
 
 paths:
 
@@ -10,21 +10,22 @@ paths:
     get:
       operationId: listExhibitors
       summary: "List all exhibitors"
-      description: "Returns the exhibitor directory. Filter by tier (Diamond, Gold, Chrome, Copper) or by industry category."
+      description: "Returns the exhibitor directory. Filter by sponsorship tier or by industry category."
       parameters:
         - name: tier
           in: query
           required: false
-          description: "Filter by sponsorship tier. Allowed values: Diamond, Gold, Chrome, Copper"
+          description: "Filter by sponsorship tier. Allowed values: Platinum, Gold, Silver, Bronze"
           schema:
             type: string
-            enum: [Diamond, Gold, Chrome, Copper]
+            enum: [Platinum, Gold, Silver, Bronze]
         - name: category
           in: query
           required: false
-          description: "Filter by industry category, for example Mining Equipment or Safety"
+          description: "Filter by industry category. Allowed values: Machinery, Irrigation, Fertilizers & Inputs, Livestock, Agri-Tech, Finance, Logistics, Security, Services"
           schema:
             type: string
+            enum: [Machinery, Irrigation, "Fertilizers & Inputs", Livestock, Agri-Tech, Finance, Logistics, Security, Services]
         - name: sortBy
           in: query
           required: false
@@ -46,7 +47,7 @@ paths:
     get:
       operationId: getExhibitor
       summary: "Get a single exhibitor by ID"
-      description: "Returns full details for one exhibitor including booth number, zone, contact info, and products."
+      description: "Returns full details for one exhibitor including booth number, section, contact info, and products."
       parameters:
         - name: id
           in: path
@@ -68,7 +69,7 @@ paths:
     post:
       operationId: createMeetingRequest
       summary: "Submit a meeting request"
-      description: "Creates a meeting request from an attendee to an exhibitor. The exhibitor will be notified and can confirm or decline."
+      description: "Creates a meeting request from a visitor to an exhibitor. The exhibitor is notified by email and SMS and can confirm or decline from the exhibitor portal."
       requestBody:
         required: true
         content:
@@ -89,7 +90,7 @@ paths:
     get:
       operationId: getMeetingRequest
       summary: "Get a meeting request by ID"
-      description: "Returns the current status of a meeting request (pending, confirmed, declined, or cancelled)."
+      description: "Returns the current status of a meeting request (Pending, Confirmed, Declined, or Cancelled)."
       parameters:
         - name: id
           in: path
@@ -111,7 +112,7 @@ paths:
     post:
       operationId: submitVirtualEnquiry
       summary: "Submit an enquiry to an exhibitor"
-      description: "Sends a written product or service enquiry to an exhibitor booth. The exhibitor can reply through the portal."
+      description: "Sends a written product or service enquiry to an exhibitor booth. The exhibitor is notified and can reply through the exhibitor portal."
       requestBody:
         required: true
         content:
@@ -131,25 +132,23 @@ paths:
   /api/registrations/by-email:
     get:
       operationId: findRegistrationByEmail
-      summary: "Find an attendee registration by email"
-      description: "Looks up an attendee registration record by email address, returning ticket type, QR code reference, and check-in status."
+      summary: "Find a registration by email"
+      description: "Looks up a registration record by email address, returning role, ticket type, badge category, and check-in status. Returns null if no registration exists for that email — this is not an error."
       parameters:
         - name: email
           in: query
           required: true
-          description: "The email address of the attendee to look up"
+          description: "The email address of the registrant to look up"
           schema:
             type: string
             format: email
       responses:
         "200":
-          description: "Attendee registration record"
+          description: "Registration record, or null if none exists for this email"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Registration"
-        "404":
-          description: "No registration found for this email"
 
   /api/announcements:
     get:
@@ -160,10 +159,10 @@ paths:
         - name: sortBy
           in: query
           required: false
-          description: "Field to sort announcements by. Allowed values: createdAt, title"
+          description: "Field to sort announcements by. Allowed values: created_date, title"
           schema:
             type: string
-            enum: [createdAt, title]
+            enum: [created_date, title]
       responses:
         "200":
           description: "Array of announcement objects"
@@ -188,24 +187,30 @@ components:
           description: "Exhibitor company name"
         tier:
           type: string
-          enum: [Diamond, Gold, Chrome, Copper]
-          description: "Sponsorship tier"
+          enum: [Platinum, Gold, Silver, Bronze]
+          description: "Sponsorship / booth tier"
         category:
           type: string
-          description: "Industry category"
-        booth:
-          type: string
-          description: "Assigned booth number, e.g. A07, B12"
+          description: "Industry category, e.g. Machinery, Irrigation, Fertilizers & Inputs, Livestock, Agri-Tech, Finance, Logistics, Security, Services"
         section:
           type: string
-          description: "Exhibition section, e.g. Main Hall, Exhibition Hall, Suppliers Zone, Solutions Zone"
+          description: "Exhibition section, e.g. Main Pavilion, Machinery Hall, Suppliers Village, Field Zone"
+        booth:
+          type: string
+          description: "Assigned booth number, e.g. A01, B12"
+        featured:
+          type: boolean
+          description: "Whether the exhibitor is highlighted as a featured exhibitor"
+        logo_url:
+          type: string
+          description: "URL to the exhibitor's logo image"
         description:
           type: string
           description: "Company and product description"
-        contactEmail:
+        contact_email:
           type: string
           description: "Exhibitor contact email"
-        contactPhone:
+        contact_phone:
           type: string
           description: "Exhibitor contact phone number"
         website:
@@ -219,31 +224,40 @@ components:
 
     NewMeetingRequest:
       type: object
-      required: [exhibitorId, attendeeName, attendeeEmail, preferredDate, preferredTime, purpose]
+      required: [exhibitor_id, exhibitor_name, visitor_name, visitor_email, preferred_date, preferred_time]
       properties:
-        exhibitorId:
+        exhibitor_id:
           type: string
-          description: "The ID of the exhibitor the attendee wants to meet"
-        attendeeName:
+          description: "The ID of the exhibitor the visitor wants to meet"
+        exhibitor_name:
           type: string
-          description: "Full name of the attendee"
-        attendeeEmail:
+          description: "Name of the exhibitor being requested"
+        exhibitor_booth:
+          type: string
+          description: "Booth number of the exhibitor, if known"
+        visitor_name:
+          type: string
+          description: "Full name of the visitor requesting the meeting"
+        visitor_email:
           type: string
           format: email
-          description: "Email address of the attendee"
-        preferredDate:
+          description: "Email address of the visitor"
+        visitor_company:
+          type: string
+          description: "Company the visitor represents"
+        visitor_phone:
+          type: string
+          description: "Phone number of the visitor"
+        preferred_date:
           type: string
           format: date
-          description: "Preferred meeting date in YYYY-MM-DD format. Must be between 2026-10-14 and 2026-10-16"
-        preferredTime:
+          description: "Preferred meeting date in YYYY-MM-DD format, within the ADMA Agri Show 2026 event dates"
+        preferred_time:
           type: string
           description: "Preferred time slot, e.g. 10:00 or 14:30"
-        purpose:
+        reason:
           type: string
           description: "Brief description of the meeting purpose"
-        message:
-          type: string
-          description: "Optional additional message to the exhibitor"
 
     MeetingRequest:
       type: object
@@ -251,22 +265,31 @@ components:
         id:
           type: string
           description: "Unique meeting request ID"
-        exhibitorId:
+        exhibitor_id:
           type: string
           description: "ID of the exhibitor"
-        attendeeName:
+        exhibitor_name:
           type: string
-          description: "Name of the attendee"
-        attendeeEmail:
+          description: "Name of the exhibitor"
+        exhibitor_booth:
           type: string
-          description: "Email of the attendee"
-        preferredDate:
+          description: "Booth number of the exhibitor"
+        visitor_name:
+          type: string
+          description: "Name of the visitor"
+        visitor_email:
+          type: string
+          description: "Email of the visitor"
+        visitor_company:
+          type: string
+          description: "Visitor's company"
+        preferred_date:
           type: string
           description: "Requested meeting date"
-        preferredTime:
+        preferred_time:
           type: string
           description: "Requested meeting time"
-        purpose:
+        reason:
           type: string
           description: "Meeting purpose"
         status:
@@ -280,21 +303,27 @@ components:
 
     NewVirtualEnquiry:
       type: object
-      required: [exhibitorId, senderName, senderEmail, message]
+      required: [exhibitor_id, exhibitor_name, name, email, message]
       properties:
-        exhibitorId:
+        exhibitor_id:
           type: string
           description: "ID of the exhibitor being contacted"
-        senderName:
+        exhibitor_name:
+          type: string
+          description: "Name of the exhibitor being contacted"
+        name:
           type: string
           description: "Full name of the person sending the enquiry"
-        senderEmail:
+        email:
           type: string
           format: email
           description: "Email address of the sender"
-        subject:
+        company:
           type: string
-          description: "Subject line for the enquiry"
+          description: "Sender's company"
+        phone:
+          type: string
+          description: "Sender's phone number"
         message:
           type: string
           description: "The enquiry text, e.g. a product question, pricing request, or availability check"
@@ -305,18 +334,18 @@ components:
         id:
           type: string
           description: "Unique enquiry ID"
-        exhibitorId:
+        exhibitor_id:
           type: string
           description: "ID of the exhibitor"
-        senderName:
+        exhibitor_name:
+          type: string
+          description: "Name of the exhibitor"
+        name:
           type: string
           description: "Name of the sender"
-        senderEmail:
+        email:
           type: string
           description: "Email of the sender"
-        subject:
-          type: string
-          description: "Enquiry subject"
         message:
           type: string
           description: "Enquiry message body"
@@ -335,26 +364,45 @@ components:
         id:
           type: string
           description: "Unique registration ID"
-        firstName:
+        full_name:
           type: string
-          description: "Attendee first name"
-        lastName:
-          type: string
-          description: "Attendee last name"
+          description: "Registrant's full name"
         email:
           type: string
-          description: "Attendee email address"
-        ticketType:
+          description: "Registrant's email address"
+        phone:
           type: string
-          enum: [General, VIP, Trade]
+          description: "Registrant's phone number"
+        company:
+          type: string
+          description: "Registrant's company, if applicable"
+        role_type:
+          type: string
+          enum: [Attendee, Exhibitor, Sponsor, Speaker, "VIP Guest"]
+          description: "Role the registrant signed up as"
+        ticket_type:
+          type: string
+          enum: ["General Admission", "VIP (includes parking)", "Exhibitor Pass", "Speaker Pass"]
           description: "Type of ticket purchased"
-        qrCode:
+        badge_category:
           type: string
-          description: "QR code reference for the attendee ticket"
-        checkedIn:
+          enum: [Visitor, Exhibitor, Sponsor, Speaker, VIP]
+          description: "Badge category printed on the entry pass"
+        exhibitor_tier:
+          type: string
+          enum: [Platinum, Gold, Silver, Bronze]
+          description: "Booth tier, only present when role_type is Exhibitor"
+        quantity:
+          type: integer
+          description: "Number of tickets purchased under this registration"
+        status:
+          type: string
+          enum: [Pending, Confirmed]
+          description: "Current status of the registration"
+        checked_in:
           type: boolean
-          description: "Whether the attendee has checked in at the venue"
-        checkInTime:
+          description: "Whether the registrant has checked in at the venue"
+        check_in_time:
           type: string
           format: date-time
           description: "Timestamp of check-in, if applicable"
@@ -375,6 +423,9 @@ components:
           type: string
           enum: [General, Important, Update]
           description: "Announcement type"
+        pinned:
+          type: boolean
+          description: "Whether the announcement is pinned to the top of the list"
         created_date:
           type: string
           format: date-time
