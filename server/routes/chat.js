@@ -11,8 +11,8 @@ const bedrockAgent = new BedrockAgentRuntimeClient({ region: 'us-east-1' });
 const rawDdb = new DynamoDBClient({ region: 'af-south-1' });
 const ddb = DynamoDBDocumentClient.from(rawDdb, { marshallOptions: { removeUndefinedValues: true } });
 
-const AGENT_ID    = '6KLVWZQPR7';
-const AGENT_ALIAS = 'IOIIMEPX6A';
+const AGENT_ID    = 'FF6WRKU3JK';
+const AGENT_ALIAS = 'ZF7GKVERMN';
 const TABLE       = 'adma_meeting_requests';
 
 router.post('/', async (req, res) => {
