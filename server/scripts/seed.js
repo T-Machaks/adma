@@ -278,6 +278,53 @@ const SEED_ANNOUNCEMENTS = [
   { id: 'a4', title: 'ADMA 2026 Site Plan Now Available', body: 'The official ADMA 2026 site plan is now live in the app under Site Plan. Use it to find your favourite exhibitors across the Main Pavilion, Machinery Hall, Suppliers Village and Field Zone.', type: 'Update', pinned: false, created_date: new Date(Date.now() - 3 * 86400000).toISOString() },
 ];
 
+const SEED_SESSIONS = [
+  {
+    id: 'sess1',
+    title: 'Live Demo: Solar-Powered Centre Pivot Irrigation',
+    description: 'A walkthrough of solar-powered centre pivot and drip irrigation systems for commercial-scale crop production, with live Q&A.',
+    speaker_name: 'Centre Pivot Irrigation',
+    speaker_bio: 'Platinum Exhibitor — Main Pavilion, Booth A08',
+    start_time: new Date(Date.now() - 15 * 60000).toISOString(),
+    end_time: new Date(Date.now() + 45 * 60000).toISOString(),
+    stream_url: 'https://www.youtube.com/embed/aqz-KE-bpKQ',
+    recording_url: '',
+    status: 'live',
+    sponsor_id: 'e08',
+    sponsor_name: 'Centre Pivot Irrigation',
+    viewer_count: 47,
+    chat_enabled: true,
+    qa_enabled: true,
+    poll_active: true,
+    poll_question: 'What is your biggest irrigation challenge this season?',
+    poll_options: ['Water availability', 'Power/fuel cost', 'Equipment cost', 'Maintenance & spares'],
+    poll_votes: {},
+    created_date: new Date().toISOString(),
+  },
+  {
+    id: 'sess2',
+    title: 'Webinar: Asset Finance for Farm Equipment',
+    description: 'CBZ Agro-Yield walks through financing options for tractors, irrigation and processing equipment ahead of the new season.',
+    speaker_name: 'CBZ Agro-Yield',
+    speaker_bio: 'Gold Exhibitor — Machinery Hall, Booth B13',
+    start_time: new Date(Date.now() + 24 * 60 * 60000).toISOString(),
+    end_time: new Date(Date.now() + 25 * 60 * 60000).toISOString(),
+    stream_url: 'https://www.youtube.com/embed/aqz-KE-bpKQ',
+    recording_url: '',
+    status: 'scheduled',
+    sponsor_id: 'e38',
+    sponsor_name: 'CBZ Agro-Yield',
+    viewer_count: 0,
+    chat_enabled: true,
+    qa_enabled: true,
+    poll_active: false,
+    poll_question: '',
+    poll_options: [],
+    poll_votes: {},
+    created_date: new Date().toISOString(),
+  },
+];
+
 const SEED_USERS = [
   { id: 'usr_organizer',  email: 'organizer@agrishow.co.zw',  full_name: 'Demo Organizer',      role: 'organizer',         company: 'ADMA',              status: 'active', created_date: new Date().toISOString() },
   { id: 'usr_partner',    email: 'partner@agrishow.co.zw',    full_name: 'Marketing Partner',   role: 'marketing_partner', company: 'ADMA Media',        status: 'active', created_date: new Date().toISOString() },
@@ -310,6 +357,7 @@ await batchWrite('adma_exhibitors',    SEED_EXHIBITORS);
 await batchWrite('adma_sponsors',      SEED_SPONSORS);
 await batchWrite('adma_announcements', SEED_ANNOUNCEMENTS);
 await batchWrite('adma_users',         SEED_USERS);
+await batchWrite('adma_sessions',      SEED_SESSIONS);
 
 // Singleton app settings
 await ddb.send(new PutCommand({

@@ -34,6 +34,13 @@ import ExhibitorDetail from '@/pages/ExhibitorDetail';
 import Connect from '@/pages/Connect';
 import LiveSessions from '@/pages/LiveSessions';
 import LiveRoom from '@/pages/LiveRoom';
+import Jobs from '@/pages/Jobs';
+import JobDetail from '@/pages/JobDetail';
+import Tenders from '@/pages/Tenders';
+import TenderDetail from '@/pages/TenderDetail';
+import Auctions from '@/pages/Auctions';
+import AuctionDetail from '@/pages/AuctionDetail';
+import LotDetail from '@/pages/LotDetail';
 import Login from '@/pages/Login';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
@@ -50,6 +57,7 @@ import MarketingHub from '@/pages/console/MarketingHub';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
 import Registrations from '@/pages/console/Registrations';
 import SessionsManager from '@/pages/console/SessionsManager';
+import AuctionsManager from '@/pages/console/AuctionsManager';
 import EnquiriesPanel from '@/pages/console/EnquiriesPanel';
 import ExhibitorApply from '@/pages/ExhibitorApply';
 import ExhibitorLogin from '@/pages/ExhibitorLogin';
@@ -62,6 +70,9 @@ import ExhibitorAnalytics from '@/pages/exhibitor/ExhibitorAnalytics';
 import ExhibitorScanner from '@/pages/exhibitor/ExhibitorScanner';
 import ExhibitorTeam from '@/pages/exhibitor/ExhibitorTeam';
 import ExhibitorEnquiries from '@/pages/exhibitor/ExhibitorEnquiries';
+import ExhibitorMessages from '@/pages/exhibitor/ExhibitorMessages';
+import ExhibitorJobs from '@/pages/exhibitor/ExhibitorJobs';
+import ExhibitorTenders from '@/pages/exhibitor/ExhibitorTenders';
 
 // Layout wrappers (give each shell access to Outlet)
 const AttendeeLayout = () => (
@@ -122,6 +133,7 @@ const AuthenticatedApp = () => {
           {/* Organizer-only */}
           <Route element={<OrganizerGuard />}>
             <Route path="/console/sessions"              element={<SessionsManager />} />
+            <Route path="/console/auctions"               element={<AuctionsManager />} />
             <Route path="/console/registrations"         element={<Registrations />} />
             <Route path="/console/admin"                 element={<AdminPanel />} />
             <Route path="/console/communications"        element={<Communications />} />
@@ -141,6 +153,9 @@ const AuthenticatedApp = () => {
         <Route path="/exhibitor/analytics" element={<ExhibitorAnalytics />} />
         <Route path="/exhibitor/team"      element={<ExhibitorTeam />} />
         <Route path="/exhibitor/enquiries" element={<ExhibitorEnquiries />} />
+        <Route path="/exhibitor/messages"  element={<ExhibitorMessages />} />
+        <Route path="/exhibitor/jobs"      element={<ExhibitorJobs />} />
+        <Route path="/exhibitor/tenders"   element={<ExhibitorTenders />} />
       </Route>
 
       {/* ── Attendee PWA ── */}
@@ -163,6 +178,13 @@ const AuthenticatedApp = () => {
         <Route path="/connect"            element={<Connect />} />
         <Route path="/sessions"           element={<LiveSessions />} />
         <Route path="/sessions/:id"       element={<LiveRoom />} />
+        <Route path="/jobs"               element={<Jobs />} />
+        <Route path="/jobs/:id"           element={<JobDetail />} />
+        <Route path="/tenders"            element={<Tenders />} />
+        <Route path="/tenders/:id"        element={<TenderDetail />} />
+        <Route path="/auctions"           element={<Auctions />} />
+        <Route path="/auctions/:id"       element={<AuctionDetail />} />
+        <Route path="/lots/:id"           element={<LotDetail />} />
         <Route path="*"                   element={<PageNotFound />} />
       </Route>
     </Routes>

@@ -8,10 +8,12 @@ import {
   Store, Calendar, CheckCircle, XCircle, Clock,
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
+  Images, MessageCircle, Award, Plus,
 } from 'lucide-react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
 import { resizeImageToBlob } from '@/lib/imageUtils';
+import { getStandTier, standTierAtLeast } from '@/lib/standTiers';
 
 const STATUS_STYLES = {
   Pending:   { cls: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -21,9 +23,9 @@ const STATUS_STYLES = {
 
 const TIER_NEXT = { Bronze: 'Silver', Silver: 'Gold', Gold: 'Platinum' };
 const UPGRADE_PERKS = {
-  Silver:   ['Exhibitor directory boost', 'Priority meeting placement', 'Dedicated booth page'],
-  Gold:     ['Lead export (CSV)', 'Featured in digital magazine', 'Meeting request boost', 'Ad banner eligibility'],
-  Platinum: ['Home page featured listing', 'Ad carousel slot', 'Platinum badge', 'All Gold perks'],
+  Silver:   ['Enhanced Stand — full profile & products', 'Live chat with attendees', 'Booth analytics dashboard'],
+  Gold:     ['Everything in Enhanced Stand', 'Featured in digital magazine', 'Meeting request boost', 'Ad banner eligibility'],
+  Platinum: ['Premium Stand — AI-referenceable full profile', 'Lead capture form & CSV export', 'Home page featured listing', 'Ad carousel slot'],
 };
 
 export default function ExhibitorHome() {
@@ -58,6 +60,8 @@ export default function ExhibitorHome() {
 
   const myAd = myBooth ? (activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null) : null;
   const isPlatinum = myBooth?.tier === 'Platinum';
+  const standTier = myBooth ? getStandTier(myBooth.tier) : 'Basic';
+  const isEnhancedPlus = myBooth ? standTierAtLeast(myBooth.tier, 'Enhanced') : false;
 
   const myMeetings = meetings.filter(m => {
     if (!myBooth) return true;
@@ -90,6 +94,34 @@ export default function ExhibitorHome() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
 
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const updateGallery = useMutation({
+    mutationFn: (gallery) => Exhibitor.update(myBooth.id, { gallery }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
+  });
+
+  const handleGalleryUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const current = myBooth.gallery || [];
+    if (current.length >= 6) { e.target.value = ''; return; }
+    setUploadingGallery(true);
+    try {
+      const blob = await resizeImageToBlob(file);
+      const { uploadUrl, publicUrl } = await Exhibitor.getGalleryUploadUrl(myBooth.id);
+      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await updateGallery.mutateAsync([...current, publicUrl]);
+    } finally {
+      setUploadingGallery(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveGalleryImage = (idx) => {
+    updateGallery.mutate((myBooth.gallery || []).filter((_, i) => i !== idx));
+  };
+
   const updateBooth = useMutation({
     mutationFn: (data) => Exhibitor.update(myBooth.id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['exhibitors-all'] }); setEditOpen(false); },
@@ -102,9 +134,28 @@ export default function ExhibitorHome() {
       contact_email: myBooth.contact_email || '',
       phone: myBooth.phone || '',
       website: myBooth.website || '',
+      specialties: (myBooth.specialties || []).join(', '),
+      certifications: (myBooth.certifications || []).join(', '),
+      faq: myBooth.faq?.length ? myBooth.faq : [],
     });
     setEditOpen(o => !o);
   };
+
+  const handleSaveProfile = () => {
+    const { specialties, certifications, faq, ...rest } = editForm;
+    updateBooth.mutate({
+      ...rest,
+      specialties: (specialties || '').split(',').map(s => s.trim()).filter(Boolean),
+      certifications: (certifications || '').split(',').map(s => s.trim()).filter(Boolean),
+      faq: (faq || []).filter(f => f.question?.trim() && f.answer?.trim()),
+    });
+  };
+
+  const addFaqRow = () => setEditForm(f => ({ ...f, faq: [...(f.faq || []), { question: '', answer: '' }] }));
+  const updateFaqRow = (i, key, value) => setEditForm(f => ({
+    ...f, faq: f.faq.map((row, idx) => idx === i ? { ...row, [key]: value } : row),
+  }));
+  const removeFaqRow = (i) => setEditForm(f => ({ ...f, faq: f.faq.filter((_, idx) => idx !== i) }));
 
   const handleBoothImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -251,9 +302,72 @@ export default function ExhibitorHome() {
                 className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
               />
             </div>
+
+            {isPlatinum && (
+              <div className="pt-2 border-t border-border space-y-3">
+                <p className="text-xs font-semibold text-amber uppercase tracking-wide flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5" /> Premium Stand — AI-Referenceable Profile
+                </p>
+                <p className="text-[11px] text-muted-foreground -mt-2">AgriBot draws on these fields when attendees ask about your company.</p>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium block mb-1">Specialties (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={editForm.specialties || ''}
+                    placeholder="e.g. Irrigation design, Solar pumping"
+                    onChange={e => setEditForm(f => ({ ...f, specialties: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground font-medium block mb-1">Certifications (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={editForm.certifications || ''}
+                    placeholder="e.g. ISO 9001, SAZ Approved"
+                    onChange={e => setEditForm(f => ({ ...f, certifications: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-muted-foreground font-medium">FAQ</label>
+                    <button type="button" onClick={addFaqRow} className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline">
+                      <Plus className="w-3 h-3" /> Add question
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {(editForm.faq || []).map((row, i) => (
+                      <div key={i} className="flex gap-1.5 items-start bg-muted/40 rounded-lg p-2">
+                        <div className="flex-1 space-y-1.5">
+                          <input
+                            type="text"
+                            value={row.question}
+                            placeholder="Question"
+                            onChange={e => updateFaqRow(i, 'question', e.target.value)}
+                            className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                          />
+                          <input
+                            type="text"
+                            value={row.answer}
+                            placeholder="Answer"
+                            onChange={e => updateFaqRow(i, 'answer', e.target.value)}
+                            className="w-full px-2 py-1.5 text-xs rounded-md border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                          />
+                        </div>
+                        <button type="button" onClick={() => removeFaqRow(i)} className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md flex-shrink-0">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => updateBooth.mutate(editForm)}
+                onClick={handleSaveProfile}
                 disabled={updateBooth.isPending}
                 className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 touch-manipulation"
               >
@@ -329,6 +443,23 @@ export default function ExhibitorHome() {
         </div>
       )}
 
+      {/* Messages — Enhanced+ */}
+      {isEnhancedPlus && (
+        <a
+          href="/exhibitor/messages"
+          className="flex items-center gap-3 bg-card border border-border rounded-2xl p-4 hover:bg-muted transition-colors"
+        >
+          <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <MessageCircle className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">Attendee Messages</p>
+            <p className="text-xs text-muted-foreground">Live chat with attendees browsing your virtual stand</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        </a>
+      )}
+
       {/* Meeting requests */}
       <div>
         <h2 className="font-heading text-lg font-bold uppercase tracking-wide mb-4">
@@ -399,6 +530,42 @@ export default function ExhibitorHome() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Gallery — every stand tier (Basic and up) */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Images className="w-5 h-5 text-amber" />
+            <div>
+              <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Virtual Stand Gallery</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Up to 6 images shown on your virtual stand · {standTier} Stand</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {(myBooth.gallery || []).map((src, i) => (
+              <div key={i} className="relative group aspect-square">
+                <img src={src} alt={`Gallery ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-border" />
+                <button
+                  onClick={() => handleRemoveGalleryImage(i)}
+                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Remove image"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            {(myBooth.gallery || []).length < 6 && (
+              <label className={`flex flex-col items-center justify-center gap-1 aspect-square cursor-pointer border-2 border-dashed border-border rounded-lg hover:bg-muted/40 transition-colors ${uploadingGallery ? 'opacity-60 pointer-events-none' : ''}`}>
+                <ImagePlus className="w-5 h-5 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground">{uploadingGallery ? 'Uploading…' : 'Add image'}</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} disabled={uploadingGallery} />
+              </label>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Booth Stand Image */}

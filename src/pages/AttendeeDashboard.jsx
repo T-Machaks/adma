@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AttendeeNote, MeetingRequest, Announcement } from '@/api/entities';
-import { Star, Bookmark, FileText, Calendar, Bell, Trash2, X, MessageSquare } from 'lucide-react';
+import { AttendeeNote, MeetingRequest, Announcement, Bid, Lot } from '@/api/entities';
+import { Star, Bookmark, FileText, Calendar, Bell, Trash2, X, MessageSquare, Gavel, Package } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
@@ -41,6 +41,16 @@ export default function AttendeeDashboard() {
     queryFn: () => Announcement.list('-created_date'),
     enabled: !!user?.email,
   });
+  const { data: allBids = [] } = useQuery({
+    queryKey: ['bids'],
+    queryFn: () => Bid.list('-created_date'),
+    enabled: !!user?.email,
+  });
+  const { data: lots = [] } = useQuery({
+    queryKey: ['lots'],
+    queryFn: () => Lot.list(),
+    enabled: !!user?.email,
+  });
 
   const addNote = useMutation({
     mutationFn: (data) => AttendeeNote.create(data),
@@ -60,11 +70,16 @@ export default function AttendeeDashboard() {
 
   const favorites = notes.filter(n => n.is_favorite);
   const bookmarks = notes.filter(n => !n.is_favorite);
+  const watchedLots = notes.filter(n => n.type === 'Lot');
+  const myBids = allBids.filter(b => b.bidder_email?.toLowerCase() === user?.email?.toLowerCase());
+  const lotById = Object.fromEntries(lots.map(l => [l.id, l]));
   const tabs = [
     { id: 'saved', label: 'Saved', icon: Star, count: favorites.length },
     { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark, count: bookmarks.length },
     { id: 'schedule', label: 'Schedule', icon: Calendar, count: SESSIONS.length },
     { id: 'meetings', label: 'Meetings', icon: MessageSquare, count: meetings.length },
+    { id: 'watchlist', label: 'Watched Lots', icon: Package, count: watchedLots.length },
+    { id: 'bids', label: 'My Bids', icon: Gavel, count: myBids.length },
     { id: 'updates', label: 'Updates', icon: Bell, count: announcements.length },
   ];
 
@@ -201,6 +216,71 @@ export default function AttendeeDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Watched Lots */}
+      {activeTab === 'watchlist' && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold">Watched Auction Lots</p>
+            <Link to="/auctions" className="text-amber text-xs font-medium">Browse auctions</Link>
+          </div>
+          {watchedLots.length === 0 ? (
+            <EmptyState icon={Package} msg="No watched lots yet. Star a lot on its auction page to track it here." action={{ label: 'Browse Auctions', to: '/auctions' }} />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              {watchedLots.map(n => {
+                const lot = lotById[n.ref_id];
+                return (
+                  <Link key={n.id} to={`/lots/${n.ref_id}`} className="bg-card border border-border rounded-xl p-3 flex items-center justify-between gap-3 hover:bg-muted transition-colors">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{n.ref_name}</p>
+                      {lot && <p className="text-xs text-muted-foreground">${lot.current_bid ?? lot.starting_bid ?? 0} · {lot.status}</p>}
+                    </div>
+                    <Star className="w-4 h-4 fill-amber text-amber flex-shrink-0" />
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* My Bids */}
+      {activeTab === 'bids' && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold">My Bids</p>
+            <Link to="/auctions" className="text-amber text-xs font-medium">Browse auctions</Link>
+          </div>
+          {myBids.length === 0 ? (
+            <EmptyState icon={Gavel} msg="No bids placed yet." action={{ label: 'Browse Auctions', to: '/auctions' }} />
+          ) : (
+            <div className="space-y-2">
+              {myBids.map(b => {
+                const lot = lotById[b.lot_id];
+                const winning = lot && Number(lot.current_bid) === Number(b.amount);
+                return (
+                  <Link key={b.id} to={`/lots/${b.lot_id}`} className="block bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors">
+                    <div className="flex justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{lot?.title || 'Lot'}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Your bid: ${b.amount} · Paddle #{b.paddle_number}</p>
+                      </div>
+                      {lot && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full h-fit flex-shrink-0 ${
+                          winning ? 'bg-emerald-100 text-emerald-700' : lot.status === 'Closed' || lot.status === 'Sold' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {lot.status === 'Open' ? (winning ? 'Winning' : 'Outbid') : lot.status}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

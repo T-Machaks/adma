@@ -3,7 +3,7 @@ import {
   Home, Users, Map, Calendar, Info, Bell,
   LayoutDashboard, QrCode, Menu, X, Star, Zap,
   BookOpen, UserCheck, Clock, Shield, ChevronLeft, ChevronRight, Download,
-  LogIn, LogOut, UserCircle, WifiOff, Video,
+  LogIn, LogOut, UserCircle, WifiOff, Video, Briefcase, FileText, Gavel,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import EventLogo from './EventLogo.jsx';
@@ -36,6 +36,9 @@ const navGroups = [
     label: 'Content & Info',
     items: [
       { path: '/sessions',      label: 'Live Sessions',      icon: Video },
+      { path: '/jobs',          label: 'Jobs Board',         icon: Briefcase },
+      { path: '/tenders',       label: 'Tenders',            icon: FileText },
+      { path: '/auctions',      label: 'Auctions',           icon: Gavel },
       { path: '/magazine',      label: 'Publications',       icon: BookOpen },
       { path: '/announcements', label: 'Updates',            icon: Bell },
       { path: '/event-info',    label: 'Event Info',         icon: Info },

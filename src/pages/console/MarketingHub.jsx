@@ -58,6 +58,7 @@ const ALL_MAGAZINE_PAGES = [
   { num: '13', type: 'image',     advertiser: 'Amtec',                defaultImage: '/magazines/adma-pages/page-013.jpg', desc: 'Half-page image ad' },
   { num: '14', type: 'editorial', title: 'Why Attend?',        defaultImage: null },
   { num: '15', type: 'editorial', title: 'Back Cover',         defaultImage: null },
+  { num: '16', type: 'image',     advertiser: 'Sample Exhibitor',      defaultImage: null, desc: 'Interactive hotspot ad — tap markers for product info' },
 ];
 const AD_PAGES = ALL_MAGAZINE_PAGES.filter(p => p.type !== 'editorial');
 

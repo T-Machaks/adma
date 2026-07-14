@@ -221,6 +221,26 @@ components:
           description: "List of products and services offered"
           items:
             type: string
+        specialties:
+          type: array
+          description: "Platinum-tier (Premium Stand) exhibitors only — specific areas of expertise, e.g. 'Irrigation design', 'Solar pumping'. May be absent for non-Platinum exhibitors."
+          items:
+            type: string
+        certifications:
+          type: array
+          description: "Platinum-tier (Premium Stand) exhibitors only — certifications or accreditations held, e.g. 'ISO 9001'. May be absent for non-Platinum exhibitors."
+          items:
+            type: string
+        faq:
+          type: array
+          description: "Platinum-tier (Premium Stand) exhibitors only — exhibitor-authored Q&A pairs about their company/products. Use these directly to answer visitor questions about this exhibitor. May be absent for non-Platinum exhibitors."
+          items:
+            type: object
+            properties:
+              question:
+                type: string
+              answer:
+                type: string
 
     NewMeetingRequest:
       type: object

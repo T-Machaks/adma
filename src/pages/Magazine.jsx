@@ -474,6 +474,72 @@ function VideoAdPage({ config }) {
   );
 }
 
+// ── PAGE 16: Interactive Hotspot Ad (new ad format demo) ─────────────────────
+function HotspotAd({ config }) {
+  const spots = [
+    { id: 'a', x: 30, y: 40, title: 'Built to Last', detail: 'Reinforced chassis rated for heavy daily field use.' },
+    { id: 'b', x: 68, y: 28, title: 'Comfort Cab', detail: 'Climate-controlled cab with 360° field visibility.' },
+    { id: 'c', x: 50, y: 76, title: 'Finance From', detail: '$450/month — 0% deposit packages available at the show.' },
+  ];
+  const [active, setActive] = useState(null);
+  const viewTracked = useRef(false);
+  const stop = e => { e.stopPropagation(); e.preventDefault(); };
+
+  useEffect(() => {
+    if (viewTracked.current) return;
+    viewTracked.current = true;
+    track('', 'Sample Exhibitor', 'hotspot_ad_view', 'magazine');
+  }, []);
+
+  return (
+    <div className="absolute inset-0 flex flex-col overflow-hidden" style={{ background: 'linear-gradient(135deg,#0f2e1c 0%,#166534 60%,#0f2e1c 100%)' }}>
+      <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ background: '#eab308' }}>
+        <span className="text-slate-900 font-black uppercase tracking-widest" style={{ fontSize: 9 }}>New — Interactive Ad</span>
+        <span className="text-slate-900 font-bold" style={{ fontSize: 9 }}>Tap the markers ↓</span>
+      </div>
+
+      <div className="relative flex-1" onMouseDown={stop} onTouchStart={stop}>
+        <div className="absolute inset-0 flex items-center justify-center opacity-15 select-none" style={{ fontSize: 150 }}>🚜</div>
+        <div className="absolute top-2 left-3 text-amber-400 font-black uppercase tracking-widest" style={{ fontSize: 9 }}>Sample Exhibitor</div>
+
+        {spots.map(s => (
+          <button
+            key={s.id}
+            onMouseDown={stop}
+            onTouchStart={stop}
+            onClick={e => { stop(e); const next = active === s.id ? null : s.id; setActive(next); if (next) track('', 'Sample Exhibitor', 'hotspot_click', 'magazine'); }}
+            style={{ position: 'absolute', left: `${s.x}%`, top: `${s.y}%`, transform: 'translate(-50%,-50%)', width: 22, height: 22 }}
+            className={`rounded-full border-2 border-white shadow-lg flex items-center justify-center transition-transform ${active === s.id ? 'bg-white scale-110' : 'bg-amber-400 animate-pulse'}`}
+          >
+            <span className="font-black" style={{ fontSize: 12, color: active === s.id ? '#eab308' : '#0f172a' }}>{active === s.id ? '×' : '+'}</span>
+          </button>
+        ))}
+
+        {active && (() => {
+          const s = spots.find(x => x.id === active);
+          return (
+            <div className="absolute inset-x-4 bottom-4 bg-white rounded-xl p-3 shadow-xl" onMouseDown={stop} onTouchStart={stop}>
+              <div className="font-black text-slate-900" style={{ fontSize: 13 }}>{s.title}</div>
+              <div className="text-slate-600 mt-0.5" style={{ fontSize: 10 }}>{s.detail}</div>
+            </div>
+          );
+        })()}
+      </div>
+
+      <div className="p-3 shrink-0">
+        <AdLink
+          href={config?.click_url || EVENT_CONFIG.website}
+          bg="#eab308"
+          color="#0f172a"
+          onAdClick={() => track('', 'Sample Exhibitor', 'ad_click', 'magazine')}
+        >
+          <ExternalLink size={11} /> Learn More ↗
+        </AdLink>
+      </div>
+    </div>
+  );
+}
+
 // ── PAGE 8: Site Plan ─────────────────────────────────────────────────────────
 function SitePlanPage() {
   const zones = [['#16a34a','A','MAIN PAVILION','A01–A30','Platinum',30],['#eab308','B','MACHINERY HALL','B01–B80','Gold',80],['#94a3b8','C','SUPPLIERS VILLAGE','C01–C90','Silver',90],['#92400e','D','FIELD ZONE','D01–D80','Bronze',80]];
@@ -697,11 +763,12 @@ function GuideViewer({ onBack, isMobile }) {
   const flipPrev = () => bookRef.current?.pageFlip().flipPrev();
   const flipNext = () => bookRef.current?.pageFlip().flipNext();
 
-  const TOTAL = 15;
+  const TOTAL = 16;
   const spreadLabel = isMobile
     ? `Page ${currentPage + 1} of ${TOTAL}`
     : currentPage === 0 ? 'Cover'
-    : currentPage >= TOTAL - 1 ? 'Back Cover'
+    : currentPage === TOTAL - 2 ? 'Back Cover'
+    : currentPage === TOTAL - 1 ? 'New Ad Format'
     : `Pages ${currentPage}–${currentPage + 1} of ${TOTAL}`;
 
   return (
@@ -752,6 +819,7 @@ function GuideViewer({ onBack, isMobile }) {
           <MagazinePage key="p13"><ManagedImageAd config={cfg['13']} defaultSrc={`${M}/adma-pages/page-013.jpg`} advertiser="Amtec" /></MagazinePage>
           <MagazinePage key="p14"><WhyAttendPage /></MagazinePage>
           <MagazinePage key="p15"><BackCoverPage /></MagazinePage>
+          <MagazinePage key="p16"><HotspotAd config={cfg['16']} /></MagazinePage>
         </HTMLFlipBook>
       </div>
 
@@ -908,7 +976,7 @@ function MagazineLibrary({ onSelect }) {
       id: 'guide',
       title: EVENT_CONFIG.eventFullName,
       subtitle: 'Official Exhibition Guide',
-      tag: 'Interactive Flip Book · 15 pages',
+      tag: 'Interactive Flip Book · 16 pages',
       type: 'flipbook',
       cover: (
         <div className="absolute inset-0 flex flex-col overflow-hidden">

@@ -19,6 +19,13 @@ import auth from './routes/auth.js';
 import exhibitorApplications from './routes/exhibitor-applications.js';
 import notifications from './routes/notifications.js';
 import sessions from './routes/sessions.js';
+import boothMessages from './routes/booth-messages.js';
+import jobListings from './routes/job-listings.js';
+import jobApplications from './routes/job-applications.js';
+import tenderListings from './routes/tender-listings.js';
+import auctions from './routes/auctions.js';
+import lots from './routes/lots.js';
+import bids from './routes/bids.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -42,6 +49,13 @@ app.use('/api/auth',                    auth);
 app.use('/api/exhibitor-applications',  exhibitorApplications);
 app.use('/api/notifications',           notifications);
 app.use('/api/sessions',               sessions);
+app.use('/api/booth-messages',         boothMessages);
+app.use('/api/job-listings',           jobListings);
+app.use('/api/job-applications',       jobApplications);
+app.use('/api/tender-listings',        tenderListings);
+app.use('/api/auctions',               auctions);
+app.use('/api/lots',                   lots);
+app.use('/api/bids',                   bids);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 

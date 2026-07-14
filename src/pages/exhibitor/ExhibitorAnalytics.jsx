@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
+import { getStandTier, standTierAtLeast } from '@/lib/standTiers';
 
 const TYPE_LABEL = {
   profile_view:   'Booth Visit',
@@ -95,8 +96,6 @@ function exportLeadsCSV(leads, boothName) {
   URL.revokeObjectURL(url);
 }
 
-const TIER_ORDER = { Platinum: 4, Gold: 3, Silver: 2, Bronze: 1 };
-
 export default function ExhibitorAnalytics() {
   const { user } = useAuth();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -132,6 +131,28 @@ export default function ExhibitorAnalytics() {
       <div className="max-w-4xl mx-auto px-6 py-16 text-center">
         <BarChart2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <p className="text-muted-foreground text-sm">No booth linked to your account.</p>
+      </div>
+    );
+  }
+
+  const hasAnalytics = standTierAtLeast(myBooth.tier, 'Enhanced');
+
+  if (!hasAnalytics) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
+        <div className="w-14 h-14 bg-amber/10 border border-amber/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-6 h-6 text-amber" />
+        </div>
+        <h1 className="font-heading text-xl font-bold mb-2">Analytics is an Enhanced Stand feature</h1>
+        <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
+          You're currently on a <strong>Basic Stand</strong> ({myBooth.tier} tier). Upgrade to Silver or above to unlock booth analytics, live chat with attendees, and your full profile.
+        </p>
+        <a
+          href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
+          className="inline-flex items-center gap-1.5 text-sm bg-amber text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150"
+        >
+          Enquire to Upgrade <ArrowRight className="w-4 h-4" />
+        </a>
       </div>
     );
   }
@@ -187,7 +208,7 @@ export default function ExhibitorAnalytics() {
   const hasGuideActivity    = guideAdClicks + guideVideoPlays + guideCarouselViews > 0;
   const guideStats = { adClicks: guideAdClicks, videoPlays: guideVideoPlays, videoCompletes: guideVideoCompletes, carouselViews: guideCarouselViews };
 
-  const isPremium = (TIER_ORDER[myBooth?.tier] ?? 0) >= TIER_ORDER.Gold;
+  const hasLeadExport = getStandTier(myBooth?.tier) === 'Premium';
   const isPlatinum = myBooth?.tier === 'Platinum';
   const myAd = activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null;
   const carouselAdClicks = events.filter(e => e.type === 'ad_click' && e.source === 'home_carousel').length;
@@ -529,7 +550,7 @@ export default function ExhibitorAnalytics() {
               <p className="text-xs text-muted-foreground mt-0.5">Meeting request contacts · {myMeetings.length} lead{myMeetings.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
-          {isPremium ? (
+          {hasLeadExport ? (
             <button
               onClick={() => exportLeadsCSV(myMeetings, myBooth.name)}
               disabled={myMeetings.length === 0}
@@ -548,14 +569,14 @@ export default function ExhibitorAnalytics() {
         </div>
 
         <div className="relative">
-          {!isPremium && (
+          {!hasLeadExport && (
             <div className="absolute inset-0 backdrop-blur-[3px] bg-background/70 flex flex-col items-center justify-center z-10 gap-3 rounded-b-xl">
               <div className="w-10 h-10 bg-amber/10 border border-amber/20 rounded-full flex items-center justify-center">
                 <Lock className="w-5 h-5 text-amber" />
               </div>
               <div className="text-center px-6">
-                <p className="font-heading font-bold text-sm">Gold & Platinum Feature</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Upgrade your booth tier to export full lead contact data and unlock attendee details.</p>
+                <p className="font-heading font-bold text-sm">Premium Stand Feature</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Upgrade to Platinum to export full lead contact data and unlock attendee details.</p>
               </div>
               <button
                 onClick={() => setUpgradeOpen(true)}
@@ -582,7 +603,7 @@ export default function ExhibitorAnalytics() {
                   {myMeetings.slice(0, 8).map(m => (
                     <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                       <td className="px-5 py-3 font-medium">{m.attendee_name || m.full_name || 'Attendee'}</td>
-                      <td className={`px-3 py-3 text-muted-foreground ${!isPremium ? 'blur-[4px] select-none' : ''}`}>
+                      <td className={`px-3 py-3 text-muted-foreground ${!hasLeadExport ? 'blur-[4px] select-none' : ''}`}>
                         {m.attendee_email || '—'}
                       </td>
                       <td className="px-3 py-3">
@@ -617,12 +638,12 @@ export default function ExhibitorAnalytics() {
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <p className="text-sm text-muted-foreground">
-              You're currently on the <strong>{myBooth.tier}</strong> tier. Upgrade to <strong>Gold</strong> or <strong>Platinum</strong> to unlock lead export and premium analytics.
+              You're currently on the <strong>{myBooth.tier}</strong> tier. Upgrade to <strong>Platinum</strong> for the Premium Stand — lead export and AI-referenceable profile.
             </p>
             <div className="space-y-2">
               {[
-                { tier: 'Gold', color: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20', perks: ['Full lead export (CSV)', 'Priority booth placement', 'Featured in digital magazine', 'Meeting request boost'] },
-                { tier: 'Platinum', color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20', perks: ['Everything in Gold', 'Home page featured listing', 'Ad banner carousel slot', 'Platinum badge visibility'] },
+                { tier: 'Gold', color: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20', perks: ['Enhanced Stand — profile, chat & analytics', 'Priority booth placement', 'Featured in digital magazine', 'Meeting request boost'] },
+                { tier: 'Platinum', color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20', perks: ['Premium Stand — AI-referenceable profile', 'Lead capture form & CSV export', 'Home page featured listing', 'Ad banner carousel slot'] },
               ].map(({ tier, color, perks }) => (
                 <div key={tier} className={`border rounded-xl p-4 ${color}`}>
                   <p className="font-heading font-bold text-sm mb-2">{tier} Tier</p>

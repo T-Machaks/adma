@@ -1,8 +1,8 @@
 import { apiFetch } from '@/api/client';
 
-const BASE = '/api/exhibitors';
+const BASE = '/api/tender-listings';
 
-export const Exhibitor = {
+export const TenderListing = {
   async list(sortBy = null) {
     return apiFetch(sortBy ? `${BASE}?sortBy=${sortBy}` : BASE);
   },
@@ -21,16 +21,10 @@ export const Exhibitor = {
   async filter(query = {}) {
     return apiFetch(`${BASE}?filter=${encodeURIComponent(JSON.stringify(query))}`);
   },
-  async getBoothImageUploadUrl(exhibitorId, oldImageUrl = null) {
-    return apiFetch('/api/upload/booth-image-url', {
+  async getDocumentUploadUrl(exhibitorId, oldDocumentUrl = null) {
+    return apiFetch('/api/upload/tender-document-url', {
       method: 'POST',
-      body: { exhibitorId, oldImageUrl },
-    });
-  },
-  async getGalleryUploadUrl(exhibitorId) {
-    return apiFetch('/api/upload/gallery-image-url', {
-      method: 'POST',
-      body: { exhibitorId },
+      body: { exhibitorId, oldDocumentUrl },
     });
   },
 };

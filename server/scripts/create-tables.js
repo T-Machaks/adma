@@ -47,6 +47,13 @@ await ensureTable('adma_attendee_notes',        { gsis: [{ attr: 'user_email',  
 await ensureTable('adma_adslots');
 await ensureTable('adma_exhibitor_applications',{ gsis: [{ attr: 'email',       index: 'email-index' }] });
 await ensureTable('adma_sessions');
+await ensureTable('adma_booth_messages',        { gsis: [{ attr: 'exhibitor_id', index: 'exhibitor-index' }] });
+await ensureTable('adma_job_listings',          { gsis: [{ attr: 'exhibitor_id', index: 'exhibitor-index' }] });
+await ensureTable('adma_job_applications',      { gsis: [{ attr: 'job_id',       index: 'job-index' }] });
+await ensureTable('adma_tender_listings',       { gsis: [{ attr: 'exhibitor_id', index: 'exhibitor-index' }] });
+await ensureTable('adma_auctions');
+await ensureTable('adma_lots',                  { gsis: [{ attr: 'auction_id',   index: 'auction-index' }] });
+await ensureTable('adma_bids',                  { gsis: [{ attr: 'lot_id',       index: 'lot-index' }] });
 await ensureTable('adma_app_settings',   { hashKey: 'pk' });
 await ensureTable('adma_guide_pages',    { hashKey: 'page_num' });
 await ensureTable('adma_magazine_pages', { hashKey: 'page_num' });
