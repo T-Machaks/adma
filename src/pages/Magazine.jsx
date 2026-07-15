@@ -415,59 +415,56 @@ function EventOverviewPage() {
   );
 }
 
-// ── PAGE 7: Cloverleaf Motors (image + video) ────────────────────────────────
+// ── PAGE 7: Zimplow (image + real product video) ─────────────────────────────
 function VideoAdPage({ config }) {
-  const imageUrl = config?.image_url || `${M}/adma-pages/page-007.jpg`;
-  const videoSrc = config?.video_url || `${EVENT_CONFIG.s3Base}/videos/cloverleaf-demo.mp4`;
+  const imageUrl = config?.image_url || `${EVENT_CONFIG.s3Base}/gallery-images/e25-1784063469379-nd9qcw.jpg`;
+  const videoEmbed = config?.video_url || 'https://www.youtube.com/embed/InVKgq2F8ZU';
+  const clickUrl = config?.click_url || 'https://www.zimplow.co.zw';
   const stop = e => { e.stopPropagation(); };
   const playTracked = useRef(false);
 
   const handlePlay = () => {
     if (playTracked.current) return;
     playTracked.current = true;
-    track('', 'Cloverleaf Motors', 'video_play', 'magazine');
-  };
-
-  const handleEnded = () => {
-    track('', 'Cloverleaf Motors', 'video_complete', 'magazine');
-    // Allow re-tracking if the video is watched again from the start
-    playTracked.current = false;
+    track('', 'Zimplow', 'video_play', 'magazine');
   };
 
   return (
     <div className="absolute inset-0 flex flex-col overflow-hidden" style={{ background: '#000' }}>
-      {/* Ad image — top 56%, optionally clickable */}
-      <div className="shrink-0" style={{ height: '56%' }}>
-        {config?.click_url ? (
-          <a
-            href={config.click_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full h-full"
-            onMouseDown={stop}
-            onTouchStart={stop}
-            onClick={e => { stop(e); track('', 'Cloverleaf Motors', 'ad_click', 'magazine'); }}
-          >
-            <img src={imageUrl} alt="Cloverleaf Motors" className="w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />
-          </a>
-        ) : (
-          <img src={imageUrl} alt="Cloverleaf Motors" className="w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />
-        )}
+      {/* Zimplow header */}
+      <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ background: '#14532d' }}>
+        <span className="text-white font-black tracking-[0.2em]" style={{ fontSize: 14, fontFamily: 'Barlow Condensed,sans-serif' }}>ZIMPLOW</span>
+        <span className="text-white font-bold" style={{ fontSize: 7.5 }}>{EVENT_CONFIG.eventFullName} · Stand A24</span>
       </div>
-      {/* Video — bottom 44% */}
+      {/* Ad image — clickable */}
+      <div className="shrink-0" style={{ height: '48%' }}>
+        <a
+          href={clickUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full h-full relative"
+          onMouseDown={stop}
+          onTouchStart={stop}
+          onClick={e => { stop(e); track('', 'Zimplow', 'ad_click', 'magazine'); }}
+        >
+          <img src={imageUrl} alt="Zimplow Mealie Brand implements" className="w-full h-full select-none" style={{ objectFit: 'contain', background: '#fff' }} draggable={false} />
+          <div className="absolute bottom-1.5 left-3 right-3 text-white font-bold" style={{ fontSize: 9, textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>Mealie Brand — Rugged Implements Since 1939 ↗</div>
+        </a>
+      </div>
+      {/* Video — real product video */}
       <div
         className="flex-1 overflow-hidden"
         onMouseDown={stop} onTouchStart={stop} onPointerDown={stop} onClick={stop}
       >
-        <video
-          src={videoSrc}
-          controls
-          playsInline
-          preload="metadata"
+        <iframe
+          key={videoEmbed}
+          src={videoEmbed}
+          title="Zimplow product video"
           className="w-full h-full"
-          style={{ background: '#000', display: 'block' }}
-          onPlay={handlePlay}
-          onEnded={handleEnded}
+          style={{ background: '#000', display: 'block', border: 0 }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onLoad={handlePlay}
         />
       </div>
     </div>
