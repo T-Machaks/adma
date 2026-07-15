@@ -348,8 +348,8 @@ export default function ExhibitorDetail() {
             </a>
           )}
 
-          {/* Request Info form — only shown when virtual exhibition is open */}
-          {settings.virtualExhibitionOpen && (
+          {/* Request Info form — Basic-tier contact channel. Enhanced+ gets live chat instead (below), not both. */}
+          {settings.virtualExhibitionOpen && !isEnhancedPlus && (
             <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Send className="w-4 h-4 text-amber" />
@@ -427,7 +427,7 @@ export default function ExhibitorDetail() {
             </div>
           )}
 
-          {/* Live chat — Enhanced+ only, requires sign-in same as the enquiry form */}
+          {/* Live chat — replaces the contact form for Enhanced+, requires sign-in */}
           {isEnhancedPlus && settings.virtualExhibitionOpen && (
             <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-1">
