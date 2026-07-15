@@ -374,15 +374,22 @@ router.post('/totp/verify', async (req, res) => {
   }
 });
 
-// ── POST /api/auth/exhibitor-demo-login  — demo mode, common password ────
+// ── POST /api/auth/exhibitor-demo-login  — demo mode, no OTP step ────────
+// Checks the exhibitor's own password_hash (bcrypt) rather than a single
+// hardcoded string, so most exhibitors share the demo password (their
+// hash was seeded from it) while specific exhibitors can have unique
+// credentials by having their password_hash set independently.
 router.post('/exhibitor-demo-login', async (req, res) => {
   try {
     const { user_id, password } = req.body;
     if (!user_id || !password) return res.status(400).json({ error: 'user_id and password required.' });
-    if (password !== '@AgriShow2026') return res.status(401).json({ error: 'Incorrect password.' });
     const user = await getById(user_id);
     if (!user || user.role !== 'exhibitor') return res.status(404).json({ error: 'Exhibitor not found.' });
     if (user.status !== 'active') return res.status(403).json({ error: 'Account is not active.' });
+    const match = user.password_hash
+      ? await bcrypt.compare(password, user.password_hash)
+      : password === '@AgriShow2026';
+    if (!match) return res.status(401).json({ error: 'Incorrect password.' });
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
