@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { GetCommand, UpdateCommand, ScanCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand, ScanCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
+import { generateId } from '../lib/idgen.js';
 import { crudRouter } from '../lib/crudRouter.js';
 
 const TABLE = 'adma_users';
@@ -29,6 +30,22 @@ export default crudRouter(TABLE, {
           Limit: 1,
         }));
         res.json(sanitize(result.Items?.[0] ?? null));
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    r.post('/', async (req, res) => {
+      try {
+        const item = {
+          id: generateId(),
+          created_date: new Date().toISOString(),
+          role: 'attendee',
+          status: 'active',
+          ...req.body,
+        };
+        await ddb.send(new PutCommand({ TableName: TABLE, Item: item }));
+        res.status(201).json(sanitize(item));
       } catch (e) {
         res.status(500).json({ error: e.message });
       }
