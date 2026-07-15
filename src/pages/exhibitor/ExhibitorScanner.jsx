@@ -30,8 +30,10 @@ export default function ExhibitorScanner() {
   });
 
   const myBooth =
-    exhibitors.find(e => e.contact_email?.toLowerCase() === user?.email?.toLowerCase()) ??
-    exhibitors[0];
+    exhibitors.find(e =>
+      e.contact_email?.toLowerCase() === user?.email?.toLowerCase()
+        || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
+    ) ?? exhibitors[0];
 
   const handleScan = useCallback(
     async (parsed) => {
