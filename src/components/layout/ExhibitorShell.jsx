@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
-import { Store, Calendar, BarChart2, LogOut, Shield, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText } from 'lucide-react';
+import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText } from 'lucide-react';
 import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -70,14 +70,6 @@ export default function ExhibitorShell() {
 
             <div className="w-px h-5 bg-white/20 mx-0.5 sm:mx-1 hidden sm:block" />
 
-            <Link
-              to="/console"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-150"
-              title="Management Console"
-            >
-              <Shield className="w-4 h-4" />
-              <span className="hidden md:inline">Console</span>
-            </Link>
             <button
               onClick={() => { localStorage.removeItem(EVENT_CONFIG.storageUserKey); navigate('/exhibitor-login'); }}
               className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-150 touch-manipulation"

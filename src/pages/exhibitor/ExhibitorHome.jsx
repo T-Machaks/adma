@@ -194,8 +194,8 @@ export default function ExhibitorHome() {
           Your account ({user?.email}) is not linked to any exhibitor record.
           Contact the organiser to get your booth set up.
         </p>
-        <a href="/console" className="text-amber text-sm font-medium hover:underline">
-          Go to Management Console →
+        <a href={`mailto:${EVENT_CONFIG.contactEmail}`} className="text-amber text-sm font-medium hover:underline">
+          Contact the Organiser →
         </a>
       </div>
     );

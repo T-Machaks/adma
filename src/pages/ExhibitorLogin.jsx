@@ -182,13 +182,6 @@ export default function ExhibitorLogin() {
             {loading ? 'Signing in…' : 'Access Exhibitor Portal'}
           </button>
         </form>
-
-        <p className="text-center text-slate-500 text-xs mt-6">
-          Organizer?{' '}
-          <a href="/console/login" className="text-amber hover:text-amber/80 transition-colors">
-            Sign in to Console
-          </a>
-        </p>
       </div>
     </div>
   );
