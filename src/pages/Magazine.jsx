@@ -51,9 +51,9 @@ function AdLink({ href, children, bg = '#fff', color = '#0f172a', onAdClick }) {
   );
 }
 
-function ManagedImageAd({ config, defaultSrc, advertiser, contain = false }) {
+function ManagedImageAd({ config, defaultSrc, advertiser, contain = false, defaultUrl }) {
   const imageUrl = config?.image_url || defaultSrc;
-  const clickUrl = config?.click_url;
+  const clickUrl = config?.click_url || defaultUrl;
   const stop = e => e.stopPropagation();
   const imgStyle = { objectFit: contain ? 'contain' : 'fill' };
   const imgClass = contain ? 'w-full select-none' : 'absolute inset-0 w-full h-full select-none';
@@ -225,44 +225,52 @@ function ContentsPage() {
   );
 }
 
-// ── PAGE 4: Afritractors Ad (CLICKABLE CAROUSEL) ─────────────────────────────
-function AfritractorsCarouselAd({ config }) {
+// ── PAGE 4: Platinum Sponsors Ad (CLICKABLE CAROUSEL of real sponsor ads) ────
+function PlatinumSponsorsCarouselAd() {
   const slides = [
     {
-      img: `${M}/adma-pages/page-004.jpg`,
+      img: `${M}/sponsor-ads/amcotts.jpg`,
+      advertiser: 'Amcotts',
+      category: 'Equipment & Tyres',
+      model: 'Amcotts',
+      headline: 'World-Class Equipment & Industrial Tyres',
+      specs: [['Brands', 'XCMG · Shacman'], ['Branches', 'Harare & Bulawayo'], ['Service', 'Genuine Spares']],
+      accent: '#dc2626',
+      tag: 'Mining · Haulage · Agri',
+      cta: { type: 'email', value: 'brett@amcotts.com', label: 'brett@amcotts.com' },
+    },
+    {
+      img: `${M}/sponsor-ads/lozino.jpg`,
+      advertiser: 'Lozino',
+      category: 'Farm Machinery',
+      model: 'Lozino',
+      headline: 'Two New Machines This Season',
+      specs: [['New', 'Gang Tiller'], ['New', 'Trailed Ridger'], ['Range', 'Planters & Sprayers']],
+      accent: '#ea580c',
+      tag: 'New Arrivals',
+      cta: { type: 'url', value: 'https://www.lozino.co.zw', label: 'lozino.co.zw ↗' },
+    },
+    {
+      img: `${M}/sponsor-ads/caltex.jpg`,
+      advertiser: 'Caltex Braford Lubricants',
+      category: 'Lubricants & Fluids',
+      model: 'Caltex Braford',
+      headline: 'Delivering Long-Term Value',
+      specs: [['Est.', '20 Years'], ['Product', 'Super Tractor Oil'], ['Product', '1000 THF Fluid']],
+      accent: '#0284c7',
+      tag: 'Authorized Distributor',
+      cta: { type: 'tel', value: '+263716211137', label: 'Harare +263 716 211 137' },
+    },
+    {
+      img: `${M}/sponsor-ads/lovol.jpg`,
+      advertiser: 'Lovol · AgriForce',
       category: 'Tractors',
-      model: 'Solis 90',
-      headline: 'Built for Zimbabwean Soil',
-      specs: [['Power', '90 HP'], ['Drive', '4WD'], ['Warranty', '5 Year']],
-      accent: '#166534',
-      tag: 'Best Seller',
-    },
-    {
-      img: `${M}/adma-pages/page-005.jpg`,
-      category: 'Implements',
-      model: 'Disc Plough',
-      headline: 'Turn More Ground, Faster',
-      specs: [['Discs', '4-Furrow'], ['Width', '1.2 m'], ['Depth', '30 cm']],
-      accent: '#b45309',
-      tag: 'Field Ready',
-    },
-    {
-      img: `${M}/adma-pages/page-009.jpg`,
-      category: 'Irrigation Pumps',
-      model: 'AgriFlow 500',
-      headline: 'Water Where You Need It',
-      specs: [['Flow', '500 L/min'], ['Head', '40 m'], ['Fuel', 'Diesel']],
-      accent: '#0ea5e9',
-      tag: 'New',
-    },
-    {
-      img: `${M}/adma-pages/page-020.jpg`,
-      category: 'After-Sales Service',
-      model: 'Go with Afritractors',
-      headline: 'Parts & Service Nationwide',
-      specs: [['Response', 'Same Day'], ['Parts', 'In Stock'], ['Branches', '8 Nationwide']],
-      accent: '#eab308',
-      tag: 'Zimbabwe-wide',
+      model: 'Lovol High HP Series',
+      headline: 'Built for Every Farmer',
+      specs: [['Series', 'High HP'], ['Trait', 'Reliability'], ['Dealer', 'AgriForce']],
+      accent: '#1d4ed8',
+      tag: 'Reliability',
+      cta: null,
     },
   ];
 
@@ -274,7 +282,7 @@ function AfritractorsCarouselAd({ config }) {
 
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
-    track('', 'Afritractors', 'carousel_view', 'magazine');
+    track('', s.advertiser, 'carousel_view', 'magazine');
   }, [idx]);
 
   useEffect(() => {
@@ -287,6 +295,8 @@ function AfritractorsCarouselAd({ config }) {
   const prev = e => { stop(e); setPaused(true); setIdx(i => (i - 1 + total) % total); };
   const next = e => { stop(e); setPaused(true); setIdx(i => (i + 1) % total); };
 
+  const ctaHref = c => c.type === 'email' ? `mailto:${c.value}` : c.type === 'tel' ? `tel:${c.value}` : c.value;
+
   return (
     <div
       className="absolute inset-0 flex flex-col overflow-hidden"
@@ -294,31 +304,31 @@ function AfritractorsCarouselAd({ config }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Afritractors green header */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ background: '#166534' }}>
-        <span className="text-white font-black tracking-[0.2em]" style={{ fontSize: 14, fontFamily: 'Barlow Condensed,sans-serif' }}>AFRITRACTORS</span>
-        <span className="text-white font-bold" style={{ fontSize: 7.5 }}>{EVENT_CONFIG.eventFullName} · Stand A01</span>
+        <span className="text-white font-black tracking-[0.15em]" style={{ fontSize: 12, fontFamily: 'Barlow Condensed,sans-serif' }}>PLATINUM SPONSORS</span>
+        <span className="text-white font-bold" style={{ fontSize: 7.5 }}>{EVENT_CONFIG.eventFullName}</span>
       </div>
 
       {/* Product image — top ~48% */}
-      <div className="relative shrink-0 overflow-hidden" style={{ height: '48%' }}>
+      <div className="relative shrink-0 overflow-hidden" style={{ height: '48%', background: '#fff' }}>
         <img
           key={s.img}
           src={s.img}
-          alt={s.model}
+          alt={s.advertiser}
           className="absolute inset-0 w-full h-full"
-          style={{ objectFit: 'cover' }}
+          style={{ objectFit: 'cover', objectPosition: 'top' }}
           draggable={false}
         />
         {/* Dark gradient overlay at bottom for text legibility */}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.75) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.8) 100%)' }} />
         {/* Category + model over image */}
         <div className="absolute bottom-2 left-3 right-3">
           <div className="flex items-center gap-1.5 mb-0.5">
             <span className="rounded px-1.5 py-0.5 text-white font-bold uppercase" style={{ background: s.accent, fontSize: 6.5 }}>{s.category}</span>
             <span className="rounded px-1.5 py-0.5 font-bold uppercase" style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)', fontSize: 6.5 }}>{s.tag}</span>
           </div>
-          <div className="font-black text-white leading-none" style={{ fontFamily: 'Barlow Condensed,sans-serif', fontSize: 22, lineHeight: 1, textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>{s.model}</div>
+          <div className="font-black text-white leading-none" style={{ fontFamily: 'Barlow Condensed,sans-serif', fontSize: 20, lineHeight: 1, textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>{s.advertiser}</div>
           <div className="font-semibold mt-0.5" style={{ fontSize: 9, color: s.accent, textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>{s.headline}</div>
         </div>
         {/* Prev / Next arrows on image */}
@@ -351,15 +361,19 @@ function AfritractorsCarouselAd({ config }) {
           ))}
         </div>
 
-        {/* CTA */}
-        <AdLink
-          href={config?.click_url || 'https://www.afritractors.co.zw'}
-          bg="#166534"
-          color="#fff"
-          onAdClick={() => track('', 'Afritractors', 'ad_click', 'magazine')}
-        >
-          <ExternalLink size={11} /> afritractors.co.zw — Powering Zimbabwe's Farms ↗
-        </AdLink>
+        {/* CTA — only shown when the advertiser printed a real contact channel */}
+        {s.cta ? (
+          <AdLink
+            href={ctaHref(s.cta)}
+            bg={s.accent}
+            color="#fff"
+            onAdClick={() => track('', s.advertiser, 'ad_click', 'magazine')}
+          >
+            <ExternalLink size={11} /> {s.cta.label}
+          </AdLink>
+        ) : (
+          <div className="text-center" style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>{s.advertiser}</div>
+        )}
       </div>
     </div>
   );
@@ -804,16 +818,16 @@ function GuideViewer({ onBack, isMobile }) {
           <MagazinePage key="p1"><CoverPage /></MagazinePage>
           <MagazinePage key="p2"><WelcomePage /></MagazinePage>
           <MagazinePage key="p3"><ContentsPage /></MagazinePage>
-          <MagazinePage key="p4"><AfritractorsCarouselAd config={cfg['4']} /></MagazinePage>
+          <MagazinePage key="p4"><PlatinumSponsorsCarouselAd /></MagazinePage>
           <MagazinePage key="p5"><EventOverviewPage /></MagazinePage>
-          <MagazinePage key="p6"><ManagedImageAd config={cfg['6']} defaultSrc={`${M}/adma-pages/page-006.jpg`} advertiser="Centre Pivot Irrigation" /></MagazinePage>
+          <MagazinePage key="p6"><ManagedImageAd config={cfg['6']} defaultSrc={`${M}/sponsor-ads/stanserv.jpg`} advertiser="Stanserv Genuine Services" contain defaultUrl="https://www.sgs-stanserv.com" /></MagazinePage>
           <MagazinePage key="p7"><VideoAdPage config={cfg['7']} /></MagazinePage>
           <MagazinePage key="p8"><SitePlanPage /></MagazinePage>
           <MagazinePage key="p9"><IndustryInsightPage /></MagazinePage>
-          <MagazinePage key="p10"><ManagedImageAd config={cfg['10']} defaultSrc={`${M}/adma-pages/page-010.jpg`} advertiser="Brown Engineering Group" /></MagazinePage>
+          <MagazinePage key="p10"><ManagedImageAd config={cfg['10']} defaultSrc={`${M}/sponsor-ads/purleigh.jpg`} advertiser="Purleigh Investments" contain defaultUrl="https://www.purleigh.co.zw" /></MagazinePage>
           <MagazinePage key="p11"><ExhibitorDirectoryPage /></MagazinePage>
-          <MagazinePage key="p12"><ManagedImageAd config={cfg['12']} defaultSrc={`${M}/adma-pages/page-012.jpg`} advertiser="Croco Motors" /></MagazinePage>
-          <MagazinePage key="p13"><ManagedImageAd config={cfg['13']} defaultSrc={`${M}/adma-pages/page-013.jpg`} advertiser="Amtec" /></MagazinePage>
+          <MagazinePage key="p12"><ManagedImageAd config={cfg['12']} defaultSrc={`${M}/sponsor-ads/rocsystems.jpg`} advertiser="ROC Systems" contain defaultUrl="https://www.rocsystemszim.com" /></MagazinePage>
+          <MagazinePage key="p13"><ManagedImageAd config={cfg['13']} defaultSrc={`${M}/sponsor-ads/loadagropower.jpg`} advertiser="Load Agropower" contain defaultUrl="https://www.loadagropower.co.zw" /></MagazinePage>
           <MagazinePage key="p14"><WhyAttendPage /></MagazinePage>
           <MagazinePage key="p15"><BackCoverPage /></MagazinePage>
           <MagazinePage key="p16"><HotspotAd config={cfg['16']} /></MagazinePage>
