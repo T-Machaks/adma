@@ -167,6 +167,12 @@ router.post('/login', async (req, res) => {
       return res.json({ must_change_password: true, change_token: token });
     }
 
+    // Explicitly-flagged demo accounts skip MFA entirely (no TOTP, no email OTP).
+    // Opt-in per account -- real organizer/superadmin accounts are unaffected.
+    if (user.mfa_exempt) {
+      return res.json(sanitize(user));
+    }
+
     // Organizers + superadmin → TOTP (authenticator app)
     if (user.role === 'organizer' || user.role === 'superadmin') {
       const token = newToken();
