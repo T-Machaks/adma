@@ -114,7 +114,13 @@ export default function Exhibitors() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-sm leading-tight">{ex.name}</p>
+                    <Link
+                      to={`/exhibitors/${ex.id}`}
+                      onClick={() => track(ex.id, ex.name, 'profile_view', 'directory')}
+                      className="font-semibold text-sm leading-tight hover:text-amber hover:underline transition-colors"
+                    >
+                      {ex.name}
+                    </Link>
                     <p className="text-xs text-muted-foreground mt-0.5">Booth <span className="font-bold text-foreground">{ex.booth}</span> · {ex.section || 'General'}</p>
                   </div>
                   <TierBadge tier={ex.tier} />

@@ -9,6 +9,7 @@ import { track } from '@/lib/tracking';
 import TierBadge from '@/components/ui/TierBadge';
 import { getStandTier, standTierAtLeast } from '@/lib/standTiers';
 import BoothChat from '@/components/exhibitor/BoothChat';
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import {
   ArrowLeft, Globe, Mail, Phone, Calendar, MapPin,
   Video, Send, CheckCircle, FileText, ExternalLink, ImagePlus, Lock, LogIn, UserPlus,
@@ -134,15 +135,11 @@ export default function ExhibitorDetail() {
       {ex.gallery?.length > 0 && (
         <div className="px-4 mt-4">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="px-4 pt-3 pb-1 flex items-center gap-2">
+            <div className="px-4 pt-3 pb-2 flex items-center gap-2">
               <Images className="w-4 h-4 text-amber" />
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Gallery</h2>
             </div>
-            <div className="p-3 grid grid-cols-3 gap-2">
-              {ex.gallery.map((src, i) => (
-                <img key={i} src={src} alt={`${ex.name} gallery ${i + 1}`} className="w-full aspect-square object-cover rounded-lg" />
-              ))}
-            </div>
+            <GalleryCarousel images={ex.gallery} name={ex.name} />
           </div>
         </div>
       )}
@@ -538,6 +535,51 @@ export default function ExhibitorDetail() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function GalleryCarousel({ images, name }) {
+  const [api, setApi] = useState(null);
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    setCurrent(api.selectedScrollSnap());
+    api.on('select', () => setCurrent(api.selectedScrollSnap()));
+  }, [api]);
+
+  return (
+    <div className="px-3 pb-3">
+      <Carousel setApi={setApi} opts={{ loop: images.length > 1 }} className="w-full">
+        <CarouselContent className="ml-0">
+          {images.map((src, i) => (
+            <CarouselItem key={i} className="pl-0">
+              <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                <img src={src} alt={`${name} gallery ${i + 1}`} className="w-full h-full object-cover" />
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {images.length > 1 && (
+          <>
+            <CarouselPrevious className="left-2 top-1/2 -translate-y-1/2 bg-black/50 border-none text-white hover:bg-black/70 hover:text-white" />
+            <CarouselNext className="right-2 top-1/2 -translate-y-1/2 bg-black/50 border-none text-white hover:bg-black/70 hover:text-white" />
+          </>
+        )}
+      </Carousel>
+      {images.length > 1 && (
+        <div className="flex items-center justify-center gap-1.5 mt-2">
+          {images.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => api?.scrollTo(i)}
+              className={`h-1.5 rounded-full transition-all ${current === i ? 'w-5 bg-amber' : 'w-1.5 bg-muted-foreground/30'}`}
+              aria-label={`Go to image ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
