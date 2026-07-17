@@ -33,12 +33,17 @@ const navGroups = [
     ],
   },
   {
-    label: 'Content & Info',
+    label: 'Marketplace',
     items: [
-      { path: '/sessions',      label: 'Live Sessions',      icon: Video },
       { path: '/jobs',          label: 'Jobs Board',         icon: Briefcase },
       { path: '/tenders',       label: 'Tenders',            icon: FileText },
       { path: '/auctions',      label: 'Auctions',           icon: Gavel },
+    ],
+  },
+  {
+    label: 'Content & Info',
+    items: [
+      { path: '/sessions',      label: 'Live Sessions',      icon: Video },
       { path: '/magazine',      label: 'Publications',       icon: BookOpen },
       { path: '/announcements', label: 'Updates',            icon: Bell },
       { path: '/event-info',    label: 'Event Info',         icon: Info },
