@@ -173,6 +173,79 @@ paths:
                 items:
                   $ref: "#/components/schemas/Announcement"
 
+  /api/job-listings:
+    get:
+      operationId: listJobs
+      summary: "List job openings from exhibitors"
+      description: "Returns job vacancies posted by exhibitors in the Marketplace section. Filter by category or status."
+      parameters:
+        - name: category
+          in: query
+          required: false
+          description: "Filter by job category, e.g. Technical & Engineering, Sales, Logistics"
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: "Filter by listing status. Allowed values: Open, Closed"
+          schema:
+            type: string
+            enum: [Open, Closed]
+      responses:
+        "200":
+          description: "Array of job listing objects"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobListing"
+
+  /api/tender-listings:
+    get:
+      operationId: listTenders
+      summary: "List procurement tenders from exhibitors"
+      description: "Returns open procurement/supply tenders posted by exhibitors in the Marketplace section. Filter by category or status."
+      parameters:
+        - name: category
+          in: query
+          required: false
+          description: "Filter by tender category, e.g. Machinery, Fertilizers & Inputs, Services"
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: "Filter by tender status. Allowed values: Open, Closed"
+          schema:
+            type: string
+            enum: [Open, Closed]
+      responses:
+        "200":
+          description: "Array of tender listing objects"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TenderListing"
+
+  /api/auctions:
+    get:
+      operationId: listAuctions
+      summary: "List livestock and equipment auctions"
+      description: "Returns auctions in the Marketplace section, e.g. livestock breed sales and equipment auctions. Use this to answer questions about what's up for auction, sale dates, and bidding."
+      responses:
+        "200":
+          description: "Array of auction objects"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Auction"
+
 components:
   schemas:
 
@@ -450,3 +523,94 @@ components:
           type: string
           format: date-time
           description: "Timestamp when the announcement was published"
+
+    JobListing:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Unique job listing ID"
+        title:
+          type: string
+          description: "Job title"
+        company_name:
+          type: string
+          description: "Name of the exhibiting company hiring"
+        exhibitor_id:
+          type: string
+          description: "ID of the exhibitor that posted this job"
+        location:
+          type: string
+          description: "Job location"
+        type:
+          type: string
+          description: "Employment type, e.g. Full-time, Part-time, Contract"
+        category:
+          type: string
+          description: "Job category, e.g. Technical & Engineering, Sales, Logistics"
+        description:
+          type: string
+          description: "Job description"
+        requirements:
+          type: string
+          description: "Qualifications and requirements for the role"
+        closing_date:
+          type: string
+          format: date
+          description: "Application closing date"
+        status:
+          type: string
+          enum: [Open, Closed]
+          description: "Whether the listing is still accepting applications"
+
+    TenderListing:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Unique tender ID"
+        title:
+          type: string
+          description: "Tender title"
+        company_name:
+          type: string
+          description: "Name of the exhibiting company issuing the tender"
+        exhibitor_id:
+          type: string
+          description: "ID of the exhibitor that posted this tender"
+        category:
+          type: string
+          description: "Tender category, e.g. Machinery, Fertilizers & Inputs, Services"
+        description:
+          type: string
+          description: "Tender description and scope"
+        closing_date:
+          type: string
+          format: date
+          description: "Tender submission closing date"
+        status:
+          type: string
+          enum: [Open, Closed]
+          description: "Whether the tender is still open for submissions"
+
+    Auction:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Unique auction ID"
+        title:
+          type: string
+          description: "Auction title"
+        type:
+          type: string
+          description: "Auction type, e.g. Live, Online"
+        status:
+          type: string
+          description: "Current auction status, e.g. Live, Upcoming, Closed"
+        location:
+          type: string
+          description: "Auction venue or hosting details"
+        description:
+          type: string
+          description: "Auction description, including sale day, viewing dates, and bidding details"

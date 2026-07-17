@@ -51,6 +51,29 @@ function getBody(event) {
   return out;
 }
 
+// Scans a table, optionally filtering on a set of equality conditions.
+// Any filter value that's undefined/empty is skipped rather than matched literally.
+async function scanWithOptionalFilters(tableName, filters) {
+  const entries = Object.entries(filters).filter(([, v]) => v);
+  if (entries.length === 0) {
+    const r = await ddb.send(new ScanCommand({ TableName: tableName }));
+    return r.Items || [];
+  }
+  const names = {}, values = {}, parts = [];
+  entries.forEach(([k, v], i) => {
+    names[`#k${i}`] = k;
+    values[`:v${i}`] = v;
+    parts.push(`#k${i} = :v${i}`);
+  });
+  const r = await ddb.send(new ScanCommand({
+    TableName: tableName,
+    FilterExpression: parts.join(' AND '),
+    ExpressionAttributeNames: names,
+    ExpressionAttributeValues: values,
+  }));
+  return r.Items || [];
+}
+
 function respond(event, statusCode, data) {
   return {
     messageVersion: '1.0',
@@ -176,6 +199,24 @@ export const handler = async (event) => {
       });
 
       return respond(event, 200, items);
+    }
+
+    // GET /api/job-listings
+    if (apiPath === '/api/job-listings' && httpMethod === 'GET') {
+      let items = await scanWithOptionalFilters('adma_job_listings', { category: params.category, status: params.status });
+      return respond(event, 200, items);
+    }
+
+    // GET /api/tender-listings
+    if (apiPath === '/api/tender-listings' && httpMethod === 'GET') {
+      let items = await scanWithOptionalFilters('adma_tender_listings', { category: params.category, status: params.status });
+      return respond(event, 200, items);
+    }
+
+    // GET /api/auctions
+    if (apiPath === '/api/auctions' && httpMethod === 'GET') {
+      const r = await ddb.send(new ScanCommand({ TableName: 'adma_auctions' }));
+      return respond(event, 200, r.Items || []);
     }
 
     return respond(event, 404, { error: `No handler for ${httpMethod} ${apiPath}` });
