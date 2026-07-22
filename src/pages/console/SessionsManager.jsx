@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Session, Sponsor } from '@/api/entities';
+import { Session, Partner } from '@/api/entities';
 import {
   Video, Plus, Edit2, Trash2, Radio, Square, Clock, User,
   ExternalLink, Sparkles, RotateCcw,
@@ -55,9 +55,9 @@ export default function SessionsManager() {
     queryFn: () => Session.list('start_time'),
   });
 
-  const { data: sponsors = [] } = useQuery({
-    queryKey: ['sponsors'],
-    queryFn: () => Sponsor.list(),
+  const { data: partners = [] } = useQuery({
+    queryKey: ['partners'],
+    queryFn: () => Partner.list(),
   });
 
   const setF = (field, value) => setForm(f => ({ ...f, [field]: value }));
@@ -131,7 +131,7 @@ export default function SessionsManager() {
     };
     // Attach sponsor name from selection
     if (form.sponsor_id) {
-      const sp = sponsors.find(s => s.id === form.sponsor_id);
+      const sp = partners.find(s => s.id === form.sponsor_id);
       if (sp) data.sponsor_name = sp.name;
     }
     saveMutation.mutate(data);
@@ -319,7 +319,7 @@ export default function SessionsManager() {
                 <SelectTrigger><SelectValue placeholder="No sponsor" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No sponsor</SelectItem>
-                  {sponsors.map(sp => <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>)}
+                  {partners.map(sp => <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

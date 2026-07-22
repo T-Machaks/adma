@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Sponsor, Exhibitor } from '@/api/entities';
+import { Partner, Exhibitor } from '@/api/entities';
 import { Globe, Mail, ExternalLink, Star, Award, MapPin, ChevronRight } from 'lucide-react';
 import { SponsorBannerCarousel } from '@/components/SponsorBannerCarousel';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -33,8 +33,8 @@ const TIER_STYLE = {
 
 export default function Sponsors() {
   const { data: dbSponsors = [], isLoading } = useQuery({
-    queryKey: ['sponsors'],
-    queryFn: () => Sponsor.list('-created_date'),
+    queryKey: ['partners'],
+    queryFn: () => Partner.list('-created_date'),
   });
 
   const { data: exhibitors = [] } = useQuery({

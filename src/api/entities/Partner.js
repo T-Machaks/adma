@@ -1,8 +1,8 @@
 import { apiFetch } from '@/api/client';
 
-const BASE = '/api/sponsors';
+const BASE = '/api/partners';
 
-export const Sponsor = {
+export const Partner = {
   async list(sortBy = null) {
     return apiFetch(sortBy ? `${BASE}?sortBy=${sortBy}` : BASE);
   },

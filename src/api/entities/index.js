@@ -6,7 +6,7 @@ export { EngagementEvent } from "./EngagementEvent";
 export { Exhibitor } from "./Exhibitor";
 export { MeetingRequest } from "./MeetingRequest";
 export { Registration } from "./Registration";
-export { Sponsor } from "./Sponsor";
+export { Partner } from "./Partner";
 export { User } from "./User";
 export { VirtualEnquiry } from "./VirtualEnquiry";
 export { GuidePage } from "./GuidePage";
