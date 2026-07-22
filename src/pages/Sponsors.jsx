@@ -48,7 +48,7 @@ export default function Sponsors() {
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-5xl mx-auto px-4 pt-5">
-      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Partners & Members</h1>
+      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Partners</h1>
       <p className="text-muted-foreground text-sm mb-5">{EVENT_CONFIG.eventFullName} is made possible by the support of our valued partners and registered ADMA member companies.</p>
 
       {/* ADMA Members — Platinum-tier exhibitor companies, visually distinct from partners */}
