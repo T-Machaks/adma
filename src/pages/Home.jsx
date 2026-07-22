@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, BookOpen, MessageSquare, UserCheck, Sparkles, UserPlus, Ticket, Video } from 'lucide-react';
+import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, BookOpen, MessageSquare, UserCheck, Sparkles, UserPlus, Ticket, Video, MapPin, Navigation } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Announcement, Exhibitor } from '@/api/entities';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
+import MarketingVideoEmbed from '@/components/home/MarketingVideoEmbed';
 import VirtualBanner from '@/components/VirtualBanner';
 import CountdownBanner from '@/components/CountdownBanner';
 import { useAppSettings } from '@/lib/AppSettingsContext';
@@ -20,12 +21,16 @@ const quickActions = [
   { label: 'QR Resources', path: '/qr-resources', icon: QrCode, color: 'bg-gradient-to-br from-slate-500 to-slate-700', shadow: 'shadow-slate-500/30' },
 ];
 
-const typeIcon = { Important: AlertCircle, Reminder: Clock, General: Megaphone, Update: Bell };
+// Keep in sync with the fuller taxonomy in src/pages/Announcements.jsx / Communications.jsx —
+// this map used to be missing Venue/Directional, silently falling back to a generic icon/color.
+const typeIcon = { Important: AlertCircle, Reminder: Clock, General: Megaphone, Update: Bell, Venue: MapPin, Directional: Navigation };
 const typeColor = {
   Important: 'border-red-400 bg-red-50 dark:bg-red-950/30',
   Reminder: 'border-amber-400 bg-amber-50 dark:bg-amber-950/30',
   General: 'border-blue-400 bg-blue-50 dark:bg-blue-950/30',
   Update: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30',
+  Venue: 'border-violet-400 bg-violet-50 dark:bg-violet-950/30',
+  Directional: 'border-teal-400 bg-teal-50 dark:bg-teal-950/30',
 };
 
 export default function Home() {
@@ -77,6 +82,9 @@ export default function Home() {
 
       {/* Countdown banner */}
       <CountdownBanner />
+
+      {/* Marketing video — configurable from the Organiser Portal */}
+      <MarketingVideoEmbed url={settings.marketingVideoUrl} />
 
       {/* Ad banner carousel */}
       <div className="pt-4">

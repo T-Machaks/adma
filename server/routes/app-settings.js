@@ -9,6 +9,7 @@ const DEFAULTS = {
   physicalEventRegistrationUrl: 'https://agrishow.co.zw/',
   ccSalesAuctionUrl: '',
   paidFeatureRequestEmail: '',
+  marketingVideoUrl: '',
 };
 
 const r = Router();

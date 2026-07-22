@@ -9,6 +9,7 @@ export function AppSettingsProvider({ children }) {
     physicalEventRegistrationUrl: 'https://agrishow.co.zw/',
     ccSalesAuctionUrl: '',
     paidFeatureRequestEmail: '',
+    marketingVideoUrl: '',
   });
   const [isLoading, setIsLoading] = useState(true);
 

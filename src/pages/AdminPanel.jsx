@@ -388,6 +388,30 @@ export default function AdminPanel() {
             </div>
             <p className="text-[11px] text-muted-foreground">Receives a request whenever an exhibitor asks to activate a paid interactive listing feature.</p>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Link2 className="w-3 h-3" /> Landing page marketing video
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={settingValue('marketingVideoUrl')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, marketingVideoUrl: ev.target.value }))}
+                placeholder="https://www.youtube.com/embed/… or a direct .mp4 URL"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'marketingVideoUrl' || !('marketingVideoUrl' in settingsDraft)}
+                onClick={() => saveSetting('marketingVideoUrl')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'marketingVideoUrl' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Shown below the hero on the home page. YouTube/Vimeo embed URL (e.g. youtube.com/embed/VIDEO_ID) or a direct .mp4 link.</p>
+          </div>
         </div>
       </div>
 

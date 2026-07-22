@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { Sponsor } from '@/api/entities';
-import { Globe, Mail, ExternalLink, Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sponsor, Exhibitor } from '@/api/entities';
+import { Globe, Mail, ExternalLink, Star, Award, MapPin, ChevronRight } from 'lucide-react';
 import { SponsorBannerCarousel } from '@/components/SponsorBannerCarousel';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
@@ -36,13 +37,58 @@ export default function Sponsors() {
     queryFn: () => Sponsor.list('-created_date'),
   });
 
+  const { data: exhibitors = [] } = useQuery({
+    queryKey: ['exhibitors'],
+    queryFn: () => Exhibitor.list(),
+  });
+
   const sponsors = injectBanners(dbSponsors);
   const tiers = ['Platinum', 'Gold', 'Silver', 'Bronze'];
+  const members = exhibitors.filter(e => e.tier === 'Platinum');
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-5xl mx-auto px-4 pt-5">
-      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Sponsors & Partners</h1>
-      <p className="text-muted-foreground text-sm mb-5">{EVENT_CONFIG.eventFullName} is made possible by the support of our valued sponsors and industry partners.</p>
+      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Sponsors & Members</h1>
+      <p className="text-muted-foreground text-sm mb-5">{EVENT_CONFIG.eventFullName} is made possible by the support of our valued sponsors, industry partners, and registered ADMA member companies.</p>
+
+      {/* ADMA Members — Platinum-tier exhibitor companies, visually distinct from sponsors */}
+      {members.length > 0 && (
+        <div className="mb-7">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-steel text-white flex items-center gap-1.5">
+              <Award className="w-3 h-3" /> ADMA Members ({members.length})
+            </span>
+            <div className="flex-1 h-px bg-steel/40" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {members.map(m => (
+              <Link
+                key={m.id}
+                to={`/exhibitors/${m.id}`}
+                className="flex items-center gap-3 rounded-xl border-2 border-steel/30 bg-steel/5 dark:bg-steel/10 p-3 hover:border-steel/60 hover:shadow-md active:scale-[0.98] transition-all"
+              >
+                <div className="w-11 h-11 bg-white rounded-lg flex items-center justify-center flex-shrink-0 border border-border shadow-sm">
+                  {m.logo_url ? (
+                    <img src={m.logo_url} alt={m.name} className="w-9 h-9 object-contain" />
+                  ) : (
+                    <span className="font-heading text-lg font-bold text-muted-foreground">{m.name[0]}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-semibold text-sm truncate">{m.name}</p>
+                    <Award className="w-3 h-3 text-steel flex-shrink-0" />
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Booth {m.booth} · {m.category}
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Sponsorship tier legend */}
       <div className="flex gap-2 flex-wrap mb-6">

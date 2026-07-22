@@ -18,7 +18,7 @@ const navGroups = [
     items: [
       { path: '/',            label: 'Home',            icon: Home },
       { path: '/exhibitors',  label: 'Exhibitors',      icon: Users },
-      { path: '/sponsors',    label: 'Sponsors',        icon: Star },
+      { path: '/sponsors',    label: 'Sponsors & Members', icon: Star },
       { path: '/site-plan',   label: 'Site Plan',       icon: Map },
       { path: '/schedule',    label: 'Schedule',        icon: Clock },
       { path: '/meetings',    label: 'Meetings',        icon: Calendar },
