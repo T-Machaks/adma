@@ -179,7 +179,7 @@ const AuthenticatedApp = () => {
         <Route element={<AttendeeAuthRequired />}>
           <Route path="/attendee-dashboard" element={<AttendeeDashboard />} />
         </Route>
-        <Route path="/sponsors"           element={<Sponsors />} />
+        <Route path="/partners"           element={<Sponsors />} />
         <Route path="/magazine"           element={<Magazine />} />
         <Route path="/connect"            element={<Connect />} />
         <Route path="/sessions"           element={<LiveSessions />} />

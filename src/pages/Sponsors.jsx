@@ -48,10 +48,10 @@ export default function Sponsors() {
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-5xl mx-auto px-4 pt-5">
-      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Sponsors & Members</h1>
-      <p className="text-muted-foreground text-sm mb-5">{EVENT_CONFIG.eventFullName} is made possible by the support of our valued sponsors, industry partners, and registered ADMA member companies.</p>
+      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Partners & Members</h1>
+      <p className="text-muted-foreground text-sm mb-5">{EVENT_CONFIG.eventFullName} is made possible by the support of our valued partners and registered ADMA member companies.</p>
 
-      {/* ADMA Members — Platinum-tier exhibitor companies, visually distinct from sponsors */}
+      {/* ADMA Members — Platinum-tier exhibitor companies, visually distinct from partners */}
       {members.length > 0 && (
         <div className="mb-7">
           <div className="flex items-center gap-2 mb-3">
@@ -90,7 +90,7 @@ export default function Sponsors() {
         </div>
       )}
 
-      {/* Sponsorship tier legend */}
+      {/* Partner tier legend */}
       <div className="flex gap-2 flex-wrap mb-6">
         {tiers.map(t => (
           <div key={t} className="flex items-center gap-1.5">
@@ -102,11 +102,11 @@ export default function Sponsors() {
 
       {/* Tier sections */}
       {isLoading ? (
-        <div className="py-12 text-center text-muted-foreground text-sm">Loading sponsors…</div>
+        <div className="py-12 text-center text-muted-foreground text-sm">Loading partners…</div>
       ) : sponsors.length === 0 ? (
         <div className="py-12 text-center text-muted-foreground">
           <Star className="w-8 h-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">Sponsor listings coming soon.</p>
+          <p className="text-sm">Partner listings coming soon.</p>
         </div>
       ) : tiers.map(tier => {
         const tierSponsors = sponsors.filter(s => s.tier === tier);
@@ -115,7 +115,7 @@ export default function Sponsors() {
         return (
           <div key={tier} className="mb-7">
             <div className="flex items-center gap-2 mb-3">
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${style.badge}`}>{tier} Sponsor{tierSponsors.length > 1 ? 's' : ''}</span>
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${style.badge}`}>{tier} Partner{tierSponsors.length > 1 ? 's' : ''}</span>
               <div className={`flex-1 h-px ${style.dot} opacity-40`} />
             </div>
             <div className={`grid ${tier === 'Platinum' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'} gap-3`}>
@@ -172,9 +172,9 @@ export default function Sponsors() {
         );
       })}
 
-      {/* Become a sponsor CTA */}
+      {/* Become a partner CTA */}
       <div className="bg-steel text-white rounded-xl p-5 text-center">
-        <p className="font-heading text-lg font-bold tracking-wide mb-2">Become a Sponsor</p>
+        <p className="font-heading text-lg font-bold tracking-wide mb-2">Become a Partner</p>
         <p className="text-sm text-slate-300 mb-4">Partner with {EVENT_CONFIG.eventFullName} to reach decision-makers across Zimbabwe's agricultural sector.</p>
         <a href={EVENT_CONFIG.website} target="_blank" rel="noreferrer"
           className="inline-flex items-center gap-2 bg-amber text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">

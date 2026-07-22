@@ -15,10 +15,10 @@ const MODULES = [
     ],
   },
   {
-    section: 'Exhibitors & Sponsors',
+    section: 'Exhibitors & Partners',
     items: [
       { label: 'Exhibitor Directory', desc: 'Browse all exhibitors with filters, contacts, and meeting booking', path: '/exhibitors', icon: FileText, color: 'bg-emerald-500' },
-      { label: 'Sponsors & Partners', desc: 'Sponsor profiles, banner ads, and tier placements', path: '/sponsors', icon: Star, color: 'bg-yellow-500' },
+      { label: 'Partners & Members', desc: 'Partner profiles, banner ads, and tier placements', path: '/partners', icon: Star, color: 'bg-yellow-500' },
       { label: 'Book a Meeting', desc: 'Schedule one-on-one meetings with exhibitors at the show', path: '/meetings', icon: Calendar, color: 'bg-violet-500' },
     ],
   },
