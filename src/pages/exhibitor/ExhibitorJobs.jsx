@@ -6,7 +6,7 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import {
-  Briefcase, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, MapPin, Clock, Mail, Phone,
+  Briefcase, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
 } from 'lucide-react';
 
 const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '' };
@@ -53,6 +53,10 @@ export default function ExhibitorJobs() {
   });
   const deleteMutation = useMutation({
     mutationFn: (id) => JobListing.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['job-listings'] }),
+  });
+  const requestPaymentMutation = useMutation({
+    mutationFn: (id) => JobListing.requestPayment(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['job-listings'] }),
   });
 
@@ -255,6 +259,23 @@ export default function ExhibitorJobs() {
                     >
                       <Users className="w-3.5 h-3.5" /> {isExpanded ? 'Hide' : 'View'} Applicants
                     </button>
+                    {job.interactive_status === 'active' ? (
+                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 ml-auto">
+                        <FileUp className="w-3 h-3" /> CV applications active
+                      </span>
+                    ) : job.interactive_status === 'requested' ? (
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 ml-auto">
+                        Awaiting activation
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => requestPaymentMutation.mutate(job.id)}
+                        disabled={requestPaymentMutation.isPending}
+                        className="flex items-center gap-1.5 text-xs border border-amber/40 text-amber px-3 py-1.5 rounded-lg font-medium hover:bg-amber/10 transition-colors ml-auto disabled:opacity-60"
+                      >
+                        <FileUp className="w-3.5 h-3.5" /> Enable CV Applications (Paid)
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -270,6 +291,7 @@ export default function ExhibitorJobs() {
                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
                               <a href={`mailto:${a.email}`} className="flex items-center gap-1 hover:text-amber"><Mail className="w-3 h-3" /> {a.email}</a>
                               {a.phone && <a href={`tel:${a.phone}`} className="flex items-center gap-1 hover:text-amber"><Phone className="w-3 h-3" /> {a.phone}</a>}
+                              {a.cv_url && <a href={a.cv_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-amber"><FileUp className="w-3 h-3" /> CV</a>}
                             </div>
                             {a.message && <p className="text-xs text-foreground/80 mt-2 leading-relaxed">{a.message}</p>}
                           </div>

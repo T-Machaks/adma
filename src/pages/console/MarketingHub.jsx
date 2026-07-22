@@ -82,7 +82,7 @@ const GRADIENT_OPTIONS = [
 const EMPTY_SLOT = {
   company: '', headline: '', sub: '', label: 'Platinum Exhibitor',
   logo_url: '', url: '', bg: 'from-slate-700 to-slate-900',
-  exhibitor_id: '', exhibitor_name: '',
+  exhibitor_id: '', exhibitor_name: '', placement: 'carousel',
 };
 
 const EMPTY_POST = {
@@ -172,6 +172,8 @@ export default function MarketingHub() {
   // Derived data
   const sponsoredPosts = announcements.filter(a => a.sponsored);
   const activeSlots = adSlots.filter(s => s.active !== false);
+  const carouselSlots = adSlots.filter(s => !s.placement || s.placement === 'carousel');
+  const footerSlots = adSlots.filter(s => s.placement === 'footer-strip');
   const adClicks = events.filter(e => e.type === 'ad_click');
   const totalEngagements = events.length;
 
@@ -676,9 +678,10 @@ export default function MarketingHub() {
           <div className="-mx-1">
             <AdBannerCarousel />
           </div>
+          <p className="text-[11px] text-muted-foreground mt-2">Only the first 4 active carousel slots rotate on the homepage.</p>
         </div>
 
-        {adSlots.length === 0 ? (
+        {carouselSlots.length === 0 ? (
           <EmptyState icon={<Layers className="w-8 h-8 text-muted-foreground" />} label="No ad slots configured" sub="Add a slot to populate the home screen carousel." />
         ) : (
           <div className="overflow-x-auto">
@@ -693,7 +696,7 @@ export default function MarketingHub() {
                 </tr>
               </thead>
               <tbody>
-                {adSlots.map(slot => (
+                {carouselSlots.map(slot => (
                   <tr key={slot.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -713,6 +716,76 @@ export default function MarketingHub() {
                     </td>
                     <td className="px-3 py-3 hidden md:table-cell">
                       <span className="font-bold text-emerald-600">{clicksByExhibitor[slot.company] || 0}</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={slot.active !== false}
+                          onCheckedChange={(v) => toggleSlot.mutate({ id: slot.id, active: v })}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {slot.active !== false ? 'Live' : 'Paused'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <button
+                        onClick={() => setDeleteSlotId(slot.id)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
+      {/* ── Footer Strip Ads ── */}
+      <Section
+        id="footer-ads"
+        title="Footer Strip Ads"
+        icon={<Layers className="w-4 h-4 text-amber" />}
+        expanded={expandedSection === 'footer-ads'}
+        onToggle={() => toggle('footer-ads')}
+        action={
+          <Button size="sm" onClick={() => { setSlotForm({ ...EMPTY_SLOT, placement: 'footer-strip' }); setSlotDialogOpen(true); }} className="flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Add Slot
+          </Button>
+        }
+      >
+        <p className="text-[11px] text-muted-foreground px-5 pt-3">Full-width banner shown site-wide, above the mobile navigation bar.</p>
+        {footerSlots.length === 0 ? (
+          <EmptyState icon={<Layers className="w-8 h-8 text-muted-foreground" />} label="No footer strip ads configured" sub="Add a slot to show a sitewide footer banner." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-xs">
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Company</th>
+                  <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Headline</th>
+                  <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Status</th>
+                  <th className="px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {footerSlots.map(slot => (
+                  <tr key={slot.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {slot.logo_url && (
+                          <div className="w-7 h-7 bg-white border border-border rounded-md overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <img src={slot.logo_url} alt={slot.company} className="w-6 h-6 object-contain" />
+                          </div>
+                        )}
+                        <p className="font-semibold text-sm">{slot.company}</p>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground text-xs hidden sm:table-cell max-w-[200px] truncate">
+                      {slot.headline}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
@@ -901,13 +974,23 @@ export default function MarketingHub() {
       <Dialog open={slotDialogOpen} onOpenChange={setSlotDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Ad Slot</DialogTitle>
+            <DialogTitle>New {slotForm.placement === 'footer-strip' ? 'Footer Strip' : 'Ad Carousel'} Slot</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => { e.preventDefault(); if (!slotForm.company || !slotForm.headline) return; createSlot.mutate(slotForm); }}
             className="space-y-3 pt-1"
           >
             <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Placement</label>
+                <Select value={slotForm.placement || 'carousel'} onValueChange={v => setSlotForm(f => ({ ...f, placement: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="carousel">Home Carousel</SelectItem>
+                    <SelectItem value="footer-strip">Footer Strip (sitewide)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="col-span-2">
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company Name</label>
                 <Input

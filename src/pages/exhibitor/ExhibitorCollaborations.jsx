@@ -1,25 +1,23 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Exhibitor, TenderListing, VirtualEnquiry } from '@/api/entities';
+import { Exhibitor, Collaboration, VirtualEnquiry } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
+import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import {
-  FileText, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, Clock, Mail, Phone,
-  Building2, Download, UploadCloud,
+  Handshake, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, Clock, Mail, Phone, Building2, Hourglass,
 } from 'lucide-react';
 
-const CATEGORIES = EVENT_CONFIG.exhibitorCategories;
-const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '' };
+const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '' };
 
-export default function ExhibitorTenders() {
+export default function ExhibitorCollaborations() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(EMPTY_TENDER);
-  const [expandedTender, setExpandedTender] = useState(null);
-  const [uploadingDoc, setUploadingDoc] = useState(null);
+  const [form, setForm] = useState(EMPTY_COLLAB);
+  const [expandedId, setExpandedId] = useState(null);
 
   const { data: exhibitors = [] } = useQuery({
     queryKey: ['exhibitors-all'],
@@ -31,44 +29,44 @@ export default function ExhibitorTenders() {
       || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
   ) ?? exhibitors[0];
 
-  const { data: allTenders = [] } = useQuery({
-    queryKey: ['tender-listings'],
-    queryFn: () => TenderListing.list('-created_date'),
+  const { data: allCollabs = [] } = useQuery({
+    queryKey: ['collaborations'],
+    queryFn: () => Collaboration.list('-created_date'),
     enabled: !!myBooth,
   });
 
-  const myTenders = allTenders.filter(t => t.exhibitor_id === myBooth?.id);
+  const myCollabs = allCollabs.filter(c => c.exhibitor_id === myBooth?.id);
 
   const { data: allEnquiries = [] } = useQuery({
     queryKey: ['virtual-enquiries'],
     queryFn: () => VirtualEnquiry.list('-created_date'),
-    enabled: !!expandedTender,
+    enabled: !!expandedId,
   });
 
-  const interests = allEnquiries.filter(e => e.tender_id === expandedTender);
+  const interests = allEnquiries.filter(e => e.collaboration_id === expandedId);
 
   const createMutation = useMutation({
-    mutationFn: (data) => TenderListing.create(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tender-listings'] }); closeForm(); },
+    mutationFn: async (data) => {
+      const created = await Collaboration.create(data);
+      await Collaboration.requestPayment(created.id);
+      return created;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['collaborations'] }); closeForm(); },
   });
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => TenderListing.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tender-listings'] }),
+    mutationFn: ({ id, data }) => Collaboration.update(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['collaborations'] }),
   });
   const deleteMutation = useMutation({
-    mutationFn: (id) => TenderListing.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tender-listings'] }),
-  });
-  const requestPaymentMutation = useMutation({
-    mutationFn: (id) => TenderListing.requestPayment(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tender-listings'] }),
+    mutationFn: (id) => Collaboration.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['collaborations'] }),
   });
 
-  const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(EMPTY_TENDER); };
-  const openCreate = () => { setForm(EMPTY_TENDER); setEditingId(null); setFormOpen(true); };
-  const openEdit = (t) => {
-    setForm({ title: t.title || '', category: t.category || CATEGORIES[0], description: t.description || '', closing_date: t.closing_date || '' });
-    setEditingId(t.id);
+  const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(EMPTY_COLLAB); };
+  const openCreate = () => { setForm(EMPTY_COLLAB); setEditingId(null); setFormOpen(true); };
+  const openEdit = (c) => {
+    setForm({ title: c.title || '', type: c.type || COLLABORATION_TYPES[0], description: c.description || '', closing_date: c.closing_date || '' });
+    setEditingId(c.id);
     setFormOpen(true);
   };
 
@@ -80,25 +78,12 @@ export default function ExhibitorTenders() {
     else createMutation.mutate(payload);
   };
 
-  const toggleStatus = (t, status) => updateMutation.mutate({ id: t.id, data: { status } });
-
-  const handleDocUpload = async (tender, file) => {
-    if (!file) return;
-    setUploadingDoc(tender.id);
-    try {
-      const { uploadUrl, publicUrl } = await TenderListing.getDocumentUploadUrl(myBooth.id, tender.document_url || null);
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: file });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
-      await updateMutation.mutateAsync({ id: tender.id, data: { document_url: publicUrl } });
-    } finally {
-      setUploadingDoc(null);
-    }
-  };
+  const toggleStatus = (c, status) => updateMutation.mutate({ id: c.id, data: { status } });
 
   if (!myBooth) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-16 text-center">
-        <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <Handshake className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <p className="text-muted-foreground text-sm">No booth linked to your account.</p>
       </div>
     );
@@ -110,9 +95,9 @@ export default function ExhibitorTenders() {
         <div className="w-14 h-14 bg-amber/10 border border-amber/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <Lock className="w-6 h-6 text-amber" />
         </div>
-        <h1 className="font-heading text-xl font-bold mb-2">Tender postings are an Enhanced package feature</h1>
+        <h1 className="font-heading text-xl font-bold mb-2">Partner Collaborations is an Enhanced package feature</h1>
         <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
-          You're currently on the <strong>Basic</strong> package. Upgrade to Enhanced or above to post tenders to attendees.
+          You're currently on the <strong>Basic</strong> package. Upgrade to Enhanced or above to post collaboration opportunities to attendees.
         </p>
         <a
           href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
@@ -129,22 +114,27 @@ export default function ExhibitorTenders() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-xl font-bold uppercase tracking-wide flex items-center gap-2">
-            <FileText className="w-5 h-5 text-amber" /> Tenders
+            <Handshake className="w-5 h-5 text-amber" /> Partner Collaborations
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Procurement opportunities you've posted to attendees</p>
+          <p className="text-muted-foreground text-sm mt-1">Outgrower schemes, contract farming & joint venture opportunities — paid listing</p>
         </div>
         <button
           onClick={openCreate}
           className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 flex-shrink-0"
         >
-          <Plus className="w-3.5 h-3.5" /> Post a Tender
+          <Plus className="w-3.5 h-3.5" /> Post a Collaboration
         </button>
+      </div>
+
+      <div className="flex items-start gap-2.5 bg-amber/10 border border-amber/20 rounded-xl px-4 py-3 text-xs text-muted-foreground">
+        <Hourglass className="w-4 h-4 text-amber flex-shrink-0 mt-0.5" />
+        <p>This is a paid listing slot. A new posting requests activation from the organiser — it won't appear publicly until payment is confirmed and the listing is activated.</p>
       </div>
 
       {formOpen && (
         <form onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">{editingId ? 'Edit Tender' : 'New Tender'}</p>
+            <p className="text-sm font-semibold">{editingId ? 'Edit Collaboration' : 'New Collaboration'}</p>
             <button type="button" onClick={closeForm} className="p-1 rounded-full hover:bg-muted"><X className="w-4 h-4" /></button>
           </div>
           <div>
@@ -157,10 +147,10 @@ export default function ExhibitorTenders() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground font-medium block mb-1">Category</label>
-              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+              <label className="text-xs text-muted-foreground font-medium block mb-1">Type</label>
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50">
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                {COLLABORATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
@@ -173,7 +163,7 @@ export default function ExhibitorTenders() {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Scope of Work</label>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Opportunity Details</label>
             <textarea
               rows={4} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -186,7 +176,7 @@ export default function ExhibitorTenders() {
               disabled={createMutation.isPending || updateMutation.isPending}
               className="px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60"
             >
-              {editingId ? 'Save Changes' : 'Post Tender'}
+              {editingId ? 'Save Changes' : (createMutation.isPending ? 'Requesting…' : 'Post & Request Activation')}
             </button>
             <button type="button" onClick={closeForm} className="px-4 py-2 text-sm font-semibold border border-border rounded-lg hover:bg-muted active:scale-95 transition-all">
               Cancel
@@ -195,81 +185,61 @@ export default function ExhibitorTenders() {
         </form>
       )}
 
-      {myTenders.length === 0 ? (
+      {myCollabs.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-8 text-center">
-          <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm font-medium">No tenders posted yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Post a procurement opportunity to reach attendees.</p>
+          <Handshake className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-sm font-medium">No collaborations posted yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Post an opportunity to reach attendees looking to partner.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {myTenders.map(t => {
-            const isExpanded = expandedTender === t.id;
+          {myCollabs.map(c => {
+            const isExpanded = expandedId === c.id;
+            const isPending = (c.status || 'Pending') === 'Pending';
             return (
-              <div key={t.id} className="bg-card border border-border rounded-xl overflow-hidden">
+              <div key={c.id} className="bg-card border border-border rounded-xl overflow-hidden">
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm">{t.title}</p>
+                        <p className="font-semibold text-sm">{c.title}</p>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          t.status === 'Awarded' ? 'bg-blue-100 text-blue-700' : t.status === 'Closed' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'
+                          isPending ? 'bg-amber-100 text-amber-700' : c.status === 'Open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
                         }`}>
-                          {t.status || 'Open'}
+                          {isPending ? 'Awaiting activation' : c.status}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                        {t.category && <span className="bg-muted px-2 py-0.5 rounded font-medium">{t.category}</span>}
-                        {t.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {t.closing_date}</span>}
+                        {c.type && <span className="bg-muted px-2 py-0.5 rounded font-medium">{c.type}</span>}
+                        {c.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {c.closing_date}</span>}
                       </div>
                     </div>
                     <div className="flex gap-1.5 flex-shrink-0">
-                      <button onClick={() => openEdit(t)} className="p-2 rounded-lg border border-border hover:bg-muted transition-colors" title="Edit">
+                      <button onClick={() => openEdit(c)} className="p-2 rounded-lg border border-border hover:bg-muted transition-colors" title="Edit">
                         <Edit className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => deleteMutation.mutate(t.id)} className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors" title="Delete">
+                      <button onClick={() => deleteMutation.mutate(c.id)} className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors" title="Delete">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    {t.document_url ? (
-                      <a href={t.document_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors">
-                        <Download className="w-3.5 h-3.5" /> Document
-                      </a>
-                    ) : t.interactive_status === 'active' ? (
-                      <label className={`flex items-center gap-1.5 text-xs border border-dashed border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors cursor-pointer ${uploadingDoc === t.id ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <UploadCloud className="w-3.5 h-3.5" /> {uploadingDoc === t.id ? 'Uploading…' : 'Upload Document (PDF)'}
-                        <input type="file" accept="application/pdf" className="hidden" onChange={e => handleDocUpload(t, e.target.files?.[0])} disabled={uploadingDoc === t.id} />
-                      </label>
-                    ) : t.interactive_status === 'requested' ? (
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
-                        Document attachment — awaiting activation
-                      </span>
-                    ) : (
+                  {!isPending && (
+                    <div className="flex items-center gap-2 mt-3">
                       <button
-                        onClick={() => requestPaymentMutation.mutate(t.id)}
-                        disabled={requestPaymentMutation.isPending}
-                        className="flex items-center gap-1.5 text-xs border border-amber/40 text-amber px-3 py-1.5 rounded-lg font-medium hover:bg-amber/10 transition-colors disabled:opacity-60"
+                        onClick={() => toggleStatus(c, c.status === 'Open' ? 'Closed' : 'Open')}
+                        className="text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors"
                       >
-                        <UploadCloud className="w-3.5 h-3.5" /> Enable Document Attachment (Paid)
+                        Mark as {c.status === 'Open' ? 'Closed' : 'Open'}
                       </button>
-                    )}
-                    <div className="flex gap-1.5">
-                      {['Open', 'Closed', 'Awarded'].filter(s => s !== (t.status || 'Open')).map(s => (
-                        <button key={s} onClick={() => toggleStatus(t, s)} className="text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors">
-                          Mark {s}
-                        </button>
-                      ))}
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                        className="flex items-center gap-1.5 text-xs text-amber font-semibold hover:underline"
+                      >
+                        <Users className="w-3.5 h-3.5" /> {isExpanded ? 'Hide' : 'View'} Interest
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setExpandedTender(isExpanded ? null : t.id)}
-                      className="flex items-center gap-1.5 text-xs text-amber font-semibold hover:underline ml-auto"
-                    >
-                      <Users className="w-3.5 h-3.5" /> {isExpanded ? 'Hide' : 'View'} Interest
-                    </button>
-                  </div>
+                  )}
                 </div>
 
                 {isExpanded && (

@@ -54,6 +54,7 @@ await ensureTable('adma_tender_listings',       { gsis: [{ attr: 'exhibitor_id',
 await ensureTable('adma_auctions');
 await ensureTable('adma_lots',                  { gsis: [{ attr: 'auction_id',   index: 'auction-index' }] });
 await ensureTable('adma_bids',                  { gsis: [{ attr: 'lot_id',       index: 'lot-index' }] });
+await ensureTable('adma_collaborations',        { gsis: [{ attr: 'exhibitor_id', index: 'exhibitor-index' }] });
 await ensureTable('adma_app_settings',   { hashKey: 'pk' });
 await ensureTable('adma_guide_pages',    { hashKey: 'page_num' });
 await ensureTable('adma_magazine_pages', { hashKey: 'page_num' });

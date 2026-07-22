@@ -78,16 +78,16 @@ export default function AdminPanel() {
     }
   };
 
-  const [redirectUrlDraft, setRedirectUrlDraft] = useState(null);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const redirectUrlValue = redirectUrlDraft ?? settings.physicalEventRegistrationUrl ?? '';
-  const saveRedirectUrl = async () => {
-    setSavingSettings(true);
+  const [settingsDraft, setSettingsDraft] = useState({});
+  const [savingField, setSavingField] = useState(null);
+  const settingValue = (field) => settingsDraft[field] ?? settings[field] ?? '';
+  const saveSetting = async (field) => {
+    setSavingField(field);
     try {
-      await updateSettings({ physicalEventRegistrationUrl: redirectUrlValue });
-      setRedirectUrlDraft(null);
+      await updateSettings({ [field]: settingValue(field) });
+      setSettingsDraft(d => { const n = { ...d }; delete n[field]; return n; });
     } finally {
-      setSavingSettings(false);
+      setSavingField(null);
     }
   };
 
@@ -316,28 +316,78 @@ export default function AdminPanel() {
           <p className="font-heading text-sm font-bold uppercase tracking-wide">Platform Settings</p>
           <p className="text-xs text-muted-foreground mt-0.5">Organiser-configurable fields used across the platform</p>
         </div>
-        <div className="p-4 space-y-2">
-          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-            <Link2 className="w-3 h-3" /> Physical event registration redirect URL
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={redirectUrlValue}
-              onChange={ev => setRedirectUrlDraft(ev.target.value)}
-              placeholder="https://agrishow.co.zw/"
-              className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-            />
-            <button
-              type="button"
-              disabled={savingSettings || redirectUrlDraft === null}
-              onClick={saveRedirectUrl}
-              className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
-            >
-              {savingSettings ? 'Saving…' : 'Save'}
-            </button>
+        <div className="p-4 space-y-5">
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Link2 className="w-3 h-3" /> Physical event registration redirect URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={settingValue('physicalEventRegistrationUrl')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, physicalEventRegistrationUrl: ev.target.value }))}
+                placeholder="https://agrishow.co.zw/"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'physicalEventRegistrationUrl' || !('physicalEventRegistrationUrl' in settingsDraft)}
+                onClick={() => saveSetting('physicalEventRegistrationUrl')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'physicalEventRegistrationUrl' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Attendees are sent here for physical show tickets & entry passes — the virtual platform no longer sells them directly.</p>
           </div>
-          <p className="text-[11px] text-muted-foreground">Attendees are sent here for physical show tickets & entry passes — the virtual platform no longer sells them directly.</p>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Link2 className="w-3 h-3" /> CC Sales pedigree cattle auction URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={settingValue('ccSalesAuctionUrl')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, ccSalesAuctionUrl: ev.target.value }))}
+                placeholder="https://ccsales.co.zw/…"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'ccSalesAuctionUrl' || !('ccSalesAuctionUrl' in settingsDraft)}
+                onClick={() => saveSetting('ccSalesAuctionUrl')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'ccSalesAuctionUrl' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Shown as a "View on CC Sales" button on Livestock auctions/lots.</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Mail className="w-3 h-3" /> Paid listing request email
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={settingValue('paidFeatureRequestEmail')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, paidFeatureRequestEmail: ev.target.value }))}
+                placeholder="billing@mediaserv.co.zw"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'paidFeatureRequestEmail' || !('paidFeatureRequestEmail' in settingsDraft)}
+                onClick={() => saveSetting('paidFeatureRequestEmail')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'paidFeatureRequestEmail' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Receives a request whenever an exhibitor asks to activate a paid interactive listing feature.</p>
+          </div>
         </div>
       </div>
 

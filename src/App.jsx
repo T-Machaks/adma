@@ -41,6 +41,8 @@ import TenderDetail from '@/pages/TenderDetail';
 import Auctions from '@/pages/Auctions';
 import AuctionDetail from '@/pages/AuctionDetail';
 import LotDetail from '@/pages/LotDetail';
+import Collaborations from '@/pages/Collaborations';
+import CollaborationDetail from '@/pages/CollaborationDetail';
 import Login from '@/pages/Login';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
@@ -55,6 +57,7 @@ import UsersPanel from '@/pages/console/UsersPanel';
 import CheckIn from '@/pages/CheckIn';
 import MarketingHub from '@/pages/console/MarketingHub';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
+import PaidListingRequests from '@/pages/console/PaidListingRequests';
 import Registrations from '@/pages/console/Registrations';
 import SessionsManager from '@/pages/console/SessionsManager';
 import AuctionsManager from '@/pages/console/AuctionsManager';
@@ -73,6 +76,7 @@ import ExhibitorEnquiries from '@/pages/exhibitor/ExhibitorEnquiries';
 import ExhibitorMessages from '@/pages/exhibitor/ExhibitorMessages';
 import ExhibitorJobs from '@/pages/exhibitor/ExhibitorJobs';
 import ExhibitorTenders from '@/pages/exhibitor/ExhibitorTenders';
+import ExhibitorCollaborations from '@/pages/exhibitor/ExhibitorCollaborations';
 
 // Layout wrappers (give each shell access to Outlet)
 const AttendeeLayout = () => (
@@ -140,6 +144,7 @@ const AuthenticatedApp = () => {
             <Route path="/console/users"                 element={<UsersPanel />} />
             <Route path="/console/check-in"              element={<CheckIn />} />
             <Route path="/console/exhibitor-applications" element={<ExhibitorApplications />} />
+            <Route path="/console/paid-listing-requests"  element={<PaidListingRequests />} />
             <Route path="/console/enquiries"              element={<EnquiriesPanel />} />
           </Route>
         </Route>
@@ -156,6 +161,7 @@ const AuthenticatedApp = () => {
         <Route path="/exhibitor/messages"  element={<ExhibitorMessages />} />
         <Route path="/exhibitor/jobs"      element={<ExhibitorJobs />} />
         <Route path="/exhibitor/tenders"   element={<ExhibitorTenders />} />
+        <Route path="/exhibitor/collaborations" element={<ExhibitorCollaborations />} />
       </Route>
 
       {/* ── Attendee PWA ── */}
@@ -185,6 +191,8 @@ const AuthenticatedApp = () => {
         <Route path="/auctions"           element={<Auctions />} />
         <Route path="/auctions/:id"       element={<AuctionDetail />} />
         <Route path="/lots/:id"           element={<LotDetail />} />
+        <Route path="/collaborations"     element={<Collaborations />} />
+        <Route path="/collaborations/:id" element={<CollaborationDetail />} />
         <Route path="*"                   element={<PageNotFound />} />
       </Route>
     </Routes>

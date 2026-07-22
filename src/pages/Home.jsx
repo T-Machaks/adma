@@ -6,7 +6,6 @@ import { Announcement, Exhibitor } from '@/api/entities';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
 import VirtualBanner from '@/components/VirtualBanner';
 import CountdownBanner from '@/components/CountdownBanner';
-import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
@@ -35,10 +34,6 @@ export default function Home() {
   const { data: announcements = [] } = useQuery({
     queryKey: ['announcements'],
     queryFn: () => Announcement.list('-created_date'),
-  });
-  const { data: exhibitors = [] } = useQuery({
-    queryKey: ['featured-exhibitors'],
-    queryFn: () => Exhibitor.filter({ featured: true }),
   });
   const { data: allExhibitors = [] } = useQuery({
     queryKey: ['exhibitors'],
@@ -182,45 +177,6 @@ export default function Home() {
                   Register now <ArrowRight className="w-3 h-3" />
                 </span>
               </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Featured Exhibitors */}
-        {exhibitors.length > 0 && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-heading text-lg font-bold uppercase tracking-wide flex items-center gap-2">
-                <span className="w-1 h-5 bg-amber rounded-full flex-shrink-0" />
-                Featured Exhibitors
-              </h2>
-              <Link to="/exhibitors" className="text-amber text-xs font-medium flex items-center gap-1">
-                View all <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {exhibitors.slice(0, 6).map(ex => (
-                <Link
-                  key={ex.id}
-                  to={`/exhibitors/${ex.id}`}
-                  onClick={() => track(ex.id, ex.name, 'featured_click', 'home_featured')}
-                  className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4 hover:border-amber/50 hover:shadow-md active:scale-[0.98] transition-all duration-150 shadow-sm"
-                >
-                  <div className="w-10 h-10 bg-white border border-border rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {ex.logo_url
-                      ? <img src={ex.logo_url} alt={ex.name} className="w-9 h-9 object-contain" />
-                      : <span className="font-heading text-lg font-bold text-muted-foreground">{ex.name[0]}</span>
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{ex.name}</p>
-                    <p className="text-xs text-muted-foreground">Booth {ex.booth} · {ex.category}</p>
-                  </div>
-                  <span className="text-xs bg-amber text-white px-3 py-1.5 rounded-lg font-medium flex-shrink-0">
-                    View
-                  </span>
-                </Link>
-              ))}
             </div>
           </div>
         )}

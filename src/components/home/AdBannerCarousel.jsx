@@ -20,7 +20,9 @@ export default function AdBannerCarousel() {
     queryFn: () => AdSlot.listActive(),
   });
 
-  const slots = dynamicSlots;
+  // Only carousel-placement slots belong here — video-banner/footer-strip slots share the
+  // same table but render elsewhere. Capped at 4 rotating slots per the spec.
+  const slots = dynamicSlots.filter(s => !s.placement || s.placement === 'carousel').slice(0, 4);
 
   useEffect(() => { setCurrent(0); }, [slots.length]);
 

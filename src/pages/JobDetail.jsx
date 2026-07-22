@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { JobListing, JobApplication } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import {
-  ArrowLeft, Briefcase, MapPin, Clock, Mail, Send, CheckCircle, Lock, LogIn, UserPlus,
+  ArrowLeft, Briefcase, MapPin, Clock, Mail, Send, CheckCircle, Lock, LogIn, UserPlus, FileUp,
 } from 'lucide-react';
 
 function fmtDate(iso) {
@@ -25,6 +25,8 @@ export default function JobDetail() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
+  const [cvFile, setCvFile] = useState(null);
+  const [uploadingCv, setUploadingCv] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -33,7 +35,21 @@ export default function JobDetail() {
   }, [user]);
 
   const applyMutation = useMutation({
-    mutationFn: (data) => JobApplication.create(data),
+    mutationFn: async (data) => {
+      let cv_url = null;
+      if (cvFile) {
+        setUploadingCv(true);
+        try {
+          const { uploadUrl, publicUrl } = await JobListing.getCvUploadUrl(job.id);
+          const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: cvFile });
+          if (!s3Res.ok) throw new Error(`CV upload failed: ${s3Res.status}`);
+          cv_url = publicUrl;
+        } finally {
+          setUploadingCv(false);
+        }
+      }
+      return JobApplication.create({ ...data, cv_url });
+    },
     onSuccess: () => setSubmitted(true),
   });
 
@@ -181,6 +197,16 @@ export default function JobDetail() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber"
                   />
                 </div>
+                {job.interactive_status === 'active' && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">CV (PDF)</label>
+                    <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border bg-background text-sm cursor-pointer hover:bg-muted transition-colors">
+                      <FileUp className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate text-muted-foreground">{cvFile ? cvFile.name : 'Attach your CV'}</span>
+                      <input type="file" accept="application/pdf" className="hidden" onChange={e => setCvFile(e.target.files?.[0] || null)} />
+                    </label>
+                  </div>
+                )}
                 <div>
                   <label className="text-xs font-medium text-muted-foreground block mb-1">Cover message</label>
                   <textarea
@@ -198,7 +224,7 @@ export default function JobDetail() {
                   className="w-full bg-amber text-white font-semibold text-sm py-2.5 rounded-xl hover:opacity-90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
-                  {applyMutation.isPending ? 'Sending…' : 'Submit Application'}
+                  {uploadingCv ? 'Uploading CV…' : applyMutation.isPending ? 'Sending…' : 'Submit Application'}
                 </button>
               </form>
             )}

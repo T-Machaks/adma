@@ -3,10 +3,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lot, Bid, AttendeeNote } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 import CountdownTimer from '@/components/auction/CountdownTimer';
 import {
   ArrowLeft, Package, Gavel, Star, User, Lock, LogIn, UserPlus,
-  ShieldCheck, ShieldAlert, TrendingUp, Hash,
+  ShieldCheck, ShieldAlert, TrendingUp, Hash, ExternalLink,
 } from 'lucide-react';
 
 export default function LotDetail() {
@@ -14,6 +15,7 @@ export default function LotDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { user, isAuthenticated } = useAuth();
+  const { settings } = useAppSettings();
   const [activeImg, setActiveImg] = useState(0);
   const [customAmount, setCustomAmount] = useState('');
   const [bidError, setBidError] = useState('');
@@ -155,6 +157,28 @@ export default function LotDetail() {
             <h1 className="font-heading text-xl font-bold mt-2">{lot.title}</h1>
             {lot.seller_name && <p className="text-xs text-muted-foreground mt-1">Seller: <span className="font-medium text-foreground">{lot.seller_name}</span></p>}
             {lot.description && <p className="text-sm text-foreground/80 leading-relaxed mt-3 whitespace-pre-wrap">{lot.description}</p>}
+
+            {lot.category === 'Livestock' && (lot.breed || lot.registration_number || lot.sire || lot.dam || lot.age || lot.sex) && (
+              <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                {lot.breed && <p><span className="text-muted-foreground">Breed:</span> <span className="font-medium">{lot.breed}</span></p>}
+                {lot.registration_number && <p><span className="text-muted-foreground">Reg #:</span> <span className="font-medium">{lot.registration_number}</span></p>}
+                {lot.sire && <p><span className="text-muted-foreground">Sire:</span> <span className="font-medium">{lot.sire}</span></p>}
+                {lot.dam && <p><span className="text-muted-foreground">Dam:</span> <span className="font-medium">{lot.dam}</span></p>}
+                {lot.age && <p><span className="text-muted-foreground">Age:</span> <span className="font-medium">{lot.age}</span></p>}
+                {lot.sex && <p><span className="text-muted-foreground">Sex:</span> <span className="font-medium">{lot.sex}</span></p>}
+              </div>
+            )}
+
+            {lot.category === 'Livestock' && settings.ccSalesAuctionUrl && (
+              <a
+                href={settings.ccSalesAuctionUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex items-center justify-center gap-2 bg-steel text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 active:scale-95 transition-all"
+              >
+                View Pedigree Cattle Auction on CC Sales <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
           </div>
 
           {/* Bid history */}

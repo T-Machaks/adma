@@ -18,3 +18,4 @@ export { TenderListing } from "./TenderListing";
 export { Auction } from "./Auction";
 export { Lot } from "./Lot";
 export { Bid } from "./Bid";
+export { Collaboration } from "./Collaboration";

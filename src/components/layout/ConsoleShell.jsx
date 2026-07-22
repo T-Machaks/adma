@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart2, MessageSquare, Shield,
-  LogOut, Users, Menu, X, ChevronLeft, UserCog, ScanLine, Megaphone, ClipboardList, Inbox, Video, Gavel,
+  LogOut, Users, Menu, X, ChevronLeft, UserCog, ScanLine, Megaphone, ClipboardList, Inbox, Video, Gavel, Clock,
 } from 'lucide-react';
 import { useState } from 'react';
 import EventLogo from './EventLogo.jsx';
@@ -17,6 +17,7 @@ const consoleNav = [
   { path: '/console/communications', label: 'Communications',   icon: MessageSquare,                roles: ['organizer', 'superadmin'] },
   { path: '/console/marketing',      label: 'Marketing Hub',    icon: Megaphone,                    roles: ['marketing_partner', 'superadmin'] },
   { path: '/console/exhibitor-applications', label: 'Exhibitor Applications', icon: ClipboardList, roles: ['organizer', 'superadmin'] },
+  { path: '/console/paid-listing-requests',  label: 'Paid Listing Requests',  icon: Clock,         roles: ['organizer', 'superadmin'] },
   { path: '/console/enquiries',              label: 'Enquiries',              icon: Inbox,         roles: ['organizer', 'superadmin'] },
   { path: '/console/users',          label: 'Users & Roles',    icon: UserCog,                      roles: ['organizer', 'superadmin'] },
   { path: '/console/admin',          label: 'Admin & Security', icon: Shield,                       roles: ['organizer', 'superadmin'] },

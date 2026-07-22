@@ -1,8 +1,8 @@
 import { apiFetch } from '@/api/client';
 
-const BASE = '/api/job-listings';
+const BASE = '/api/collaborations';
 
-export const JobListing = {
+export const Collaboration = {
   async list(sortBy = null) {
     return apiFetch(sortBy ? `${BASE}?sortBy=${sortBy}` : BASE);
   },
@@ -23,8 +23,5 @@ export const JobListing = {
   },
   async requestPayment(id) {
     return apiFetch(`${BASE}/${id}/request-payment`, { method: 'POST' });
-  },
-  async getCvUploadUrl(jobId) {
-    return apiFetch('/api/upload/job-cv-url', { method: 'POST', body: { jobId } });
   },
 };

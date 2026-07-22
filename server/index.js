@@ -26,6 +26,7 @@ import tenderListings from './routes/tender-listings.js';
 import auctions from './routes/auctions.js';
 import lots from './routes/lots.js';
 import bids from './routes/bids.js';
+import collaborations from './routes/collaborations.js';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -56,6 +57,7 @@ app.use('/api/tender-listings',        tenderListings);
 app.use('/api/auctions',               auctions);
 app.use('/api/lots',                   lots);
 app.use('/api/bids',                   bids);
+app.use('/api/collaborations',         collaborations);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 

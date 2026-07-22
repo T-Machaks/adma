@@ -55,6 +55,19 @@ r.post('/tender-document-url', async (req, res) => {
   }
 });
 
+r.post('/job-cv-url', async (req, res) => {
+  try {
+    const { jobId } = req.body;
+    if (!jobId) return res.status(400).json({ error: 'jobId required' });
+
+    const key = `job-cvs/${jobId}-${Date.now()}.pdf`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, 'application/pdf');
+    res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 r.post('/lot-image-url', async (req, res) => {
   try {
     const { lotId } = req.body;

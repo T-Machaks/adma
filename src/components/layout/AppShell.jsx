@@ -3,10 +3,11 @@ import {
   Home, Users, Map, Calendar, Info, Bell,
   LayoutDashboard, QrCode, Menu, X, Star, Zap,
   BookOpen, UserCheck, Clock, Shield, ChevronLeft, ChevronRight, Download,
-  LogIn, LogOut, UserCircle, WifiOff, Video, Briefcase, FileText, Gavel,
+  LogIn, LogOut, UserCircle, WifiOff, Video, Briefcase, FileText, Gavel, Handshake,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import EventLogo from './EventLogo.jsx';
+import FooterAdBanner from './FooterAdBanner.jsx';
 import { usePWAInstall } from '@/lib/PWAInstallContext';
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -38,6 +39,7 @@ const navGroups = [
       { path: '/jobs',          label: 'Jobs Board',         icon: Briefcase },
       { path: '/tenders',       label: 'Tenders',            icon: FileText },
       { path: '/auctions',      label: 'Auctions',           icon: Gavel },
+      { path: '/collaborations', label: 'Collaborations',    icon: Handshake },
     ],
   },
   {
@@ -421,6 +423,7 @@ export default function AppShell({ children }) {
         {/* Main content — shifts right on desktop to clear sidebar */}
         <main className={`flex-1 min-w-0 transition-all duration-200 ${sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-60'}`}>
           {children}
+          <FooterAdBanner />
         </main>
       </div>
 

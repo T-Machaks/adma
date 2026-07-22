@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Auction, Lot } from '@/api/entities';
-import { ArrowLeft, MapPin, Radio, Package, Gavel } from 'lucide-react';
+import { ArrowLeft, MapPin, Radio, Package, Gavel, ExternalLink } from 'lucide-react';
 import CountdownTimer from '@/components/auction/CountdownTimer';
 import { LOT_CATEGORIES } from '@/lib/auctionConstants';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 
 const CATEGORIES = ['All', ...LOT_CATEGORIES];
 
@@ -12,6 +13,7 @@ export default function AuctionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [category, setCategory] = useState('All');
+  const { settings } = useAppSettings();
 
   const { data: auction, isLoading } = useQuery({
     queryKey: ['auction', id],
@@ -26,6 +28,8 @@ export default function AuctionDetail() {
 
   const filtered = lots.filter(l => category === 'All' || l.category === category)
     .sort((a, b) => (a.lot_number || '').localeCompare(b.lot_number || '', undefined, { numeric: true }));
+
+  const hasLivestock = lots.some(l => l.category === 'Livestock');
 
   if (isLoading) {
     return (
@@ -72,6 +76,19 @@ export default function AuctionDetail() {
           </div>
         </div>
       </div>
+
+      {hasLivestock && settings.ccSalesAuctionUrl && (
+        <div className="px-4 mt-3">
+          <a
+            href={settings.ccSalesAuctionUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 bg-steel text-white text-sm font-semibold px-4 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all"
+          >
+            View Pedigree Cattle on CC Sales <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
+      )}
 
       <div className="px-4 mt-4 flex gap-2 flex-wrap">
         {CATEGORIES.map(c => (

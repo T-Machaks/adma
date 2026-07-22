@@ -26,6 +26,7 @@ const EMPTY_AUCTION = { title: '', type: 'Timed', location: '', description: '',
 const EMPTY_LOT = {
   lot_number: '', title: '', category: LOT_CATEGORIES[0], seller_name: '', description: '',
   starting_bid: '', reserve_price: '', bid_increment: '10', closing_time: '', status: 'Upcoming', images: [],
+  breed: '', registration_number: '', sire: '', dam: '', age: '', sex: '',
 };
 
 export default function AuctionsManager() {
@@ -108,6 +109,8 @@ export default function AuctionsManager() {
       seller_name: lot.seller_name || '', description: lot.description || '',
       starting_bid: lot.starting_bid ?? '', reserve_price: lot.reserve_price ?? '', bid_increment: lot.bid_increment ?? '10',
       closing_time: lot.closing_time ? lot.closing_time.slice(0, 16) : '', status: lot.status || 'Upcoming', images: lot.images || [],
+      breed: lot.breed || '', registration_number: lot.registration_number || '', sire: lot.sire || '', dam: lot.dam || '',
+      age: lot.age || '', sex: lot.sex || '',
     });
     setLotDialog(true);
   };
@@ -333,6 +336,51 @@ export default function AuctionsManager() {
                 <Input value={lotForm.seller_name} onChange={e => setLotForm(f => ({ ...f, seller_name: e.target.value }))} placeholder="Seller / consignor name" />
               </div>
             </div>
+
+            {lotForm.category === 'Livestock' && (
+              <div className="space-y-3 border border-amber/30 bg-amber/5 rounded-lg p-3">
+                <p className="text-xs text-amber font-semibold">
+                  Pedigree cattle listing — sellers must be listed here before participating in the CC Sales pedigree cattle auction.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Breed</label>
+                    <Input value={lotForm.breed} onChange={e => setLotForm(f => ({ ...f, breed: e.target.value }))} placeholder="e.g. Brahman" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Registration #</label>
+                    <Input value={lotForm.registration_number} onChange={e => setLotForm(f => ({ ...f, registration_number: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Sire</label>
+                    <Input value={lotForm.sire} onChange={e => setLotForm(f => ({ ...f, sire: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Dam</label>
+                    <Input value={lotForm.dam} onChange={e => setLotForm(f => ({ ...f, dam: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Age</label>
+                    <Input value={lotForm.age} onChange={e => setLotForm(f => ({ ...f, age: e.target.value }))} placeholder="e.g. 3 years" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Sex</label>
+                    <Select value={lotForm.sex || undefined} onValueChange={v => setLotForm(f => ({ ...f, sex: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Description</label>
               <Textarea value={lotForm.description} onChange={e => setLotForm(f => ({ ...f, description: e.target.value }))} rows={2} />
@@ -368,6 +416,7 @@ export default function AuctionsManager() {
                     <SelectItem value="Unsold">Unsold</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-[10px] text-muted-foreground mt-1">Upcoming = pre-auction catalogue only, not yet biddable.</p>
               </div>
             </div>
 
