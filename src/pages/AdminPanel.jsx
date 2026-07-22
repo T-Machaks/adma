@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, MeetingRequest, Exhibitor } from '@/api/entities';
-import { Shield, User, Building2, Star, Mic, Crown, Lock, Eye, EyeOff, CheckCircle, Settings, ChevronRight, Users, Bell, Mail, Search } from 'lucide-react';
+import { Shield, User, Building2, Star, Mic, Crown, Lock, Eye, EyeOff, CheckCircle, Settings, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
+import { isSubscriptionExpired } from '@/lib/subscription';
+
+const PACKAGES = ['Basic', 'Enhanced', 'Premium'];
 
 const ROLES = [
   { id: 'admin', label: 'Admin', icon: Shield, color: 'bg-red-500', desc: 'Full access to all modules, data, and settings.', perms: ['registrations', 'exhibitors', 'analytics', 'announcements', 'communications', 'settings'] },
@@ -26,6 +30,7 @@ const MODULES = [
 export default function AdminPanel() {
   const { user } = useAuth();
   const isOrganizer = user?.role === 'organizer';
+  const { settings, updateSettings } = useAppSettings();
 
   const [selectedRole, setSelectedRole] = useState('admin');
   const [showOtp, setShowOtp] = useState(false);
@@ -44,6 +49,7 @@ export default function AdminPanel() {
   const [editingEmail, setEditingEmail] = useState({}); // { [id]: email }
   const [savingId, setSavingId] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [savingPackageId, setSavingPackageId] = useState(null);
 
   const saveEmail = async (id) => {
     setSavingId(id);
@@ -56,6 +62,32 @@ export default function AdminPanel() {
       setSaveError(e.message);
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const savePackage = async (id, pkg) => {
+    setSavingPackageId(id);
+    setSaveError(null);
+    try {
+      await Exhibitor.update(id, { package: pkg });
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSavingPackageId(null);
+    }
+  };
+
+  const [redirectUrlDraft, setRedirectUrlDraft] = useState(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const redirectUrlValue = redirectUrlDraft ?? settings.physicalEventRegistrationUrl ?? '';
+  const saveRedirectUrl = async () => {
+    setSavingSettings(true);
+    try {
+      await updateSettings({ physicalEventRegistrationUrl: redirectUrlValue });
+      setRedirectUrlDraft(null);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -230,7 +262,16 @@ export default function AdminPanel() {
                     {e.booth || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{e.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate">{e.name}</p>
+                      {isSubscriptionExpired(e) ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 flex-shrink-0">
+                          <AlertCircle className="w-2.5 h-2.5" /> Expired
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 flex-shrink-0">Active</span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 mt-1">
                       <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                       <input
@@ -242,6 +283,14 @@ export default function AdminPanel() {
                       />
                     </div>
                   </div>
+                  <select
+                    value={e.package || 'Basic'}
+                    disabled={savingPackageId === e.id}
+                    onChange={ev => savePackage(e.id, ev.target.value)}
+                    className="flex-shrink-0 text-xs border border-border rounded-lg px-2 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-amber disabled:opacity-60"
+                  >
+                    {PACKAGES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
                   {isDirty && (
                     <button
                       type="button"
@@ -258,6 +307,37 @@ export default function AdminPanel() {
                 </div>
               );
             })}
+        </div>
+      </div>
+
+      {/* Platform Settings — organiser-configurable fields */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+        <div className="px-4 py-3 border-b border-border">
+          <p className="font-heading text-sm font-bold uppercase tracking-wide">Platform Settings</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Organiser-configurable fields used across the platform</p>
+        </div>
+        <div className="p-4 space-y-2">
+          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <Link2 className="w-3 h-3" /> Physical event registration redirect URL
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={redirectUrlValue}
+              onChange={ev => setRedirectUrlDraft(ev.target.value)}
+              placeholder="https://agrishow.co.zw/"
+              className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+            <button
+              type="button"
+              disabled={savingSettings || redirectUrlDraft === null}
+              onClick={saveRedirectUrl}
+              className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+            >
+              {savingSettings ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Attendees are sent here for physical show tickets & entry passes — the virtual platform no longer sells them directly.</p>
         </div>
       </div>
 

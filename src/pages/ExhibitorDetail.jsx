@@ -7,7 +7,8 @@ import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useAuth } from '@/lib/AuthContext';
 import { track } from '@/lib/tracking';
 import TierBadge from '@/components/ui/TierBadge';
-import { getStandTier, standTierAtLeast } from '@/lib/standTiers';
+import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
+import { isSubscriptionExpired } from '@/lib/subscription';
 import BoothChat from '@/components/exhibitor/BoothChat';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import {
@@ -15,12 +16,6 @@ import {
   Video, Send, CheckCircle, FileText, ExternalLink, ImagePlus, Lock, LogIn, UserPlus,
   Images, MessageCircle, Award, HelpCircle, Sparkles,
 } from 'lucide-react';
-
-const STAND_TIER_STYLES = {
-  Basic:    'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-  Enhanced: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-  Premium:  'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
-};
 
 export default function ExhibitorDetail() {
   const { id } = useParams();
@@ -115,9 +110,30 @@ export default function ExhibitorDetail() {
     );
   }
 
-  const standTier = getStandTier(ex.tier);
-  const isEnhancedPlus = standTierAtLeast(ex.tier, 'Enhanced');
+  const standTier = getStandTier(ex);
+  const isEnhancedPlus = standTierAtLeast(ex, 'Enhanced');
   const isPremiumStand = standTier === 'Premium';
+  const limits = getPackageLimits(ex);
+
+  const expired = isSubscriptionExpired(ex);
+  const isSelfOrOrganiser = user?.role === 'organizer' || user?.role === 'superadmin'
+    || (user?.email && ex.contact_email && user.email.toLowerCase() === ex.contact_email.toLowerCase());
+
+  if (expired && !isSelfOrOrganiser) {
+    return (
+      <div className="px-4 pt-10 text-center max-w-md mx-auto">
+        <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+          <Lock className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <p className="font-semibold">This exhibitor profile is no longer available</p>
+        <p className="text-muted-foreground text-sm mt-1">Their subscription has expired. Check back after the exhibitor renews.</p>
+        <button onClick={() => navigate('/exhibitors')} className="mt-3 text-amber text-sm underline">Back to directory</button>
+      </div>
+    );
+  }
+
+  const description = ex.description ? ex.description.slice(0, limits.descChars) : '';
+  const gallery = (ex.gallery || []).slice(0, limits.galleryMax);
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-4xl mx-auto">
@@ -131,15 +147,15 @@ export default function ExhibitorDetail() {
         </button>
       </div>
 
-      {/* Gallery — every stand tier gets this */}
-      {ex.gallery?.length > 0 && (
+      {/* Gallery — every stand tier gets this, capped to the package's image limit */}
+      {gallery.length > 0 && (
         <div className="px-4 mt-4">
           <div className="bg-card border border-border rounded-2xl overflow-hidden">
             <div className="px-4 pt-3 pb-2 flex items-center gap-2">
               <Images className="w-4 h-4 text-amber" />
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Gallery</h2>
             </div>
-            <GalleryCarousel images={ex.gallery} name={ex.name} />
+            <GalleryCarousel images={gallery} name={ex.name} />
           </div>
         </div>
       )}
@@ -199,7 +215,7 @@ export default function ExhibitorDetail() {
                 <div className="flex items-start justify-between gap-2">
                   <h1 className="font-heading text-xl font-bold leading-tight">{ex.name}</h1>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <TierBadge tier={ex.tier} />
+                    <TierBadge package={ex.package} />
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
@@ -208,13 +224,12 @@ export default function ExhibitorDetail() {
                 </div>
                 <div className="flex items-center gap-1.5 mt-2">
                   <span className="text-[11px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{ex.category}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STAND_TIER_STYLES[standTier]}`}>{standTier} Stand</span>
                 </div>
               </div>
             </div>
 
-            {isEnhancedPlus && ex.description && (
-              <p className="mt-4 text-sm text-foreground/80 leading-relaxed">{ex.description}</p>
+            {isEnhancedPlus && description && (
+              <p className="mt-4 text-sm text-foreground/80 leading-relaxed">{description}</p>
             )}
           </div>
 

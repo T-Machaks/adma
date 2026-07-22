@@ -13,7 +13,8 @@ import {
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
 import { resizeImageToBlob } from '@/lib/imageUtils';
-import { getStandTier, standTierAtLeast } from '@/lib/standTiers';
+import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
+import { isSubscriptionExpired } from '@/lib/subscription';
 
 const STATUS_STYLES = {
   Pending:   { cls: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -21,11 +22,10 @@ const STATUS_STYLES = {
   Declined:  { cls: 'bg-red-100 text-red-700', icon: XCircle },
 };
 
-const TIER_NEXT = { Bronze: 'Silver', Silver: 'Gold', Gold: 'Platinum' };
+const PACKAGE_NEXT = { Basic: 'Enhanced', Enhanced: 'Premium' };
 const UPGRADE_PERKS = {
-  Silver:   ['Enhanced Stand — full profile & products', 'Live chat with attendees', 'Booth analytics dashboard'],
-  Gold:     ['Everything in Enhanced Stand', 'Featured in digital magazine', 'Meeting request boost', 'Ad banner eligibility'],
-  Platinum: ['Premium Stand — AI-referenceable full profile', 'Lead capture form & CSV export', 'Home page featured listing', 'Ad carousel slot'],
+  Enhanced: ['Full company profile & products', 'Live chat with attendees', 'Gallery of 6 scrolling images', 'Booth analytics dashboard'],
+  Premium:  ['Everything in Enhanced', 'AI-referenceable full profile', 'Gallery of 9 scrolling images', 'Digital magazine ads', 'Ad carousel slot'],
 };
 
 export default function ExhibitorHome() {
@@ -59,9 +59,11 @@ export default function ExhibitorHome() {
   ) ?? exhibitors[0];
 
   const myAd = myBooth ? (activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null) : null;
-  const isPlatinum = myBooth?.tier === 'Platinum';
-  const standTier = myBooth ? getStandTier(myBooth.tier) : 'Basic';
-  const isEnhancedPlus = myBooth ? standTierAtLeast(myBooth.tier, 'Enhanced') : false;
+  const isPremiumPkg = myBooth?.package === 'Premium';
+  const standTier = myBooth ? getStandTier(myBooth) : 'Basic';
+  const isEnhancedPlus = myBooth ? standTierAtLeast(myBooth, 'Enhanced') : false;
+  const limits = myBooth ? getPackageLimits(myBooth) : { descChars: 250, galleryMax: 0 };
+  const expired = myBooth ? isSubscriptionExpired(myBooth) : false;
 
   const myMeetings = meetings.filter(m => {
     if (!myBooth) return true;
@@ -104,7 +106,7 @@ export default function ExhibitorHome() {
     const file = e.target.files?.[0];
     if (!file) return;
     const current = myBooth.gallery || [];
-    if (current.length >= 6) { e.target.value = ''; return; }
+    if (current.length >= limits.galleryMax) { e.target.value = ''; return; }
     setUploadingGallery(true);
     try {
       const blob = await resizeImageToBlob(file);
@@ -204,6 +206,27 @@ export default function ExhibitorHome() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
 
+      {/* Subscription expired banner */}
+      {expired && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-2xl px-5 py-4">
+          <div className="w-10 h-10 bg-red-100 dark:bg-red-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Lock className="w-5 h-5 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <p className="font-heading font-bold text-sm text-red-700 dark:text-red-400">Subscription Expired</p>
+            <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-0.5">
+              Your annual subscription expired on {new Date(myBooth.subscription_expires_at).toLocaleDateString()}. Your booth is now hidden from the public directory and site plan — renew to restore visibility.
+            </p>
+          </div>
+          <a
+            href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Subscription%20Renewal%20-%20${encodeURIComponent(myBooth.name)}`}
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs bg-red-600 text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-red-700 active:scale-95 transition-all duration-150 whitespace-nowrap"
+          >
+            Renew Now <ArrowRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      )}
+
       {/* Booth card */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="bg-steel px-4 sm:px-6 py-5 flex items-start justify-between gap-3">
@@ -217,9 +240,7 @@ export default function ExhibitorHome() {
             <div className="min-w-0">
               <h1 className="font-heading text-lg sm:text-xl font-bold text-white tracking-wide truncate">{myBooth.name}</h1>
               <div className="flex items-center flex-wrap gap-2 mt-1">
-                {myBooth.tier && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber text-white">{myBooth.tier}</span>
-                )}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber text-white">{standTier}</span>
                 {myBooth.section && (
                   <span className="text-xs text-slate-300 flex items-center gap-1">
                     <MapPin className="w-3 h-3" /> {myBooth.section}
@@ -263,7 +284,7 @@ export default function ExhibitorHome() {
 
         {myBooth.description && !editOpen && (
           <div className="px-4 sm:px-6 pb-4 border-t border-border pt-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">{myBooth.description}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{myBooth.description.slice(0, limits.descChars)}</p>
           </div>
         )}
 
@@ -290,20 +311,20 @@ export default function ExhibitorHome() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs text-muted-foreground font-medium">Description</label>
-                <span className={`text-[10px] font-medium ${(editForm.description?.length || 0) >= 500 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                  {editForm.description?.length || 0}/500
+                <span className={`text-[10px] font-medium ${(editForm.description?.length || 0) >= limits.descChars ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  {editForm.description?.length || 0}/{limits.descChars}
                 </span>
               </div>
               <textarea
                 rows={5}
-                maxLength={500}
+                maxLength={limits.descChars}
                 value={editForm.description || ''}
-                onChange={e => setEditForm(f => ({ ...f, description: e.target.value.slice(0, 500) }))}
+                onChange={e => setEditForm(f => ({ ...f, description: e.target.value.slice(0, limits.descChars) }))}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
               />
             </div>
 
-            {isPlatinum && (
+            {isPremiumPkg && (
               <div className="pt-2 border-t border-border space-y-3">
                 <p className="text-xs font-semibold text-amber uppercase tracking-wide flex items-center gap-1.5">
                   <Award className="w-3.5 h-3.5" /> Premium Stand — AI-Referenceable Profile
@@ -403,8 +424,8 @@ export default function ExhibitorHome() {
         ))}
       </div>
 
-      {/* Tier Upgrade CTA — shown for non-Platinum exhibitors */}
-      {myBooth.tier !== 'Platinum' && !upgradeDismissed && TIER_NEXT[myBooth.tier] && (
+      {/* Package Upgrade CTA — shown for non-Premium exhibitors */}
+      {!upgradeDismissed && PACKAGE_NEXT[standTier] && (
         <div className="relative bg-gradient-to-r from-amber-900/80 to-steel rounded-2xl overflow-hidden border border-amber/30">
           <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '16px 16px' }} />
           <button
@@ -420,13 +441,13 @@ export default function ExhibitorHome() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-heading font-bold text-sm">
-                Upgrade to {TIER_NEXT[myBooth.tier]}
+                Upgrade to {PACKAGE_NEXT[standTier]}
               </p>
               <p className="text-white/70 text-xs mt-0.5">
-                Currently <span className="text-amber font-semibold">{myBooth.tier}</span> — unlock more reach and features
+                Currently <span className="text-amber font-semibold">{standTier}</span> — unlock more reach and features
               </p>
               <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                {(UPGRADE_PERKS[TIER_NEXT[myBooth.tier]] ?? []).map(p => (
+                {(UPGRADE_PERKS[PACKAGE_NEXT[standTier]] ?? []).map(p => (
                   <li key={p} className="text-[11px] text-white/80 flex items-center gap-1">
                     <span className="text-amber font-bold">·</span> {p}
                   </li>
@@ -539,32 +560,42 @@ export default function ExhibitorHome() {
             <Images className="w-5 h-5 text-amber" />
             <div>
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Virtual Stand Gallery</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Up to 6 images shown on your virtual stand · {standTier} Stand</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {limits.galleryMax > 0 ? `Up to ${limits.galleryMax} images shown on your virtual stand · ${standTier} package` : `${standTier} package`}
+              </p>
             </div>
           </div>
         </div>
         <div className="p-5 space-y-3">
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {(myBooth.gallery || []).map((src, i) => (
-              <div key={i} className="relative group aspect-square">
-                <img src={src} alt={`Gallery ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-border" />
-                <button
-                  onClick={() => handleRemoveGalleryImage(i)}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                  aria-label="Remove image"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-            {(myBooth.gallery || []).length < 6 && (
-              <label className={`flex flex-col items-center justify-center gap-1 aspect-square cursor-pointer border-2 border-dashed border-border rounded-lg hover:bg-muted/40 transition-colors ${uploadingGallery ? 'opacity-60 pointer-events-none' : ''}`}>
-                <ImagePlus className="w-5 h-5 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground">{uploadingGallery ? 'Uploading…' : 'Add image'}</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} disabled={uploadingGallery} />
-              </label>
-            )}
-          </div>
+          {limits.galleryMax === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+              <Images className="w-8 h-8 text-muted-foreground" />
+              <p className="text-sm font-medium">Gallery not included in the Basic package</p>
+              <p className="text-xs text-muted-foreground max-w-xs">Upgrade to Enhanced or Premium to add a scrolling image gallery to your virtual stand.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {(myBooth.gallery || []).map((src, i) => (
+                <div key={i} className="relative group aspect-square">
+                  <img src={src} alt={`Gallery ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-border" />
+                  <button
+                    onClick={() => handleRemoveGalleryImage(i)}
+                    className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Remove image"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {(myBooth.gallery || []).length < limits.galleryMax && (
+                <label className={`flex flex-col items-center justify-center gap-1 aspect-square cursor-pointer border-2 border-dashed border-border rounded-lg hover:bg-muted/40 transition-colors ${uploadingGallery ? 'opacity-60 pointer-events-none' : ''}`}>
+                  <ImagePlus className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">{uploadingGallery ? 'Uploading…' : 'Add image'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} disabled={uploadingGallery} />
+                </label>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -629,7 +660,7 @@ export default function ExhibitorHome() {
           </div>
         </div>
         <div className="p-5">
-          {isPlatinum && myAd ? (
+          {isPremiumPkg && myAd ? (
             <div className="space-y-3">
               <AdBannerPreview ad={myAd} />
               <p className="text-xs text-muted-foreground">
@@ -637,7 +668,7 @@ export default function ExhibitorHome() {
                 <a href="/exhibitor/analytics" className="text-amber font-medium hover:underline">Analytics</a>.
               </p>
             </div>
-          ) : isPlatinum ? (
+          ) : isPremiumPkg ? (
             <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
               <Megaphone className="w-8 h-8 text-muted-foreground" />
               <p className="text-sm font-medium">No ad configured</p>
@@ -658,16 +689,16 @@ export default function ExhibitorHome() {
                   <Lock className="w-5 h-5 text-amber" />
                 </div>
                 <div className="text-center px-6">
-                  <p className="font-heading font-bold text-sm">Platinum Feature</p>
+                  <p className="font-heading font-bold text-sm">Premium Feature</p>
                   <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                    Platinum tier exhibitors get a dedicated ad slot in the attendee home screen carousel.
+                    Premium package exhibitors get a dedicated ad slot in the attendee home screen carousel.
                   </p>
                 </div>
                 <a
                   href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
                   className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2 rounded-lg hover:bg-amber/90 active:scale-95 transition-all duration-150"
                 >
-                  Upgrade to Platinum <ArrowRight className="w-3.5 h-3.5" />
+                  Upgrade to Premium <ArrowRight className="w-3.5 h-3.5" />
                 </a>
               </div>
               <div className="relative w-full h-24 bg-gradient-to-r from-slate-700 to-slate-900 rounded-xl overflow-hidden">

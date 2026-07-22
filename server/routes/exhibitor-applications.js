@@ -4,6 +4,7 @@ import { QueryCommand, PutCommand, UpdateCommand, ScanCommand } from '@aws-sdk/l
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { sendOtpEmail } from '../lib/mailer.js';
+import { nextMay30ISO } from '../lib/subscription.js';
 
 const APP_TABLE  = 'adma_exhibitor_applications';
 const USER_TABLE = 'adma_users';
@@ -117,19 +118,22 @@ router.put('/:id/approve', async (req, res) => {
     }));
 
     // Create exhibitor record
-    const tierMap = { Platinum: 'platinum', Gold: 'gold', Silver: 'silver', Bronze: 'bronze' };
+    // Item 1: physical tier stays as-approved (Platinum/Gold/Silver/Bronze); the virtual
+    // platform package is independent — Platinum members default to Premium, others to Basic.
     await ddb.send(new PutCommand({
       TableName: EXH_TABLE,
       Item: {
         id: generateId(),
         created_date: new Date().toISOString(),
-        company_name: app.company,
+        name: app.company,
         user_id: userId,
-        tier: tierMap[tier] || 'bronze',
+        tier,
+        package: tier === 'Platinum' ? 'Premium' : 'Basic',
+        subscription_expires_at: nextMay30ISO(),
         featured: tier === 'Platinum',
         logo_url: app.logo_url,
         description: app.description,
-        booth_section: 'Machinery Hall',
+        section: 'Machinery Hall',
         status: 'active',
       },
     }));

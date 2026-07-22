@@ -4,7 +4,7 @@ import { ddb } from '../lib/dynamo.js';
 
 const TABLE = 'adma_app_settings';
 const KEY = { pk: 'singleton' };
-const DEFAULTS = { virtualExhibitionOpen: false };
+const DEFAULTS = { virtualExhibitionOpen: false, physicalEventRegistrationUrl: 'https://agrishow.co.zw/' };
 
 const r = Router();
 

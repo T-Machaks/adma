@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sprout, X, Send, Loader2, UserPlus, LogIn, CheckCircle, User, Mail, Phone, CreditCard, Smartphone, ChevronRight, Building2, WifiOff } from 'lucide-react';
+import { Sprout, X, Send, Loader2, UserPlus, LogIn, ExternalLink, Ticket, QrCode, WifiOff } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { Registration } from '@/api/entities';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const BUBBLE_SIZE = 52;
@@ -98,300 +98,39 @@ function AuthGate() {
   );
 }
 
-const ATTENDEE_TICKETS = EVENT_CONFIG.attendeeTickets;
+// Item 3: physical event ticketing is handled on the official show site, not in-chat —
+// this replaces what used to be a full ticket-purchase-and-payment wizard.
+function RegisterInfoCard() {
+  const { settings } = useAppSettings();
+  const redirectUrl = settings.physicalEventRegistrationUrl || 'https://agrishow.co.zw/';
 
-// colorText from boothTiers maps to `color` used in this widget's tier picker
-const EXHIBITOR_TIERS = EVENT_CONFIG.boothTiers.map(t => ({ ...t, color: t.colorText }));
-
-const EXHIBITOR_ADDONS = EVENT_CONFIG.boothAddons;
-
-const PAY_ICON = { smartphone: Smartphone, creditcard: CreditCard };
-const PAY_METHODS = EVENT_CONFIG.paymentMethods.map(m => ({ ...m, Icon: PAY_ICON[m.iconType] }));
-
-function RegistrationForm({ prefillName, prefillEmail, onDone }) {
-  // step: 'role' | 'details' | 'tier' | 'payment' | 'processing' | 'done'
-  const [step,      setStep]    = useState('role');
-  const [role,      setRole]    = useState('');        // 'Attendee' | 'Exhibitor'
-  const [name,      setName]    = useState(prefillName  || '');
-  const [email,     setEmail]   = useState(prefillEmail || '');
-  const [phone,     setPhone]   = useState('');
-  const [company,   setCompany] = useState('');
-  // Attendee
-  const [ticket,    setTicket]  = useState('General Admission');
-  // Exhibitor
-  const [tier,      setTier]    = useState('');
-  const [addons,    setAddons]  = useState({}); // { id: qty }
-  // Payment
-  const [payMethod, setPayMethod] = useState('');
-  const [err,       setErr]     = useState('');
-
-  const tierPrice  = EXHIBITOR_TIERS.find(t => t.id === tier)?.price ?? 0;
-  const addonTotal = EXHIBITOR_ADDONS.reduce((s, a) => s + (addons[a.id] || 0) * a.price, 0);
-  const price = role === 'Exhibitor'
-    ? tierPrice + addonTotal
-    : (ATTENDEE_TICKETS.find(t => t.id === ticket)?.price ?? 10);
-
-  function submitDetails(e) {
-    e.preventDefault();
-    if (!name.trim() || !email.trim()) { setErr('Name and email are required.'); return; }
-    if (role === 'Exhibitor' && !company.trim()) { setErr('Company name is required for exhibitors.'); return; }
-    setErr('');
-    setStep(role === 'Exhibitor' ? 'tier' : 'payment');
-  }
-
-  function submitTier() {
-    if (!tier) { setErr('Please select an exhibitor tier.'); return; }
-    setErr('');
-    setStep('payment');
-  }
-
-  async function submitPayment() {
-    if (!payMethod) { setErr('Please select a payment method.'); return; }
-    if (!navigator.onLine) { setErr('You are offline. Please reconnect to complete registration.'); return; }
-    setErr('');
-    setStep('processing');
-    await new Promise(r => setTimeout(r, 2000));
-    const ref = 'MC' + Date.now().toString().slice(-8).toUpperCase();
-    try {
-      const addonList = EXHIBITOR_ADDONS.filter(a => addons[a.id] > 0).map(a => ({ id: a.id, qty: addons[a.id] }));
-      const reg = await Registration.create({
-        full_name:       name.trim(),
-        email:           email.trim().toLowerCase(),
-        phone:           phone.trim() || null,
-        company:         company.trim() || null,
-        role_type:       role,
-        ticket_type:     role === 'Exhibitor' ? 'Exhibitor Pass' : ticket,
-        badge_category:  role === 'Exhibitor' ? 'Exhibitor' : 'Visitor',
-        exhibitor_tier:  role === 'Exhibitor' ? tier : undefined,
-        addons:          role === 'Exhibitor' && addonList.length ? addonList : undefined,
-        total_amount:    price,
-        payment_method:  payMethod,
-        payment_ref:     ref,
-        payment_status:  'paid',
-        status:          'Confirmed',
-        day1: true, day2: true, day3: true,
-        created_date:    new Date().toISOString(),
-      });
-      await Registration.sendConfirmation(reg.id).catch(() => {});
-      setStep('done');
-      onDone?.();
-    } catch (e) {
-      setErr(e.message || 'Registration failed. Please try again.');
-      setStep('payment');
-    }
-  }
-
-  const ic = "w-full pl-7 pr-3 py-1.5 rounded bg-gray-600 border border-gray-500 text-white text-xs placeholder-gray-400 focus:outline-none focus:border-amber/60";
-  const optBtn = (active) => `w-full flex items-center justify-between px-3 py-2 rounded border text-xs transition-colors ${active ? 'border-amber bg-amber/10 text-white' : 'border-gray-500 text-gray-300 hover:border-amber/50'}`;
-
-  // ── Done ────────────────────────────────────────────────────────────────────
-  if (step === 'done') {
-    return (
-      <div className="flex justify-start">
-        <div className="rounded-lg px-4 py-3 bg-gray-700 border border-green-500/40 text-sm max-w-[90%] space-y-2">
-          <div className="flex items-center gap-2 text-green-400 font-semibold">
-            <CheckCircle size={15} /> {role === 'Exhibitor' ? 'Exhibitor booking confirmed!' : 'Payment received — you\'re in!'}
-          </div>
-          <p className="text-gray-200 text-xs leading-relaxed">
-            {role === 'Exhibitor'
-              ? <>Booked as <strong>{tier} Exhibitor</strong> for {EVENT_CONFIG.eventFullName}. Confirmation sent to <strong>{email}</strong>. Our team will follow up with booth details.</>
-              : <>Registered for <strong>{EVENT_CONFIG.eventFullName}</strong> · {ticket}. Confirmation sent to <strong>{email}</strong>.</>}
-          </p>
-          {role !== 'Exhibitor' && (
-            <a href="/qr-resources" className="inline-flex items-center gap-1.5 mt-1 text-xs text-amber underline underline-offset-2 hover:text-amber/80">
-              View my entry QR badge →
-            </a>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── Processing ───────────────────────────────────────────────────────────────
-  if (step === 'processing') {
-    return (
-      <div className="flex justify-start">
-        <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[90%] space-y-2">
-          <div className="flex items-center gap-2 text-amber">
-            <Loader2 size={14} className="animate-spin" />
-            <span className="text-xs font-semibold">Processing via {PAY_METHODS.find(m => m.id === payMethod)?.label}…</span>
-          </div>
-          <p className="text-gray-400 text-xs">Please wait — do not close this window.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Payment ───────────────────────────────────────────────────────────────────
-  if (step === 'payment') {
-    const back = role === 'Exhibitor' ? 'tier' : 'details';
-    return (
-      <div className="flex justify-start">
-        <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[95%] w-full space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-amber font-semibold text-xs uppercase tracking-wide">
-              {role === 'Exhibitor' ? 'Confirm & Pay' : 'Select Ticket & Pay'}
-            </p>
-            <button onClick={() => setStep(back)} className="text-gray-400 hover:text-white text-[10px]">← Back</button>
-          </div>
-
-          {role === 'Attendee' && (
-            <div className="space-y-1.5">
-              {ATTENDEE_TICKETS.map(t => (
-                <button key={t.id} type="button" onClick={() => setTicket(t.id)} className={optBtn(ticket === t.id)}>
-                  <span>{t.label}</span>
-                  <span className="font-bold text-amber">${t.price}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {role === 'Exhibitor' && (
-            <div className="bg-gray-600 rounded px-3 py-2 text-xs space-y-0.5">
-              <p className="text-gray-300">{tier} tier — <span className="text-amber font-bold">${tierPrice.toLocaleString()}</span></p>
-              {EXHIBITOR_ADDONS.filter(a => addons[a.id] > 0).map(a => (
-                <p key={a.id} className="text-gray-400">+ {a.label} × {addons[a.id]} — ${(a.price * addons[a.id]).toLocaleString()}</p>
-              ))}
-              <p className="text-white font-bold pt-1 border-t border-gray-500 mt-1">Total: ${price.toLocaleString()}</p>
-            </div>
-          )}
-
-          <div>
-            <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-1.5">Payment method</p>
-            <div className="space-y-1">
-              {PAY_METHODS.map(({ id, label, Icon }) => (
-                <button key={id} type="button" onClick={() => setPayMethod(id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded border text-xs transition-colors ${payMethod === id ? 'border-amber bg-amber/10 text-white' : 'border-gray-500 text-gray-300 hover:border-amber/50'}`}>
-                  <Icon size={13} className="text-gray-400 shrink-0" />{label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {err && <p className="text-red-400 text-xs">{err}</p>}
-          <button type="button" onClick={submitPayment} disabled={!payMethod}
-            className="w-full py-1.5 rounded bg-amber text-slate-900 text-xs font-bold hover:bg-amber/80 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-colors">
-            Pay ${price.toLocaleString()} <ChevronRight size={13} />
-          </button>
-          <p className="text-gray-500 text-[10px] text-center">Secured via PayNow · {EVENT_CONFIG.venueShort}, Harare</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Exhibitor Tier ─────────────────────────────────────────────────────────
-  if (step === 'tier') {
-    return (
-      <div className="flex justify-start">
-        <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[95%] w-full space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-amber font-semibold text-xs uppercase tracking-wide">Exhibitor Tier</p>
-            <button onClick={() => setStep('details')} className="text-gray-400 hover:text-white text-[10px]">← Back</button>
-          </div>
-
-          <div className="space-y-1.5">
-            {EXHIBITOR_TIERS.map(t => (
-              <button key={t.id} type="button" onClick={() => setTier(t.id)} className={optBtn(tier === t.id)}>
-                <span className={`font-bold ${t.color}`}>{t.label}</span>
-                <span className="font-bold text-amber">${t.price.toLocaleString()}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Addons */}
-          <div>
-            <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-1.5">Optional Add-ons</p>
-            <div className="space-y-1">
-              {EXHIBITOR_ADDONS.map(a => (
-                <div key={a.id} className="flex items-center justify-between px-3 py-1.5 rounded border border-gray-600 text-xs text-gray-300">
-                  <span>{a.label} <span className="text-gray-500">(${a.price})</span></span>
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setAddons(prev => ({ ...prev, [a.id]: Math.max(0, (prev[a.id] || 0) - 1) }))}
-                      className="w-5 h-5 rounded bg-gray-600 flex items-center justify-center hover:bg-gray-500 text-white">−</button>
-                    <span className="w-4 text-center font-bold">{addons[a.id] || 0}</span>
-                    <button type="button" onClick={() => setAddons(prev => ({ ...prev, [a.id]: (prev[a.id] || 0) + 1 }))}
-                      className="w-5 h-5 rounded bg-gray-600 flex items-center justify-center hover:bg-gray-500 text-white">+</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {err && <p className="text-red-400 text-xs">{err}</p>}
-          <button type="button" onClick={submitTier}
-            className="w-full py-1.5 rounded bg-amber text-slate-900 text-xs font-bold hover:bg-amber/80 flex items-center justify-center gap-1 transition-colors">
-            Next — Payment <ChevronRight size={13} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Details ─────────────────────────────────────────────────────────────────
-  if (step === 'details') {
-    return (
-      <div className="flex justify-start">
-        <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[95%] w-full space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-amber font-semibold text-xs uppercase tracking-wide">
-              {role === 'Exhibitor' ? 'Exhibitor Details' : 'Your Details'}
-            </p>
-            <button onClick={() => setStep('role')} className="text-gray-400 hover:text-white text-[10px]">← Back</button>
-          </div>
-          <form onSubmit={submitDetails} className="space-y-2">
-            <div className="relative">
-              <User size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input required placeholder="Full name" value={name} onChange={e => setName(e.target.value)} className={ic} />
-            </div>
-            <div className="relative">
-              <Mail size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input required type="email" placeholder="Email address" value={email} onChange={e => setEmail(e.target.value)} className={ic} />
-            </div>
-            <div className="relative">
-              <Phone size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input placeholder="Phone (optional)" value={phone} onChange={e => setPhone(e.target.value)} className={ic} />
-            </div>
-            {role === 'Exhibitor' && (
-              <input required placeholder="Company name *" value={company} onChange={e => setCompany(e.target.value)}
-                className="w-full px-3 py-1.5 rounded bg-gray-600 border border-gray-500 text-white text-xs placeholder-gray-400 focus:outline-none focus:border-amber/60" />
-            )}
-            {err && <p className="text-red-400 text-xs">{err}</p>}
-            <button type="submit"
-              className="w-full py-1.5 rounded bg-amber text-slate-900 text-xs font-bold hover:bg-amber/80 flex items-center justify-center gap-1 transition-colors">
-              Next <ChevronRight size={13} />
-            </button>
-          </form>
-          <p className="text-gray-400 text-[10px]">{EVENT_CONFIG.venue}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Role picker ──────────────────────────────────────────────────────────────
   return (
     <div className="flex justify-start">
       <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[95%] w-full space-y-3">
-        <p className="text-amber font-semibold text-xs uppercase tracking-wide">Register for {EVENT_CONFIG.eventFullName}</p>
-        <p className="text-gray-300 text-xs">Are you attending as a visitor or do you have a company exhibiting?</p>
-        <div className="space-y-1.5">
-          <button type="button" onClick={() => { setRole('Attendee'); setStep('details'); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded border border-gray-500 text-xs text-gray-300 hover:border-amber/60 hover:bg-amber/5 transition-colors text-left">
-            <User size={15} className="text-amber shrink-0" />
-            <div>
-              <p className="font-semibold text-white">Attendee / Visitor</p>
-              <p className="text-gray-400 text-[10px]">General Admission $10 · VIP $25</p>
-            </div>
-          </button>
-          <button type="button" onClick={() => { setRole('Exhibitor'); setStep('details'); }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded border border-gray-500 text-xs text-gray-300 hover:border-amber/60 hover:bg-amber/5 transition-colors text-left">
-            <Building2 size={15} className="text-amber shrink-0" />
-            <div>
-              <p className="font-semibold text-white">Exhibitor / Company</p>
-              <p className="text-gray-400 text-[10px]">Bronze $800 · Silver $1,500 · Gold $3,000 · Platinum $5,000</p>
-            </div>
-          </button>
+        <div className="flex items-start gap-2">
+          <Ticket size={15} className="text-amber shrink-0 mt-0.5" />
+          <div>
+            <p className="text-amber font-semibold text-xs uppercase tracking-wide">Physical Show Tickets</p>
+            <p className="text-gray-300 text-xs mt-1">Entry passes and tickets for the physical {EVENT_CONFIG.eventName} are handled on the official show site.</p>
+          </div>
         </div>
-        <p className="text-gray-500 text-[10px]">{EVENT_CONFIG.venue} · {EVENT_CONFIG.eventYear}</p>
+        <a
+          href={redirectUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-amber text-slate-900 text-xs font-bold hover:bg-amber/80 transition-colors"
+        >
+          Register for the Physical Show <ExternalLink size={13} />
+        </a>
+        <div className="border-t border-gray-600 pt-2.5 flex items-start gap-2">
+          <QrCode size={15} className="text-amber shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-gray-300 text-xs">Just need a free digital platform account for the QR badge, meetings and exhibitors?</p>
+            <a href="/signup" className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber underline underline-offset-2 hover:text-amber/80">
+              <UserPlus size={12} /> Create a free account
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -482,8 +221,7 @@ export default function ChatWidget() {
     setMessages(prev => [
       ...prev,
       ...(userText ? [{ role: 'user', content: userText }] : []),
-      { role: 'assistant', content: 'Great! Fill in your details below and I\'ll register you right now — it\'s free.' },
-      { role: 'regform', prefillName: user?.full_name, prefillEmail: user?.email },
+      { role: 'regform' },
     ]);
     setInput('');
   }
@@ -501,7 +239,6 @@ export default function ChatWidget() {
     const text = input.trim();
     if (!text || loading) return;
     if (REGISTER_KEYWORDS.test(text)) {
-      if (!isOnline) { pushOfflineMsg(text); return; }
       pushRegForm(text); return;
     }
     if (BOOKING_KEYWORDS.test(text)) {
@@ -534,7 +271,6 @@ export default function ChatWidget() {
 
   function handlePromptClick(p) {
     if (REGISTER_KEYWORDS.test(p)) {
-      if (!isOnline) { pushOfflineMsg(null); return; }
       pushRegForm(null); return;
     }
     if (!user && BOOKING_KEYWORDS.test(p)) {
@@ -599,18 +335,7 @@ export default function ChatWidget() {
                 </div>
               )
               : m.role === 'gate'    ? <AuthGate key={i} />
-              : m.role === 'regform' ? (
-                <RegistrationForm
-                  key={i}
-                  prefillName={m.prefillName}
-                  prefillEmail={m.prefillEmail}
-                  onDone={() => {
-                    setMessages(prev => prev.map((msg, idx) =>
-                      idx === i ? { ...msg, submitted: true } : msg
-                    ));
-                  }}
-                />
-              ) : (
+              : m.role === 'regform' ? <RegisterInfoCard key={i} /> : (
                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`rounded-lg px-3 py-2 text-sm max-w-[85%] leading-relaxed ${
                     m.role === 'user' ? 'bg-amber text-slate-900 font-medium whitespace-pre-wrap' : 'bg-gray-700 text-gray-100 border border-gray-600'

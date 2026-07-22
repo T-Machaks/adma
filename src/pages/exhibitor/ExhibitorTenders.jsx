@@ -100,15 +100,15 @@ export default function ExhibitorTenders() {
     );
   }
 
-  if (!standTierAtLeast(myBooth.tier, 'Enhanced')) {
+  if (!standTierAtLeast(myBooth, 'Enhanced')) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
         <div className="w-14 h-14 bg-amber/10 border border-amber/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <Lock className="w-6 h-6 text-amber" />
         </div>
-        <h1 className="font-heading text-xl font-bold mb-2">Tender postings are an Enhanced Stand feature</h1>
+        <h1 className="font-heading text-xl font-bold mb-2">Tender postings are an Enhanced package feature</h1>
         <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
-          You're currently on a <strong>Basic Stand</strong> ({myBooth.tier} tier). Upgrade to Silver or above to post tenders to attendees.
+          You're currently on the <strong>Basic</strong> package. Upgrade to Enhanced or above to post tenders to attendees.
         </p>
         <a
           href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}

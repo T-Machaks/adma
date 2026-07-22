@@ -1,9 +1,10 @@
 import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
+import { nextMay30ISO } from '../lib/subscription.js';
 
 export default crudRouter('adma_exhibitors', {
-  defaults: () => ({ featured: false }),
+  defaults: () => ({ featured: false, package: 'Basic', subscription_expires_at: nextMay30ISO() }),
   extraRoutes(r) {
     // GET /api/exhibitors/demo-list — all exhibitors with a linked user account
     r.get('/demo-list', async (req, res) => {

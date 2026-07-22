@@ -3,12 +3,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MeetingRequest, Exhibitor } from '@/api/entities';
 import { notifyMeeting } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
-import { Calendar, Clock, CheckCircle, Building2, User, Mail, Phone, FileText, Lock, LogIn, UserPlus, CalendarDays, ClipboardList, AlertCircle, XCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle, Building2, User, Mail, Phone, FileText, Lock, LogIn, UserPlus, CalendarDays, ClipboardList, AlertCircle, XCircle } from 'lucide-react';
 import { useLocation, Link } from 'react-router-dom';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
-const DATES = ['4 June 2026', '5 June 2026', '6 June 2026'];
 const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
+
+function formatDate(d) {
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function parseDate(str) {
+  const d = str ? new Date(str) : null;
+  return d && !isNaN(d) ? d : null;
+}
 
 const empty = { visitor_name: '', visitor_company: '', visitor_email: '', visitor_phone: '', exhibitor_name: '', exhibitor_id: '', exhibitor_booth: '', preferred_date: '', preferred_time: '', reason: '' };
 
@@ -100,7 +114,7 @@ function MyMeetings({ email }) {
 
             <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" /> {m.preferred_date}
+                <CalendarIcon className="w-3.5 h-3.5" /> {m.preferred_date}
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" /> {m.preferred_time}
@@ -128,6 +142,7 @@ export default function Meetings() {
   const [tab, setTab] = useState('book');
   const [form, setForm] = useState({
     ...empty,
+    preferred_date: formatDate(startOfToday()),
     exhibitor_name: prefill?.name || '',
     exhibitor_id:   prefill?.id   || '',
     exhibitor_booth: prefill?.booth || '',
@@ -275,20 +290,33 @@ export default function Meetings() {
 
             <div className="border-t border-border" />
 
-            {/* Date & time */}
+            {/* Date & time — any day of the year is bookable; past dates are disabled */}
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" />Preferred Slot
+                <CalendarIcon className="w-3.5 h-3.5" />Preferred Slot
               </p>
               <div className="grid grid-cols-2 gap-3">
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <select className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber appearance-none"
-                    value={form.preferred_date} onChange={e => set('preferred_date', e.target.value)} required>
-                    <option value="">Date *</option>
-                    {DATES.map(d => <option key={d}>{d}</option>)}
-                  </select>
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="relative w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-sm text-left focus:outline-none focus:ring-2 focus:ring-amber"
+                    >
+                      <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      {form.preferred_date || <span className="text-muted-foreground">Date *</span>}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={parseDate(form.preferred_date)}
+                      defaultMonth={parseDate(form.preferred_date) || startOfToday()}
+                      disabled={{ before: startOfToday() }}
+                      onSelect={d => d && set('preferred_date', formatDate(d))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 <div className="relative">
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <select className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber appearance-none"

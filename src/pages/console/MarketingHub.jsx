@@ -175,9 +175,12 @@ export default function MarketingHub() {
   const adClicks = events.filter(e => e.type === 'ad_click');
   const totalEngagements = events.length;
 
-  // Tier breakdown
+  // Tier breakdown (physical booth tier — booth sales pipeline, not virtual eligibility)
   const tierCounts = { Platinum: 0, Gold: 0, Silver: 0, Bronze: 0 };
   exhibitors.forEach(e => { if (tierCounts[e.tier] !== undefined) tierCounts[e.tier]++; });
+
+  // Virtual package breakdown — this is what actually drives ad placement/lead export eligibility
+  const premiumPkgCount = exhibitors.filter(e => e.package === 'Premium').length;
 
   // Ad clicks by exhibitor (for performance table)
   const clicksByExhibitor = {};
@@ -836,7 +839,7 @@ export default function MarketingHub() {
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              {tierCounts.Platinum + tierCounts.Gold} premium exhibitors (Platinum + Gold) eligible for lead export &amp; ad placement.
+              {premiumPkgCount} Premium package exhibitors eligible for lead export &amp; ad placement.
             </p>
           </div>
         </div>

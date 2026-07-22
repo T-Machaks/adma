@@ -4,7 +4,7 @@ import { AppSettings } from '@/api/entities/AppSettings';
 const AppSettingsContext = createContext(null);
 
 export function AppSettingsProvider({ children }) {
-  const [settings, setSettings] = useState({ virtualExhibitionOpen: false });
+  const [settings, setSettings] = useState({ virtualExhibitionOpen: false, physicalEventRegistrationUrl: 'https://agrishow.co.zw/' });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

@@ -6,12 +6,12 @@ import { Exhibitor } from '@/api/entities';
 import TierBadge from '@/components/ui/TierBadge';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { SITE_PLAN_SPOTS } from '@/lib/sitePlanSpots';
+import { isSubscriptionExpired } from '@/lib/subscription';
 
-const TIER_COLORS = {
-  Platinum: '#16a34a',
-  Gold:     '#eab308',
-  Silver:   '#94a3b8',
-  Bronze:   '#92400e',
+const PACKAGE_COLORS = {
+  Premium:  '#16a34a',
+  Enhanced: '#eab308',
+  Basic:    '#94a3b8',
 };
 
 const IMG_W = 2202;
@@ -25,24 +25,32 @@ function norm(s) {
   return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-function matchExhibitor(spotTitle, exhibitors) {
+// Item 2: a spot may be occupied by more than one exhibitor (shared/co-located booths),
+// so this returns every match instead of collapsing to a single "best" one — booth-code
+// matches (ground truth) are preferred over fuzzy name matches (heuristic fallback).
+function matchExhibitors(spotTitle, exhibitors) {
   const t = norm(spotTitle);
-  if (!t) return null;
+  if (!t) return [];
+
+  const boothMatches = exhibitors.filter(e => e.booth && norm(e.booth) === t);
+  if (boothMatches.length) return boothMatches;
+
   let best = null;
   for (const e of exhibitors) {
     const n = norm(e.name);
     if (!n) continue;
-    if (n === t) return e;
+    if (n === t) return [e];
     if (n.length >= 4 && (t.startsWith(n) || n.startsWith(t))) {
       if (!best || n.length > norm(best.name).length) best = e;
     }
   }
-  return best;
+  return best ? [best] : [];
 }
 
 export default function SitePlan() {
   const [zoom, setZoom] = useState(1);
   const [selectedTitle, setSelectedTitle] = useState(null);
+  const [selectedExhibitorId, setSelectedExhibitorId] = useState(null);
   const [locating, setLocating] = useState(false);
 
   const { data: exhibitors = [] } = useQuery({
@@ -51,12 +59,18 @@ export default function SitePlan() {
   });
 
   const spotExhibitorMap = useMemo(() => {
+    const visible = exhibitors.filter(e => !isSubscriptionExpired(e));
     const map = new Map();
     for (const spot of SITE_PLAN_SPOTS) {
-      map.set(spot.title, matchExhibitor(spot.title, exhibitors));
+      map.set(spot.title, matchExhibitors(spot.title, visible));
     }
     return map;
   }, [exhibitors]);
+
+  const selectSpot = (title) => {
+    setSelectedExhibitorId(null);
+    setSelectedTitle(prev => (prev === title ? null : title));
+  };
 
   const handleGetDirections = () => {
     const dest = `${VENUE_LAT},${VENUE_LNG}`;
@@ -83,7 +97,10 @@ export default function SitePlan() {
   };
 
   const selSpot = selectedTitle ? SITE_PLAN_SPOTS.find(s => s.title === selectedTitle) : null;
-  const selExhibitor = selectedTitle ? spotExhibitorMap.get(selectedTitle) : null;
+  const selMatches = selectedTitle ? (spotExhibitorMap.get(selectedTitle) || []) : [];
+  const selExhibitor = selectedExhibitorId
+    ? selMatches.find(e => e.id === selectedExhibitorId)
+    : (selMatches.length === 1 ? selMatches[0] : null);
 
   return (
     <div className="pb-24 max-w-6xl mx-auto">
@@ -123,13 +140,13 @@ export default function SitePlan() {
                 draggable={false}
               />
               {SITE_PLAN_SPOTS.map(spot => {
-                const ex = spotExhibitorMap.get(spot.title);
+                const matches = spotExhibitorMap.get(spot.title) || [];
                 const isSelected = selectedTitle === spot.title;
-                const color = ex ? (TIER_COLORS[ex.tier] || '#16a34a') : '#64748b';
+                const color = matches.length ? (PACKAGE_COLORS[matches[0].package] || '#16a34a') : '#64748b';
                 return (
                   <button
                     key={`${spot.title}-${spot.x}-${spot.y}`}
-                    onClick={() => setSelectedTitle(isSelected ? null : spot.title)}
+                    onClick={() => selectSpot(spot.title)}
                     title={spot.title}
                     className="absolute transition-all duration-150"
                     style={{
@@ -156,10 +173,10 @@ export default function SitePlan() {
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Legend</p>
           <div className="flex gap-3 flex-wrap">
-            {EVENT_CONFIG.exhibitorTiers.map(t => (
-              <div key={t} className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: TIER_COLORS[t] }} />
-                <span className="text-xs text-muted-foreground font-medium">{t}</span>
+            {['Premium', 'Enhanced', 'Basic'].map(p => (
+              <div key={p} className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: PACKAGE_COLORS[p] }} />
+                <span className="text-xs text-muted-foreground font-medium">{p}</span>
               </div>
             ))}
             <div className="flex items-center gap-1.5">
@@ -200,8 +217,12 @@ export default function SitePlan() {
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <TierBadge tier={selExhibitor.tier} />
-                          <button onClick={() => setSelectedTitle(null)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5">
+                          <TierBadge package={selExhibitor.package} />
+                          <button
+                            onClick={() => selMatches.length > 1 ? setSelectedExhibitorId(null) : selectSpot(selectedTitle)}
+                            className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                            title={selMatches.length > 1 ? 'Back to booth list' : 'Close'}
+                          >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
@@ -255,6 +276,37 @@ export default function SitePlan() {
                     )}
                   </div>
                 </>
+              ) : selMatches.length > 1 ? (
+                <div>
+                  <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+                    <p className="font-semibold text-sm">{selSpot.title}</p>
+                    <button onClick={() => selectSpot(selectedTitle)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="px-4 pb-2 text-xs text-muted-foreground">This booth is shared by {selMatches.length} exhibitors — tap one to view details.</p>
+                  <div className="divide-y divide-border border-t border-border">
+                    {selMatches.map(e => (
+                      <button
+                        key={e.id}
+                        onClick={() => setSelectedExhibitorId(e.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors text-left"
+                      >
+                        <div className="w-9 h-9 bg-white border border-border rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {e.logo_url
+                            ? <img src={e.logo_url} alt={e.name} className="w-8 h-8 object-contain" />
+                            : <span className="font-heading text-sm font-bold text-muted-foreground">{e.name?.[0] ?? '?'}</span>
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{e.name}</p>
+                          <p className="text-xs text-muted-foreground">{e.section} · Booth {e.booth}</p>
+                        </div>
+                        <TierBadge package={e.package} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="p-4 flex items-start gap-3">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-500">
@@ -273,7 +325,7 @@ export default function SitePlan() {
                       <Navigation2 className="w-3 h-3" />
                       {locating ? '…' : 'Directions'}
                     </button>
-                    <button onClick={() => setSelectedTitle(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                    <button onClick={() => selectSpot(selectedTitle)} className="text-muted-foreground hover:text-foreground transition-colors">
                       <X className="w-4 h-4" />
                     </button>
                   </div>

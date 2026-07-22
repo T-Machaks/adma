@@ -7,15 +7,17 @@ import TierBadge from '@/components/ui/TierBadge';
 import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { isSubscriptionExpired } from '@/lib/subscription';
+import { getPackageLimits } from '@/lib/standTiers';
 
 const CATEGORIES = ['All', ...EVENT_CONFIG.exhibitorCategories];
-const TIERS      = ['All', ...EVENT_CONFIG.exhibitorTiers];
+const PACKAGES   = ['All', 'Premium', 'Enhanced', 'Basic'];
 const SECTIONS   = ['All', ...EVENT_CONFIG.exhibitorSections];
 
 export default function Exhibitors() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
-  const [tier, setTier] = useState('All');
+  const [pkg, setPkg] = useState('All');
   const [section, setSection] = useState('All');
   const [expanded, setExpanded] = useState(null);
   const { settings } = useAppSettings();
@@ -26,11 +28,12 @@ export default function Exhibitors() {
   });
 
   const filtered = exhibitors.filter(ex => {
+    if (isSubscriptionExpired(ex)) return false;
     const matchSearch = !search || ex.name.toLowerCase().includes(search.toLowerCase()) || ex.booth?.toLowerCase().includes(search.toLowerCase());
     const matchCat = category === 'All' || ex.category === category;
-    const matchTier = tier === 'All' || ex.tier === tier;
+    const matchPkg = pkg === 'All' || (ex.package || 'Basic') === pkg;
     const matchSection = section === 'All' || ex.section === section;
-    return matchSearch && matchCat && matchTier && matchSection;
+    return matchSearch && matchCat && matchPkg && matchSection;
   });
 
   return (
@@ -63,12 +66,12 @@ export default function Exhibitors() {
         </div>
         <div className="flex gap-4 flex-wrap">
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">Tier</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">Package</p>
             <div className="flex gap-2 flex-wrap">
-              {TIERS.map(t => (
-                <button key={t} onClick={() => setTier(t)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${tier === t ? 'bg-steel text-white border-steel' : 'border-border text-muted-foreground hover:border-steel/50'}`}>
-                  {t}
+              {PACKAGES.map(p => (
+                <button key={p} onClick={() => setPkg(p)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${pkg === p ? 'bg-steel text-white border-steel' : 'border-border text-muted-foreground hover:border-steel/50'}`}>
+                  {p}
                 </button>
               ))}
             </div>
@@ -96,7 +99,7 @@ export default function Exhibitors() {
       {!isLoading && filtered.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-sm">No exhibitors match your search.</p>
-          <button onClick={() => { setSearch(''); setCategory('All'); setTier('All'); setSection('All'); }} className="text-amber text-sm mt-2 underline">Clear filters</button>
+          <button onClick={() => { setSearch(''); setCategory('All'); setPkg('All'); setSection('All'); }} className="text-amber text-sm mt-2 underline">Clear filters</button>
         </div>
       )}
 
@@ -123,9 +126,9 @@ export default function Exhibitors() {
                     </Link>
                     <p className="text-xs text-muted-foreground mt-0.5">Booth <span className="font-bold text-foreground">{ex.booth}</span> · {ex.section || 'General'}</p>
                   </div>
-                  <TierBadge tier={ex.tier} />
+                  <TierBadge package={ex.package} />
                 </div>
-                {ex.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{ex.description}</p>}
+                {ex.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{ex.description.slice(0, getPackageLimits(ex).descChars)}</p>}
                 <div className="flex gap-1.5 mt-2 flex-wrap">
                   <span className="text-[10px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{ex.category}</span>
                 </div>

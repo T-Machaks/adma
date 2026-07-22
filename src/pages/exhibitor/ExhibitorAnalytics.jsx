@@ -136,7 +136,7 @@ export default function ExhibitorAnalytics() {
     );
   }
 
-  const hasAnalytics = standTierAtLeast(myBooth.tier, 'Enhanced');
+  const hasAnalytics = standTierAtLeast(myBooth, 'Enhanced');
 
   if (!hasAnalytics) {
     return (
@@ -144,9 +144,9 @@ export default function ExhibitorAnalytics() {
         <div className="w-14 h-14 bg-amber/10 border border-amber/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <Lock className="w-6 h-6 text-amber" />
         </div>
-        <h1 className="font-heading text-xl font-bold mb-2">Analytics is an Enhanced Stand feature</h1>
+        <h1 className="font-heading text-xl font-bold mb-2">Analytics is an Enhanced package feature</h1>
         <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
-          You're currently on a <strong>Basic Stand</strong> ({myBooth.tier} tier). Upgrade to Silver or above to unlock booth analytics, live chat with attendees, and your full profile.
+          You're currently on the <strong>Basic</strong> package. Upgrade to Enhanced or above to unlock booth analytics, live chat with attendees, and your full profile.
         </p>
         <a
           href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
@@ -209,8 +209,8 @@ export default function ExhibitorAnalytics() {
   const hasGuideActivity    = guideAdClicks + guideVideoPlays + guideCarouselViews > 0;
   const guideStats = { adClicks: guideAdClicks, videoPlays: guideVideoPlays, videoCompletes: guideVideoCompletes, carouselViews: guideCarouselViews };
 
-  const hasLeadExport = getStandTier(myBooth?.tier) === 'Premium';
-  const isPlatinum = myBooth?.tier === 'Platinum';
+  const hasLeadExport = getStandTier(myBooth) === 'Premium';
+  const isPremiumPkg = myBooth?.package === 'Premium';
   const myAd = activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null;
   const carouselAdClicks = events.filter(e => e.type === 'ad_click' && e.source === 'home_carousel').length;
 
@@ -355,7 +355,7 @@ export default function ExhibitorAnalytics() {
           <Megaphone className="w-4 h-4 text-amber" />
           <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Ad Banner Performance</h2>
         </div>
-        {isPlatinum && myAd ? (
+        {isPremiumPkg && myAd ? (
           <div className="p-5 space-y-4">
             <AdBannerPreview ad={myAd} />
             <div className="grid grid-cols-2 gap-3">
@@ -377,7 +377,7 @@ export default function ExhibitorAnalytics() {
               </div>
             </div>
           </div>
-        ) : isPlatinum ? (
+        ) : isPremiumPkg ? (
           <div className="p-8 text-center text-muted-foreground">
             <Megaphone className="w-8 h-8 mx-auto mb-2" />
             <p className="text-sm font-medium">No ad configured</p>
@@ -390,9 +390,9 @@ export default function ExhibitorAnalytics() {
                 <Lock className="w-5 h-5 text-amber" />
               </div>
               <div className="text-center px-6">
-                <p className="font-heading font-bold text-sm">Platinum Feature</p>
+                <p className="font-heading font-bold text-sm">Premium Feature</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                  Upgrade to Platinum to get a carousel ad slot and track click performance.
+                  Upgrade to Premium to get a carousel ad slot and track click performance.
                 </p>
               </div>
               <button
@@ -576,8 +576,8 @@ export default function ExhibitorAnalytics() {
                 <Lock className="w-5 h-5 text-amber" />
               </div>
               <div className="text-center px-6">
-                <p className="font-heading font-bold text-sm">Premium Stand Feature</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Upgrade to Platinum to export full lead contact data and unlock attendee details.</p>
+                <p className="font-heading font-bold text-sm">Premium Package Feature</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Upgrade to Premium to export full lead contact data and unlock attendee details.</p>
               </div>
               <button
                 onClick={() => setUpgradeOpen(true)}
@@ -631,23 +631,23 @@ export default function ExhibitorAnalytics() {
         </div>
       </div>
 
-      {/* Tier Upgrade Dialog */}
+      {/* Package Upgrade Dialog */}
       <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-heading uppercase tracking-wide">Upgrade Your Booth Tier</DialogTitle>
+            <DialogTitle className="font-heading uppercase tracking-wide">Upgrade Your Package</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <p className="text-sm text-muted-foreground">
-              You're currently on the <strong>{myBooth.tier}</strong> tier. Upgrade to <strong>Platinum</strong> for the Premium Stand — lead export and AI-referenceable profile.
+              You're currently on the <strong>{getStandTier(myBooth)}</strong> package. Upgrade to <strong>Premium</strong> for lead export and an AI-referenceable profile.
             </p>
             <div className="space-y-2">
               {[
-                { tier: 'Gold', color: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20', perks: ['Enhanced Stand — profile, chat & analytics', 'Priority booth placement', 'Featured in digital magazine', 'Meeting request boost'] },
-                { tier: 'Platinum', color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20', perks: ['Premium Stand — AI-referenceable profile', 'Lead capture form & CSV export', 'Home page featured listing', 'Ad banner carousel slot'] },
-              ].map(({ tier, color, perks }) => (
-                <div key={tier} className={`border rounded-xl p-4 ${color}`}>
-                  <p className="font-heading font-bold text-sm mb-2">{tier} Tier</p>
+                { pkg: 'Enhanced', color: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20', perks: ['Full profile, chat & analytics', 'Gallery of 6 scrolling images', 'Meeting request boost'] },
+                { pkg: 'Premium', color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20', perks: ['AI-referenceable profile', 'Lead capture form & CSV export', 'Home page featured listing', 'Ad banner carousel slot'] },
+              ].map(({ pkg, color, perks }) => (
+                <div key={pkg} className={`border rounded-xl p-4 ${color}`}>
+                  <p className="font-heading font-bold text-sm mb-2">{pkg}</p>
                   <ul className="space-y-1">
                     {perks.map(p => (
                       <li key={p} className="text-xs text-foreground/80 flex items-center gap-1.5">
@@ -659,7 +659,7 @@ export default function ExhibitorAnalytics() {
               ))}
             </div>
             <a
-              href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Tier%20Upgrade%20Enquiry`}
+              href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Package%20Upgrade%20Enquiry`}
               className="flex items-center justify-center gap-2 w-full bg-amber text-white font-semibold text-sm py-2.5 rounded-lg hover:bg-amber/90 active:scale-95 transition-all duration-150"
               onClick={() => setUpgradeOpen(false)}
             >
