@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
 import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
+import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import {
   Handshake, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, Clock, Mail, Phone, Building2, Hourglass,
 } from 'lucide-react';
@@ -238,6 +239,30 @@ export default function ExhibitorCollaborations() {
                       >
                         <Users className="w-3.5 h-3.5" /> {isExpanded ? 'Hide' : 'View'} Interest
                       </button>
+                    </div>
+                  )}
+
+                  {!isPending && (
+                    <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Listing Display Format</label>
+                      <select
+                        value={c.display_format || 'text'}
+                        onChange={e => updateMutation.mutate({ id: c.id, data: { display_format: e.target.value } })}
+                        className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background"
+                      >
+                        <option value="text">Text (standard row)</option>
+                        <option value="image_tile">Image Tile</option>
+                        <option value="featured_banner">Featured Banner (pinned to top)</option>
+                      </select>
+                      {(c.display_format === 'image_tile' || c.display_format === 'featured_banner') && (
+                        <ImageUploadOrUrlField
+                          label="Listing Image"
+                          value={c.display_image_url}
+                          onChange={v => updateMutation.mutate({ id: c.id, data: { display_image_url: v } })}
+                          ownerId={c.id}
+                          purpose="collab"
+                        />
+                      )}
                     </div>
                   )}
                 </div>

@@ -38,6 +38,9 @@ export default function Tenders() {
     return matchSearch && matchCategory;
   });
 
+  const featured = filtered.filter(t => t.display_format === 'featured_banner');
+  const regular = filtered.filter(t => t.display_format !== 'featured_banner');
+
   return (
     <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-4xl mx-auto">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Tenders</h1>
@@ -73,8 +76,42 @@ export default function Tenders() {
         </div>
       )}
 
+      {featured.length > 0 && (
+        <div className="space-y-3 mb-4">
+          {featured.map(t => {
+            const left = daysLeft(t.closing_date);
+            return (
+              <Link
+                key={t.id}
+                to={`/tenders/${t.id}`}
+                className="block rounded-2xl overflow-hidden border border-amber/40 shadow-sm hover:shadow-md transition-shadow"
+              >
+                {t.display_image_url && (
+                  <div className="h-32 w-full bg-muted">
+                    <img src={t.display_image_url} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="p-4 bg-card">
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-amber bg-amber/10 px-2 py-0.5 rounded-full">Featured</span>
+                  <p className="font-heading font-bold text-base mt-1.5">{t.title}</p>
+                  <p className="text-xs text-amber font-medium mt-0.5">{t.company_name}</p>
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                    {t.category && <span className="bg-muted px-2 py-0.5 rounded font-medium">{t.category}</span>}
+                    {t.closing_date && (
+                      <span className={`flex items-center gap-1 ${left !== null && left <= 3 ? 'text-red-500 font-semibold' : ''}`}>
+                        <Clock className="w-3 h-3" /> Closes {fmtDate(t.closing_date)}{left !== null && left >= 0 ? ` · ${left}d left` : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {filtered.map(t => {
+        {regular.map(t => {
           const left = daysLeft(t.closing_date);
           return (
             <Link
@@ -83,6 +120,9 @@ export default function Tenders() {
               className="block bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
+                {t.display_format === 'image_tile' && t.display_image_url && (
+                  <img src={t.display_image_url} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm">{t.title}</p>
                   <p className="text-xs text-amber font-medium mt-0.5">{t.company_name}</p>

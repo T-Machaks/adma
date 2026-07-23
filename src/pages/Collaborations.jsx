@@ -32,6 +32,9 @@ export default function Collaborations() {
     return matchSearch && matchType;
   });
 
+  const featured = filtered.filter(c => c.display_format === 'featured_banner');
+  const regular = filtered.filter(c => c.display_format !== 'featured_banner');
+
   return (
     <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-4xl mx-auto">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Partner Collaborations</h1>
@@ -67,14 +70,46 @@ export default function Collaborations() {
         </div>
       )}
 
+      {featured.length > 0 && (
+        <div className="space-y-3 mb-4">
+          {featured.map(c => (
+            <Link
+              key={c.id}
+              to={`/collaborations/${c.id}`}
+              className="block rounded-2xl overflow-hidden border border-amber/40 shadow-sm hover:shadow-md transition-shadow"
+            >
+              {c.display_image_url && (
+                <div className="h-32 w-full bg-muted">
+                  <img src={c.display_image_url} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="p-4 bg-card">
+                <span className="text-[9px] font-bold uppercase tracking-wide text-amber bg-amber/10 px-2 py-0.5 rounded-full">Featured</span>
+                <p className="font-heading font-bold text-base mt-1.5">{c.title}</p>
+                <p className="text-xs text-amber font-medium mt-0.5">{c.company_name}</p>
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  {c.type && <span className="bg-muted px-2 py-0.5 rounded font-medium">{c.type}</span>}
+                  {c.closing_date && (
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {fmtDate(c.closing_date)}</span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {filtered.map(c => (
+        {regular.map(c => (
           <Link
             key={c.id}
             to={`/collaborations/${c.id}`}
             className="block bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors"
           >
             <div className="flex items-start justify-between gap-3">
+              {c.display_format === 'image_tile' && c.display_image_url && (
+                <img src={c.display_image_url} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+              )}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm">{c.title}</p>
                 <p className="text-xs text-amber font-medium mt-0.5">{c.company_name}</p>

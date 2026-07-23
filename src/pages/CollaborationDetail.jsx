@@ -88,6 +88,11 @@ export default function CollaborationDetail() {
       </div>
 
       <div className="px-4 mt-4 space-y-4">
+        {collab.display_image_url && (
+          <div className="rounded-2xl overflow-hidden border border-border">
+            <img src={collab.display_image_url} alt="" className="w-full max-h-64 object-cover" />
+          </div>
+        )}
         <div className="bg-card border border-border rounded-2xl p-5">
           <div className="flex items-start justify-between gap-2">
             <div>

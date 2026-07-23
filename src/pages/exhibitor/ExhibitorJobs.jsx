@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
+import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import {
   Briefcase, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
 } from 'lucide-react';
@@ -261,7 +262,7 @@ export default function ExhibitorJobs() {
                     </button>
                     {job.interactive_status === 'active' ? (
                       <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 ml-auto">
-                        <FileUp className="w-3 h-3" /> CV applications active
+                        <FileUp className="w-3 h-3" /> Premium features active
                       </span>
                     ) : job.interactive_status === 'requested' ? (
                       <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 ml-auto">
@@ -273,10 +274,34 @@ export default function ExhibitorJobs() {
                         disabled={requestPaymentMutation.isPending}
                         className="flex items-center gap-1.5 text-xs border border-amber/40 text-amber px-3 py-1.5 rounded-lg font-medium hover:bg-amber/10 transition-colors ml-auto disabled:opacity-60"
                       >
-                        <FileUp className="w-3.5 h-3.5" /> Enable CV Applications (Paid)
+                        <FileUp className="w-3.5 h-3.5" /> Enable Premium Features (Paid)
                       </button>
                     )}
                   </div>
+
+                  {job.interactive_status === 'active' && (
+                    <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Listing Display Format</label>
+                      <select
+                        value={job.display_format || 'text'}
+                        onChange={e => updateMutation.mutate({ id: job.id, data: { display_format: e.target.value } })}
+                        className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background"
+                      >
+                        <option value="text">Text (standard row)</option>
+                        <option value="image_tile">Image Tile</option>
+                        <option value="featured_banner">Featured Banner (pinned to top)</option>
+                      </select>
+                      {(job.display_format === 'image_tile' || job.display_format === 'featured_banner') && (
+                        <ImageUploadOrUrlField
+                          label="Listing Image"
+                          value={job.display_image_url}
+                          onChange={v => updateMutation.mutate({ id: job.id, data: { display_image_url: v } })}
+                          ownerId={job.id}
+                          purpose="job"
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {isExpanded && (
