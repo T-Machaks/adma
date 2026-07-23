@@ -9,7 +9,7 @@ import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 
 const TABLE = 'adma_users';
-const APP_URL = 'https://adma.tyflex.co.zw';
+const APP_URL = 'https://admadigital.co.zw';
 const router = Router();
 
 function welcomeHtml(user) {

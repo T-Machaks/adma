@@ -5,7 +5,7 @@ import { crudRouter } from '../lib/crudRouter.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 
 const TABLE = 'adma_registrations';
-const APP_URL = 'https://adma.tyflex.co.zw';
+const APP_URL = 'https://admadigital.co.zw';
 
 function confirmationHtml(r) {
   const qty = r.quantity || 1;

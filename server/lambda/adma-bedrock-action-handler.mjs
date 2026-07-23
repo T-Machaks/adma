@@ -24,7 +24,7 @@ const ddb = DynamoDBDocumentClient.from(
 // the web app sends after creating a meeting request or enquiry. AgriBot writes
 // straight to DynamoDB (fast, no auth needed), then fires this so the exhibitor
 // and visitor still get notified exactly as if they'd used the app.
-const APP_URL = 'https://adma.tyflex.co.zw';
+const APP_URL = 'https://admadigital.co.zw';
 
 async function notify(path, body) {
   try {

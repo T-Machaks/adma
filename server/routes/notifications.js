@@ -5,7 +5,7 @@ import { sendOtpEmail } from '../lib/mailer.js';
 import { sendSms } from '../lib/omniflex.js';
 
 const r = Router();
-const APP_URL = 'https://adma.tyflex.co.zw';
+const APP_URL = 'https://admadigital.co.zw';
 
 function normalizePhone(phone) {
   if (!phone) return null;

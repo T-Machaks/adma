@@ -155,7 +155,7 @@ router.put('/:id/approve', async (req, res) => {
           <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
             <h2 style="margin:0 0 8px;color:#111">Welcome to ADMA Agri Show 2026, ${app.full_name}!</h2>
             <p style="color:#555">Your exhibitor application for <strong>${app.company}</strong> has been approved at the <strong>${tier}</strong> tier.</p>
-            <p style="color:#555">You can now log in to the Exhibitor Portal at <a href="https://adma.tyflex.co.zw/exhibitor-login">adma.tyflex.co.zw</a> using your registered email and password.</p>
+            <p style="color:#555">You can now log in to the Exhibitor Portal at <a href="https://admadigital.co.zw/exhibitor-login">admadigital.co.zw</a> using your registered email and password.</p>
           </div>
         `,
       });
