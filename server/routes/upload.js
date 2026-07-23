@@ -91,6 +91,19 @@ r.post('/exhibitor-logo-url', async (req, res) => {
   }
 });
 
+r.post('/marketing-image-url', async (req, res) => {
+  try {
+    const { ownerId, purpose } = req.body;
+    if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
+
+    const key = `marketing-images/${purpose || 'misc'}/${ownerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, 'image/jpeg');
+    res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 r.post('/guide-image-url', async (req, res) => {
   try {
     const { pageNum, oldImageUrl } = req.body;

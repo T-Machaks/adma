@@ -11,6 +11,7 @@ import {
   ChevronDown, ChevronUp, Layers, BookOpen, Monitor, FileEdit,
 } from 'lucide-react';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
+import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,7 +82,7 @@ const GRADIENT_OPTIONS = [
 
 const EMPTY_SLOT = {
   company: '', headline: '', sub: '', label: 'Platinum Exhibitor',
-  logo_url: '', url: '', bg: 'from-slate-700 to-slate-900',
+  logo_url: '', image_url: '', image_type: 'bg', url: '', bg: 'from-slate-700 to-slate-900',
   exhibitor_id: '', exhibitor_name: '', placement: 'carousel',
 };
 
@@ -106,6 +107,7 @@ export default function MarketingHub() {
   const [slotDialogOpen, setSlotDialogOpen] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [slotForm, setSlotForm] = useState(EMPTY_SLOT);
+  const [editingSlotId, setEditingSlotId] = useState(null);
   const [postForm, setPostForm] = useState(EMPTY_POST);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
   const [deletePostId, setDeletePostId] = useState(null);
@@ -217,6 +219,10 @@ export default function MarketingHub() {
     mutationFn: (data) => AdSlot.create(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['adslots'] }); setSlotDialogOpen(false); setSlotForm(EMPTY_SLOT); },
   });
+  const updateSlot = useMutation({
+    mutationFn: ({ id, data }) => AdSlot.update(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adslots'] }); setSlotDialogOpen(false); setEditingSlotId(null); setSlotForm(EMPTY_SLOT); },
+  });
   const toggleSlot = useMutation({
     mutationFn: ({ id, active }) => AdSlot.update(id, { active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['adslots'] }),
@@ -225,6 +231,17 @@ export default function MarketingHub() {
     mutationFn: (id) => AdSlot.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['adslots'] }); setDeleteSlotId(null); },
   });
+
+  const openCreateSlot = (placement = 'carousel') => {
+    setEditingSlotId(null);
+    setSlotForm({ ...EMPTY_SLOT, placement });
+    setSlotDialogOpen(true);
+  };
+  const openEditSlot = (slot) => {
+    setEditingSlotId(slot.id);
+    setSlotForm({ ...EMPTY_SLOT, ...slot });
+    setSlotDialogOpen(true);
+  };
 
   // Mutations — Sponsored Announcements
   const createPost = useMutation({
@@ -665,7 +682,7 @@ export default function MarketingHub() {
         expanded={expandedSection === 'ads'}
         onToggle={() => toggle('ads')}
         action={
-          <Button size="sm" onClick={() => { setSlotForm(EMPTY_SLOT); setSlotDialogOpen(true); }} className="flex items-center gap-1.5">
+          <Button size="sm" onClick={() => openCreateSlot('carousel')} className="flex items-center gap-1.5">
             <Plus className="w-3.5 h-3.5" /> Add Slot
           </Button>
         }
@@ -729,12 +746,20 @@ export default function MarketingHub() {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <button
-                        onClick={() => setDeleteSlotId(slot.id)}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEditSlot(slot)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-amber hover:bg-amber/10 transition-colors"
+                        >
+                          <FileEdit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteSlotId(slot.id)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -752,7 +777,7 @@ export default function MarketingHub() {
         expanded={expandedSection === 'footer-ads'}
         onToggle={() => toggle('footer-ads')}
         action={
-          <Button size="sm" onClick={() => { setSlotForm({ ...EMPTY_SLOT, placement: 'footer-strip' }); setSlotDialogOpen(true); }} className="flex items-center gap-1.5">
+          <Button size="sm" onClick={() => openCreateSlot('footer-strip')} className="flex items-center gap-1.5">
             <Plus className="w-3.5 h-3.5" /> Add Slot
           </Button>
         }
@@ -799,12 +824,20 @@ export default function MarketingHub() {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <button
-                        onClick={() => setDeleteSlotId(slot.id)}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEditSlot(slot)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-amber hover:bg-amber/10 transition-colors"
+                        >
+                          <FileEdit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteSlotId(slot.id)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -970,14 +1003,21 @@ export default function MarketingHub() {
         </div>
       </Section>
 
-      {/* ── Add Ad Slot Dialog ── */}
-      <Dialog open={slotDialogOpen} onOpenChange={setSlotDialogOpen}>
+      {/* ── Add/Edit Ad Slot Dialog ── */}
+      <Dialog open={slotDialogOpen} onOpenChange={(open) => { setSlotDialogOpen(open); if (!open) { setEditingSlotId(null); setSlotForm(EMPTY_SLOT); } }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>New {slotForm.placement === 'footer-strip' ? 'Footer Strip' : 'Ad Carousel'} Slot</DialogTitle>
+            <DialogTitle>
+              {editingSlotId ? 'Edit' : 'New'} {slotForm.placement === 'footer-strip' ? 'Footer Strip' : 'Ad Carousel'} Slot
+            </DialogTitle>
           </DialogHeader>
           <form
-            onSubmit={(e) => { e.preventDefault(); if (!slotForm.company || !slotForm.headline) return; createSlot.mutate(slotForm); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!slotForm.company || !slotForm.headline) return;
+              if (editingSlotId) updateSlot.mutate({ id: editingSlotId, data: slotForm });
+              else createSlot.mutate(slotForm);
+            }}
             className="space-y-3 pt-1"
           >
             <div className="grid grid-cols-2 gap-3">
@@ -1037,13 +1077,37 @@ export default function MarketingHub() {
                 />
               </div>
               <div className="col-span-2">
-                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Logo URL</label>
-                <Input
-                  placeholder="https://…/logo.png"
+                <ImageUploadOrUrlField
+                  label="Logo"
                   value={slotForm.logo_url}
-                  onChange={e => setSlotForm(f => ({ ...f, logo_url: e.target.value }))}
+                  onChange={v => setSlotForm(f => ({ ...f, logo_url: v }))}
+                  ownerId={editingSlotId || slotForm.exhibitor_id}
+                  purpose="adslot"
                 />
               </div>
+              {slotForm.placement === 'carousel' && (
+                <div className="col-span-2 space-y-2 rounded-lg border border-border p-3">
+                  <ImageUploadOrUrlField
+                    label="Background/Cutout Image (optional)"
+                    value={slotForm.image_url}
+                    onChange={v => setSlotForm(f => ({ ...f, image_url: v }))}
+                    ownerId={editingSlotId || slotForm.exhibitor_id}
+                    purpose="adslot"
+                  />
+                  {slotForm.image_url && (
+                    <div>
+                      <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Image Style</label>
+                      <Select value={slotForm.image_type || 'bg'} onValueChange={v => setSlotForm(f => ({ ...f, image_type: v }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bg">Full background photo</SelectItem>
+                          <SelectItem value="cutout">Cutout on gradient</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="col-span-2">
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Destination URL</label>
                 <Input
@@ -1054,9 +1118,11 @@ export default function MarketingHub() {
               </div>
             </div>
             <DialogFooter className="pt-1">
-              <Button type="button" variant="outline" onClick={() => setSlotDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={createSlot.isPending}>
-                {createSlot.isPending ? 'Saving…' : 'Create Slot'}
+              <Button type="button" variant="outline" onClick={() => { setSlotDialogOpen(false); setEditingSlotId(null); setSlotForm(EMPTY_SLOT); }}>Cancel</Button>
+              <Button type="submit" disabled={createSlot.isPending || updateSlot.isPending}>
+                {editingSlotId
+                  ? (updateSlot.isPending ? 'Saving…' : 'Save Changes')
+                  : (createSlot.isPending ? 'Saving…' : 'Create Slot')}
               </Button>
             </DialogFooter>
           </form>

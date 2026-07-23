@@ -412,6 +412,30 @@ export default function AdminPanel() {
             </div>
             <p className="text-[11px] text-muted-foreground">Shown below the hero on the home page. YouTube/Vimeo embed URL (e.g. youtube.com/embed/VIDEO_ID) or a direct .mp4 link.</p>
           </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Star className="w-3 h-3" /> Platform operating window (home page hero)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={settingValue('eventDatesLabel')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, eventDatesLabel: ev.target.value }))}
+                placeholder="01 Aug 2026 – 30 May 2027"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'eventDatesLabel' || !('eventDatesLabel' in settingsDraft)}
+                onClick={() => saveSetting('eventDatesLabel')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'eventDatesLabel' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Shown as the date pill on the home page hero. This is the digital platform's operating window, not the physical show's fixed dates — Event Info, Magazine, and Schedule pages keep their own dates and are unaffected.</p>
+          </div>
         </div>
       </div>
 

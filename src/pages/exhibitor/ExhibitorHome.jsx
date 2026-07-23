@@ -136,6 +136,7 @@ export default function ExhibitorHome() {
       contact_email: myBooth.contact_email || '',
       phone: myBooth.phone || '',
       website: myBooth.website || '',
+      video_url: myBooth.video_url || '',
       specialties: (myBooth.specialties || []).join(', '),
       certifications: (myBooth.certifications || []).join(', '),
       faq: myBooth.faq?.length ? myBooth.faq : [],
@@ -323,6 +324,20 @@ export default function ExhibitorHome() {
                 className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
               />
             </div>
+
+            {isEnhancedPlus && (
+              <div className="pt-2 border-t border-border">
+                <label className="text-xs text-muted-foreground font-medium block mb-1">Company Video URL</label>
+                <input
+                  type="url"
+                  value={editForm.video_url || ''}
+                  placeholder="https://www.youtube.com/embed/… or https://player.vimeo.com/video/…"
+                  onChange={e => setEditForm(f => ({ ...f, video_url: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Shown as an embedded video on your public booth page. Use a YouTube/Vimeo embed URL, not a regular watch link.</p>
+              </div>
+            )}
 
             {isPremiumPkg && (
               <div className="pt-2 border-t border-border space-y-3">
