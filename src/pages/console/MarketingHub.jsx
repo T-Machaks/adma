@@ -1083,6 +1083,7 @@ export default function MarketingHub() {
                   onChange={v => setSlotForm(f => ({ ...f, logo_url: v }))}
                   ownerId={editingSlotId || slotForm.exhibitor_id}
                   purpose="adslot"
+                  preset="logo"
                 />
               </div>
               {slotForm.placement === 'carousel' && (
@@ -1093,6 +1094,7 @@ export default function MarketingHub() {
                     onChange={v => setSlotForm(f => ({ ...f, image_url: v }))}
                     ownerId={editingSlotId || slotForm.exhibitor_id}
                     purpose="adslot"
+                    preset={slotForm.image_type === 'cutout' ? 'cutout' : 'banner'}
                   />
                   {slotForm.image_url && (
                     <div>

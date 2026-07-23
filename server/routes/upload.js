@@ -93,11 +93,13 @@ r.post('/exhibitor-logo-url', async (req, res) => {
 
 r.post('/marketing-image-url', async (req, res) => {
   try {
-    const { ownerId, purpose } = req.body;
+    const { ownerId, purpose, format } = req.body;
     if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
 
-    const key = `marketing-images/${purpose || 'misc'}/${ownerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-    const { uploadUrl, publicUrl } = await createPresignedPut(key, 'image/jpeg');
+    const ext = format === 'png' ? 'png' : 'jpg';
+    const contentType = format === 'png' ? 'image/png' : 'image/jpeg';
+    const key = `marketing-images/${purpose || 'misc'}/${ownerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, contentType);
     res.json({ uploadUrl, publicUrl });
   } catch (e) {
     res.status(500).json({ error: e.message });

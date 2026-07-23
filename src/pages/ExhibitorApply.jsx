@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/components/AuthLayout';
+import { standardizeImage } from '@/lib/imageUtils';
 
 const TIERS = [
   { value: 'Platinum', label: 'Platinum', desc: 'Premium positioning, maximum visibility', color: 'text-emerald-500' },
@@ -31,7 +32,7 @@ export default function ExhibitorApply() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setLogoError('');
@@ -41,20 +42,16 @@ export default function ExhibitorApply() {
       return;
     }
 
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      if (img.width !== 500 || img.height !== 500) {
-        setLogoError(`Image must be exactly 500×500 px. Yours is ${img.width}×${img.height} px.`);
-        setLogoFile(null);
-        setLogoPreview('');
-      } else {
-        setLogoFile(file);
-        setLogoPreview(URL.createObjectURL(file));
-      }
-    };
-    img.src = url;
+    try {
+      const blob = await standardizeImage(file, 'logo');
+      const standardized = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.png', { type: 'image/png' });
+      setLogoFile(standardized);
+      setLogoPreview(URL.createObjectURL(standardized));
+    } catch {
+      setLogoError('Could not process that image — please try a different file.');
+      setLogoFile(null);
+      setLogoPreview('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -62,7 +59,7 @@ export default function ExhibitorApply() {
     setError('');
 
     if (!form.tier)           return setError('Please select a tier.');
-    if (!logoFile)            return setError('Please upload your 500×500 logo.');
+    if (!logoFile)            return setError('Please upload your company logo.');
     if (form.description.length > MAX_DESC) return setError(`Description must be ${MAX_DESC} characters or fewer.`);
     if (form.password !== form.confirmPassword) return setError('Passwords do not match.');
     if (form.password.length < 6) return setError('Password must be at least 6 characters.');
@@ -198,7 +195,7 @@ export default function ExhibitorApply() {
 
         {/* Logo upload */}
         <div className="space-y-2">
-          <Label>Company logo <span className="text-muted-foreground font-normal">(500×500 px, PNG/JPG)</span></Label>
+          <Label>Company logo <span className="text-muted-foreground font-normal">(auto-cropped to 500×500 px PNG)</span></Label>
           <div
             className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors
               ${logoError ? 'border-destructive/50 bg-destructive/5' : 'border-border hover:border-muted-foreground/50'}`}
@@ -214,7 +211,7 @@ export default function ExhibitorApply() {
               <div className="flex flex-col items-center gap-2 py-2">
                 <FileImage className="w-8 h-8 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">Click to upload logo</p>
-                <p className="text-xs text-muted-foreground/60">Must be exactly 500×500 px</p>
+                <p className="text-xs text-muted-foreground/60">Any image — we'll auto-crop it to a 500×500 square</p>
               </div>
             )}
           </div>

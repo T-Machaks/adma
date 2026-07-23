@@ -291,6 +291,7 @@ export default function ExhibitorTenders() {
                           onChange={v => updateMutation.mutate({ id: t.id, data: { display_image_url: v } })}
                           ownerId={t.id}
                           purpose="tender"
+                          preset="banner"
                         />
                       )}
                     </div>

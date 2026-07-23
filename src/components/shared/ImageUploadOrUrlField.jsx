@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { ImagePlus, X, Link2 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
-import { resizeImageToBlob } from '@/lib/imageUtils';
+import { standardizeImage, IMAGE_PRESETS, IMAGE_PRESET_LABELS } from '@/lib/imageUtils';
 
-// Reusable image input: upload a file (resized + presigned-PUT to S3 via the
-// generic /api/upload/marketing-image-url route) or paste a public URL directly.
-// `ownerId` namespaces the S3 key (e.g. exhibitor id, ad slot id); `purpose` is
-// a short tag ('adslot'|'job'|'tender'|'collab') used only for key organisation.
-export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label }) {
+// Reusable image input: upload a file (auto-cropped/fit to the given preset's standard
+// dimensions and format, then presigned-PUT to S3 via /api/upload/marketing-image-url)
+// or paste a public URL directly. `ownerId` namespaces the S3 key (e.g. exhibitor id, ad
+// slot id); `purpose` is a short tag ('adslot'|'job'|'tender'|'collab') used only for key
+// organisation. `preset` picks the standard spec from IMAGE_PRESETS ('logo'|'banner'|'cutout').
+export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label, preset = 'banner' }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+
+  const presetSpec = IMAGE_PRESETS[preset] || IMAGE_PRESETS.banner;
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -17,12 +20,12 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
     setUploading(true);
     setError(null);
     try {
-      const blob = await resizeImageToBlob(file);
+      const blob = await standardizeImage(file, preset);
       const { uploadUrl, publicUrl } = await apiFetch('/api/upload/marketing-image-url', {
         method: 'POST',
-        body: { ownerId: ownerId || 'new', purpose },
+        body: { ownerId: ownerId || 'new', purpose, format: presetSpec.format },
       });
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': `image/${presetSpec.format}` }, body: blob });
       if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
       onChange(publicUrl);
     } catch (err) {
@@ -73,6 +76,9 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
           </div>
         </div>
       )}
+      <p className="text-[10px] text-muted-foreground mt-1">
+        Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. Uploaded files are auto-cropped to fit — pasted URLs are used as-is.
+      </p>
       {error && <p className="text-[10px] text-red-500 mt-1">{error}</p>}
     </div>
   );

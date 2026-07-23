@@ -261,6 +261,7 @@ export default function ExhibitorCollaborations() {
                           onChange={v => updateMutation.mutate({ id: c.id, data: { display_image_url: v } })}
                           ownerId={c.id}
                           purpose="collab"
+                          preset="banner"
                         />
                       )}
                     </div>

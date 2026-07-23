@@ -298,6 +298,7 @@ export default function ExhibitorJobs() {
                           onChange={v => updateMutation.mutate({ id: job.id, data: { display_image_url: v } })}
                           ownerId={job.id}
                           purpose="job"
+                          preset="banner"
                         />
                       )}
                     </div>

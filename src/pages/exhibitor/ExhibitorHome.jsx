@@ -807,6 +807,7 @@ export default function ExhibitorHome() {
                     onChange={v => setAdForm(f => ({ ...f, logo_url: v }))}
                     ownerId={myBooth.id}
                     purpose="adslot"
+                    preset="logo"
                   />
                   <ImageUploadOrUrlField
                     label="Background/Cutout Image (optional)"
@@ -814,7 +815,21 @@ export default function ExhibitorHome() {
                     onChange={v => setAdForm(f => ({ ...f, image_url: v }))}
                     ownerId={myBooth.id}
                     purpose="adslot"
+                    preset={adForm.image_type === 'cutout' ? 'cutout' : 'banner'}
                   />
+                  {adForm.image_url && (
+                    <div>
+                      <label className="text-xs text-muted-foreground font-medium block mb-1">Image Style</label>
+                      <select
+                        value={adForm.image_type || 'bg'}
+                        onChange={e => setAdForm(f => ({ ...f, image_type: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                      >
+                        <option value="bg">Full background photo</option>
+                        <option value="cutout">Cutout on gradient</option>
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs text-muted-foreground font-medium block mb-1">Destination URL</label>
                     <input
