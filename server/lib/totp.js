@@ -1,7 +1,7 @@
 import { generateSecret as _generateSecret, generateURI, verify } from 'otplib';
 import QRCode from 'qrcode';
 
-const ISSUER = 'ADMA Agri Show 2026';
+const ISSUER = 'ADMA Digital';
 
 export function generateSecret() {
   return _generateSecret();

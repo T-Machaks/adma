@@ -1,4 +1,4 @@
-// ADMA Agri Show — Service Worker with offline support
+// ADMA Digital — Service Worker with offline support
 // Strategy:
 //   Shell (/, manifest, logos, icons) → pre-cached on install
 //   /assets/* (hashed JS/CSS)        → cache-first (immutable)

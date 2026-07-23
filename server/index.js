@@ -63,5 +63,5 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 const PORT = 3001;
 app.listen(PORT, '127.0.0.1', () => {
-  console.log(`ADMA Agri Show API running on http://127.0.0.1:${PORT}`);
+  console.log(`ADMA Digital API running on http://127.0.0.1:${PORT}`);
 });

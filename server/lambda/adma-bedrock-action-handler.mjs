@@ -1,4 +1,4 @@
-// Lambda backing AgriBot's Bedrock Action Group for ADMA Agri Show 2026.
+// Lambda backing AgriBot's Bedrock Action Group for ADMA Digital.
 // Matches operationIds/paths in bedrock-action-schema.yaml.
 //
 // Deploy as a Node 20.x Lambda, ESM handler `adma-bedrock-action-handler.handler`.

@@ -47,7 +47,7 @@ function confirmationHtml(r) {
         <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:12px;padding:20px;margin-bottom:24px;">
           <h3 style="margin:0 0 8px;color:#92400e;font-size:15px;">Access Your Entry Ticket QR Code${qty > 1 ? 's' : ''}</h3>
           <p style="margin:0 0 16px;color:#78350f;font-size:13px;">
-            Your digital visitor badge and entry ticket QR code${qty > 1 ? 's' : ''} are available in the ADMA Agri Show app.
+            Your digital visitor badge and entry ticket QR code${qty > 1 ? 's' : ''} are available in the ADMA Digital app.
             ${qty > 1 ? `You have <strong>${qty} separate ticket codes</strong> — one per ticket purchased.` : ''}
             Log in with <strong>${r.email}</strong> to access them.
           </p>

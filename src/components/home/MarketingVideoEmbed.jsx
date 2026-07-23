@@ -40,7 +40,7 @@ export default function MarketingVideoEmbed({ url }) {
         <div className="max-w-2xl mx-auto aspect-video rounded-2xl overflow-hidden bg-black shadow-lg">
           <iframe
             src={url}
-            title="ADMA Agri Show — Marketing Video"
+            title="ADMA Digital — Marketing Video"
             className="w-full h-full"
             allowFullScreen
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

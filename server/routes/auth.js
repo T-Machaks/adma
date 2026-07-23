@@ -16,13 +16,13 @@ function welcomeHtml(user) {
   return `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;">
       <div style="background:#0f2e1c;padding:32px 24px;text-align:center;">
-        <h1 style="margin:0;color:#eab308;font-size:26px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">ADMA Agri Show 2026</h1>
-        <p style="margin:8px 0 0;color:#94a3b8;font-size:13px;">Zimbabwe's Largest Agricultural Exhibition</p>
+        <h1 style="margin:0;color:#eab308;font-size:26px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">ADMA Digital</h1>
+        <p style="margin:8px 0 0;color:#94a3b8;font-size:13px;">The Digital Platform for the ADMA Agri Show</p>
       </div>
       <div style="padding:32px 24px;">
         <h2 style="margin:0 0 6px;color:#111;font-size:20px;">Account Created ✓</h2>
         <p style="margin:0 0 24px;color:#555;font-size:15px;">
-          Hi <strong>${user.full_name}</strong>, your ADMA Agri Show account has been created with the email
+          Hi <strong>${user.full_name}</strong>, your ADMA Digital account has been created with the email
           <strong>${user.email}</strong>.
         </p>
         <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:24px;">
@@ -36,7 +36,7 @@ function welcomeHtml(user) {
         <a href="${APP_URL}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:13px;padding:10px 24px;border-radius:8px;text-decoration:none;">Log In →</a>
       </div>
       <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 24px;text-align:center;">
-        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">ADMA Agri Show 2026 · ART Farm, Pomona, Harare, Zimbabwe</p>
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">ADMA Digital · Zimbabwe</p>
         <p style="margin:0;color:#cbd5e1;font-size:11px;">If you did not create this account, please ignore this email.</p>
       </div>
     </div>`;
@@ -46,7 +46,7 @@ function resetPasswordHtml(resetUrl) {
   return `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
       <h2 style="margin:0 0 8px;color:#111">Reset your password</h2>
-      <p style="margin:0 0 24px;color:#555">Click the button below to set a new password for your ADMA Agri Show account. This link expires in 30 minutes.</p>
+      <p style="margin:0 0 24px;color:#555">Click the button below to set a new password for your ADMA Digital account. This link expires in 30 minutes.</p>
       <a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Reset Password →</a>
       <p style="margin:24px 0 0;font-size:13px;color:#888">If you didn't request this, you can safely ignore this email — your password will stay unchanged.</p>
     </div>`;
@@ -144,7 +144,7 @@ router.post('/signup', async (req, res) => {
     res.status(201).json(sanitize(user));
 
     sendOtpEmail(user.email, null, {
-      subject: 'Welcome to ADMA Agri Show 2026 — Account Created',
+      subject: 'Welcome to ADMA Digital — Account Created',
       html: welcomeHtml(user),
     }).catch(e => console.error('Welcome email failed:', e.message));
   } catch (e) {
@@ -369,7 +369,7 @@ router.post('/forgot-password', async (req, res) => {
       const resetUrl = `${APP_URL}/reset-password?token=${token}`;
       try {
         await sendOtpEmail(user.email, null, {
-          subject: 'ADMA Agri Show — Reset your password',
+          subject: 'ADMA Digital — Reset your password',
           html: resetPasswordHtml(resetUrl),
         });
       } catch (mailErr) {
@@ -540,7 +540,7 @@ async function upsertOAuthUser({ email, full_name, oauth_provider, oauth_id }) {
   await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
 
   sendOtpEmail(user.email, null, {
-    subject: 'Welcome to ADMA Agri Show 2026 — Account Created',
+    subject: 'Welcome to ADMA Digital — Account Created',
     html: welcomeHtml(user),
   }).catch(e => console.error('Welcome email failed:', e.message));
 

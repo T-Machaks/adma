@@ -60,12 +60,12 @@ export default function Home() {
             04–06 June 2026
           </div>
           <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold tracking-wider mb-2">
-            <span className="gradient-text">ADMA</span> <span className="text-white">AGRI SHOW</span>
+            <span className="gradient-text">ADMA</span> <span className="text-white">DIGITAL</span>
           </h1>
-          <p className="text-slate-300 text-base mb-1">Agricultural Machinery, Inputs & Livestock Exhibition</p>
+          <p className="text-slate-300 text-base mb-1">The Digital Platform for the ADMA Agri Show</p>
           <p className="text-amber font-medium text-sm mb-6">{EVENT_CONFIG.venue}, Zimbabwe</p>
           <p className="text-slate-300 text-sm max-w-lg mx-auto leading-relaxed">
-            Zimbabwe's largest agricultural exhibition connecting machinery dealers, input suppliers, and service providers with farmers and buyers across the agricultural value chain.
+            Connecting machinery dealers, input suppliers, and service providers with farmers and buyers across Zimbabwe's agricultural value chain — online, year-round.
           </p>
           <div className="mt-6 flex justify-center">
             <div className="flex gap-3 glass rounded-2xl p-2">

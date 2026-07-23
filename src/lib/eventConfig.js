@@ -1,9 +1,9 @@
-// Single source of truth for ADMA Agri Show-specific configuration.
+// Single source of truth for ADMA Digital-specific configuration.
 // Swap this file to white-label the platform for a different event.
 // Event content (exhibitors, sponsors, announcements, ad slots) is served from
 // the database via backend REST routes — it does not belong here.
 
-const NAME   = 'ADMA Agri Show';
+const NAME   = 'ADMA Digital';
 const YEAR   = 2026;
 const PREFIX = 'adma';
 const CDN    = 'https://adma-zw.s3.af-south-1.amazonaws.com/uploads/2026';

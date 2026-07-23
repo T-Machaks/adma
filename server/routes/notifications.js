@@ -36,7 +36,7 @@ function header(preheader = '') {
   return `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;">
     <div style="background:#0f2e1c;padding:24px;text-align:center;">
-      <h1 style="margin:0;color:#eab308;font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">ADMA Agri Show 2026</h1>
+      <h1 style="margin:0;color:#eab308;font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">ADMA Digital</h1>
     </div>
     <div style="padding:28px 24px;">`;
 }
@@ -44,7 +44,7 @@ function header(preheader = '') {
 function footer() {
   return `</div>
     <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 24px;text-align:center;">
-      <p style="margin:0;color:#94a3b8;font-size:11px;">ADMA Agri Show 2026 · ART Farm, Pomona, Harare, Zimbabwe</p>
+      <p style="margin:0;color:#94a3b8;font-size:11px;">ADMA Digital · Zimbabwe</p>
     </div>
     </div>`;
 }
@@ -138,7 +138,7 @@ function announcementHtml(a, recipientName) {
     <h2 style="margin:0 0 12px;color:#111;font-size:18px;">${a.title}</h2>
     ${recipientName ? `<p style="margin:0 0 16px;color:#555;font-size:14px;">Hi <strong>${recipientName}</strong>,</p>` : ''}
     <p style="margin:0 0 20px;color:#444;font-size:14px;line-height:1.7;">${(a.body || '').replace(/\n/g, '<br>')}</p>
-    <a href="${APP_URL}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:13px;padding:10px 24px;border-radius:8px;text-decoration:none;">Open ADMA Agri Show App →</a>
+    <a href="${APP_URL}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:13px;padding:10px 24px;border-radius:8px;text-decoration:none;">Open ADMA Digital App →</a>
   ` + footer();
 }
 
@@ -161,7 +161,7 @@ r.post('/meeting', async (req, res) => {
       );
       await smsSilent(
         meeting.visitor_phone,
-        `ADMA Agri Show 2026: Meeting request with ${meeting.exhibitor_name} on ${meeting.preferred_date} at ${meeting.preferred_time} submitted. You'll be notified when confirmed.`
+        `ADMA Digital: Meeting request with ${meeting.exhibitor_name} on ${meeting.preferred_date} at ${meeting.preferred_time} submitted. You'll be notified when confirmed.`
       );
 
       // Exhibitor notification (look up contact email)
@@ -181,7 +181,7 @@ r.post('/meeting', async (req, res) => {
         if (exhibitor?.phone) {
           await smsSilent(
             exhibitor.phone,
-            `ADMA Agri Show 2026: New meeting request from ${meeting.visitor_name} for ${meeting.preferred_date} at ${meeting.preferred_time}. Log in to your portal to respond.`
+            `ADMA Digital: New meeting request from ${meeting.visitor_name} for ${meeting.preferred_date} at ${meeting.preferred_time}. Log in to your portal to respond.`
           );
         }
       }
@@ -196,8 +196,8 @@ r.post('/meeting', async (req, res) => {
       await smsSilent(
         meeting.visitor_phone,
         action === 'confirmed'
-          ? `ADMA Agri Show 2026: Your meeting with ${meeting.exhibitor_name} on ${meeting.preferred_date} at ${meeting.preferred_time} is CONFIRMED. See you there!`
-          : `ADMA Agri Show 2026: Your meeting request with ${meeting.exhibitor_name} was not accepted. You may submit a new request at ${APP_URL}/meetings`
+          ? `ADMA Digital: Your meeting with ${meeting.exhibitor_name} on ${meeting.preferred_date} at ${meeting.preferred_time} is CONFIRMED. See you there!`
+          : `ADMA Digital: Your meeting request with ${meeting.exhibitor_name} was not accepted. You may submit a new request at ${APP_URL}/meetings`
       );
     }
   } catch (e) {
@@ -216,8 +216,8 @@ r.post('/announcement', async (req, res) => {
     try {
       const result = await ddb.send(new ScanCommand({ TableName: 'adma_registrations' }));
       const registrations = result.Items || [];
-      const subject = `ADMA Agri Show 2026 [${announcement.type || 'Update'}]: ${announcement.title}`;
-      const smsBody  = `ADMA Agri Show 2026 [${announcement.type || 'Update'}]: ${announcement.title}. ${(announcement.body || '').slice(0, 120)}`;
+      const subject = `ADMA Digital [${announcement.type || 'Update'}]: ${announcement.title}`;
+      const smsBody  = `ADMA Digital [${announcement.type || 'Update'}]: ${announcement.title}. ${(announcement.body || '').slice(0, 120)}`;
 
       for (const reg of registrations) {
         await emailSilent(reg.email, subject, announcementHtml(announcement, reg.full_name));
@@ -243,7 +243,7 @@ function enquirySenderHtml(q, exName) {
       ${row('Your Message', `<span style="white-space:pre-wrap;">${q.message || '—'}</span>`)}
     </table>
     <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:16px;margin-bottom:20px;">
-      <p style="margin:0;color:#78350f;font-size:13px;">The exhibitor will review your message and contact you directly. You can also book a meeting with them at ADMA Agri Show 2026.</p>
+      <p style="margin:0;color:#78350f;font-size:13px;">The exhibitor will review your message and contact you directly. You can also book a meeting with them on ADMA Digital.</p>
     </div>
     <a href="${APP_URL}/exhibitors" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:13px;padding:10px 24px;border-radius:8px;text-decoration:none;">Browse More Exhibitors →</a>
   ` + footer();
@@ -252,7 +252,7 @@ function enquirySenderHtml(q, exName) {
 function enquiryExhibitorHtml(q) {
   return header() + `
     <h2 style="margin:0 0 6px;color:#111;font-size:18px;">New Enquiry Received</h2>
-    <p style="margin:0 0 20px;color:#555;font-size:14px;">You have received a new information request via ADMA Agri Show 2026.</p>
+    <p style="margin:0 0 20px;color:#555;font-size:14px;">You have received a new information request via ADMA Digital.</p>
     <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
       ${row('From', q.name)}
       ${q.email ? row('Email', `<a href="mailto:${q.email}" style="color:#f59e0b;">${q.email}</a>`) : ''}
@@ -288,13 +288,13 @@ r.post('/enquiry-reply', async (req, res) => {
   try {
     await emailSilent(
       enquiry.email,
-      `Reply from ${exhibitorName || enquiry.exhibitor_name} — ADMA Agri Show 2026`,
+      `Reply from ${exhibitorName || enquiry.exhibitor_name} — ADMA Digital`,
       enquiryReplyHtml(enquiry, reply, exhibitorName || enquiry.exhibitor_name)
     );
     if (enquiry.phone) {
       await smsSilent(
         enquiry.phone,
-        `ADMA Agri Show 2026: ${exhibitorName || enquiry.exhibitor_name} has replied to your enquiry: "${reply.slice(0, 120)}${reply.length > 120 ? '…' : ''}"`
+        `ADMA Digital: ${exhibitorName || enquiry.exhibitor_name} has replied to your enquiry: "${reply.slice(0, 120)}${reply.length > 120 ? '…' : ''}"`
       );
     }
   } catch (e) {
@@ -327,7 +327,7 @@ r.post('/enquiry', async (req, res) => {
     if (enquiry.phone) {
       await smsSilent(
         enquiry.phone,
-        `ADMA Agri Show 2026: Your enquiry to ${enquiry.exhibitor_name} has been received. They will be in touch with you directly.`
+        `ADMA Digital: Your enquiry to ${enquiry.exhibitor_name} has been received. They will be in touch with you directly.`
       );
     }
 
@@ -335,7 +335,7 @@ r.post('/enquiry', async (req, res) => {
     if (exhibitorEmail) {
       await emailSilent(
         exhibitorEmail,
-        `New enquiry from ${enquiry.name} — ADMA Agri Show 2026`,
+        `New enquiry from ${enquiry.name} — ADMA Digital`,
         enquiryExhibitorHtml(enquiry)
       );
     }

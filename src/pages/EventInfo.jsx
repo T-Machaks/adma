@@ -4,7 +4,7 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const FAQS = [
   { q: 'Is registration free for visitors?', a: 'General visitor access is free of charge. Some sessions may require pre-registration. Please confirm with the ADMA organising team.' },
-  { q: 'Where is the ADMA Agri Show held?', a: `${EVENT_CONFIG.eventFullName} will be held at ${EVENT_CONFIG.venue}, Zimbabwe, on 25 acres of showground. Ample parking is available on-site.` },
+  { q: 'Where is the ADMA Agri Show held?', a: `ADMA Agri Show ${EVENT_CONFIG.eventYear} will be held at ${EVENT_CONFIG.venue}, Zimbabwe, on 25 acres of showground. Ample parking is available on-site.` },
   { q: 'What are the exhibition opening hours?', a: 'The exhibition is open from 08:00 to 17:00 across the three show days. Gates open at 07:30 for early access.' },
   { q: 'Can I book meetings with exhibitors in advance?', a: 'Yes. Use the Meetings section in this app to submit a meeting request to any exhibitor. They will confirm your slot.' },
   { q: 'Is there catering available on-site?', a: 'Yes, a catering and refreshment area is available throughout the event. Various food vendors will be on-site.' },
@@ -34,7 +34,7 @@ export default function EventInfo() {
       <div className="lg:grid lg:grid-cols-2 lg:gap-5 mb-5">
         {/* Key details */}
         <div className="bg-steel text-white rounded-xl p-5 mb-5 lg:mb-0">
-          <p className="font-heading text-lg font-bold tracking-wide mb-3 text-amber">{EVENT_CONFIG.eventFullName.toUpperCase()}</p>
+          <p className="font-heading text-lg font-bold tracking-wide mb-3 text-amber">ADMA AGRI SHOW {EVENT_CONFIG.eventYear}</p>
           <div className="space-y-2">
             <InfoRow icon={Clock} label="Dates" value="04 – 06 June 2026" />
             <InfoRow icon={Clock} label="Opening Hours" value="08:00 – 17:00 daily (Gates: 07:30)" />

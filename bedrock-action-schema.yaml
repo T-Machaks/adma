@@ -1,8 +1,8 @@
 openapi: "3.0.0"
 info:
-  title: ADMA Agri Show 2026 Agent API
+  title: ADMA Digital Agent API
   version: "1.0"
-  description: "Live API actions for AgriBot, the ADMA Agri Show 2026 AI assistant. Event: ADMA Agri Show 2026, ART Farm, Pomona, Harare, Zimbabwe."
+  description: "Live API actions for AgriBot, the ADMA Digital AI assistant. Event: ADMA Agri Show 2026, ART Farm, Pomona, Harare, Zimbabwe."
 
 paths:
 

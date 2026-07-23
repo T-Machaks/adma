@@ -38,10 +38,10 @@ export async function sendOtpEmail(toEmail, otp, override = null) {
 
   const token = await getToken();
 
-  const subject = override?.subject ?? 'Your ADMA Agri Show verification code';
+  const subject = override?.subject ?? 'Your ADMA Digital verification code';
   const html    = override?.html ?? `
               <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
-                <h2 style="margin:0 0 8px;color:#111">ADMA Agri Show 2026</h2>
+                <h2 style="margin:0 0 8px;color:#111">ADMA Digital</h2>
                 <p style="margin:0 0 24px;color:#555">Use the code below to complete your login.</p>
                 <div style="font-size:36px;font-weight:700;letter-spacing:0.15em;text-align:center;
                             padding:24px;background:#f4f4f5;border-radius:8px;color:#111">

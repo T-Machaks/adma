@@ -1,7 +1,7 @@
 {
-  "name": "ADMA",
-  "short_name": "ADMA",
-  "description": "Zimbabwe's largest agricultural exhibition — ART Farm, Pomona, Harare.",
+  "name": "ADMA Digital",
+  "short_name": "ADMA Digital",
+  "description": "The digital platform for Zimbabwe's largest agricultural exhibition — ART Farm, Pomona, Harare.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,5 +1,5 @@
 /**
- * Run once to create all adma_* DynamoDB tables for the ADMA Agri Show app.
+ * Run once to create all adma_* DynamoDB tables for the ADMA Digital app.
  * Usage: node server/scripts/create-tables.js
  */
 import 'dotenv/config';
