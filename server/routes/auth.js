@@ -453,6 +453,52 @@ router.post('/totp/verify', async (req, res) => {
   }
 });
 
+// ── POST /api/auth/totp/fallback  — "authenticator not available" escape hatch ──
+// Converts an in-progress totp/totp_setup challenge into an email or SMS OTP
+// challenge on the same mfa_token, so the existing /otp/verify + /otp/resend
+// endpoints handle the rest exactly as they do for non-organizer logins.
+router.post('/totp/fallback', async (req, res) => {
+  try {
+    const { mfa_token, method } = req.body;
+    if (!mfa_token) return res.status(400).json({ error: 'mfa_token is required.' });
+
+    cleanExpired();
+    const entry = challengeStore.get(mfa_token);
+    if (!entry || !['totp', 'totp_setup'].includes(entry.type))
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
+
+    const user = await getById(entry.userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const target = method === 'sms' ? 'sms' : 'email';
+    if (target === 'sms' && !user.phone)
+      return res.status(400).json({ error: 'No phone number on this account.' });
+
+    if (target === 'sms') {
+      try {
+        await sendSmsOtp(user.phone);
+      } catch (smsErr) {
+        console.error('TOTP fallback SMS send failed:', smsErr.message);
+        return res.status(503).json({ error: 'Could not send SMS. Please try email instead.' });
+      }
+      challengeStore.set(mfa_token, { type: 'sms', userId: user.id, email: user.email, phone: user.phone, expiresAt: newExpiry() });
+      return res.json({ ok: true, method: 'sms', phone_hint: maskPhone(user.phone) });
+    }
+
+    const otp = generateOtp();
+    try {
+      await sendOtpEmail(user.email, otp);
+    } catch (mailErr) {
+      console.error('TOTP fallback email send failed:', mailErr.message);
+      return res.status(503).json({ error: 'Could not send verification email. Please try again.' });
+    }
+    challengeStore.set(mfa_token, { type: 'email', userId: user.id, email: user.email, phone: user.phone || '', otp, expiresAt: newExpiry() });
+    res.json({ ok: true, method: 'email', email_hint: maskEmail(user.email) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /api/auth/exhibitor-demo-login  — demo mode, no OTP step ────────
 // Checks the exhibitor's own password_hash (bcrypt) rather than a single
 // hardcoded string, so most exhibitors share the demo password (their

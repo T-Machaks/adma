@@ -32,8 +32,24 @@ function MethodBadge({ icon: Icon, label, active, disabled }) {
   );
 }
 
+// ── "Authenticator app not available" fallback links ───────────────────────
+function TotpFallbackLinks({ onFallback, disabled }) {
+  return (
+    <div className="mt-4 text-center space-y-1">
+      <p className="text-xs text-muted-foreground">Authenticator app not available?</p>
+      <div className="flex items-center justify-center gap-3 text-xs">
+        <button type="button" onClick={() => onFallback('email')} disabled={disabled}
+          className="text-primary hover:underline disabled:opacity-50">Email me a code</button>
+        <span className="text-muted-foreground">·</span>
+        <button type="button" onClick={() => onFallback('sms')} disabled={disabled}
+          className="text-primary hover:underline disabled:opacity-50">Text me a code</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Login() {
-  const { login, changePassword, verifyOtp, verifyTotp, resendOtp, setSession } = useAuth();
+  const { login, changePassword, verifyOtp, verifyTotp, resendOtp, totpFallback, setSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -216,6 +232,21 @@ export default function Login() {
     }
   };
 
+  // ── Authenticator not available — fall back to email/SMS OTP ───────────
+  const handleTotpFallback = async (method) => {
+    setError('');
+    setLoading(true);
+    const result = await totpFallback(mfaToken, method);
+    setLoading(false);
+    if (!result.success) { setError(result.error); return; }
+    setEmailHint(result.emailHint || '');
+    setPhoneHint(result.phoneHint || '');
+    setOtpMethod(result.method);
+    setQrCode('');
+    setStep('email_otp');
+    focusAfter(otpRef);
+  };
+
   const handleSocialSuccess = (userData) => {
     const result = setSession(userData);
     navigate(intendedPath || result.redirectTo, { replace: true });
@@ -329,6 +360,7 @@ export default function Login() {
             {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying…</> : 'Confirm & log in'}
           </Button>
         </form>
+        <TotpFallbackLinks onFallback={handleTotpFallback} disabled={loading} />
       </AuthLayout>
     );
   }
@@ -366,6 +398,7 @@ export default function Login() {
             {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying…</> : 'Verify & log in'}
           </Button>
         </form>
+        <TotpFallbackLinks onFallback={handleTotpFallback} disabled={loading} />
       </AuthLayout>
     );
   }

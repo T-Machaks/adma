@@ -5,8 +5,24 @@ import { useAuth } from '@/lib/AuthContext';
 import EventLogo from '@/components/layout/EventLogo';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
+// ── "Authenticator app not available" fallback links ───────────────────────
+function TotpFallbackLinks({ onFallback, disabled }) {
+  return (
+    <div className="pt-1 text-center space-y-1">
+      <p className="text-slate-500 text-[11px]">Authenticator app not available?</p>
+      <div className="flex items-center justify-center gap-3 text-xs">
+        <button type="button" onClick={() => onFallback('email')} disabled={disabled}
+          className="text-amber hover:underline disabled:opacity-50">Email me a code</button>
+        <span className="text-slate-600">·</span>
+        <button type="button" onClick={() => onFallback('sms')} disabled={disabled}
+          className="text-amber hover:underline disabled:opacity-50">Text me a code</button>
+      </div>
+    </div>
+  );
+}
+
 export default function ConsoleLogin() {
-  const { login, changePassword, verifyOtp, verifyTotp, user, hasConsoleAccess, isLoadingAuth, authChecked } = useAuth();
+  const { login, changePassword, verifyOtp, verifyTotp, totpFallback, user, hasConsoleAccess, isLoadingAuth, authChecked } = useAuth();
   const navigate = useNavigate();
 
   // Redirect already-authenticated users away from this page
@@ -138,6 +154,17 @@ export default function ConsoleLogin() {
   };
 
   const reset = () => { setStep('credentials'); setOtp(''); setTotpCode(''); setError(''); };
+
+  const handleTotpFallback = async (method) => {
+    setError('');
+    setLoading(true);
+    const result = await totpFallback(mfaToken, method);
+    setLoading(false);
+    if (!result.success) { setError(result.error); return; }
+    setOtp('');
+    setStep('email_otp');
+    focusAfter(otpRef);
+  };
 
   return (
     <div className="min-h-screen bg-steel flex flex-col items-center justify-center px-4">
@@ -312,6 +339,7 @@ export default function ConsoleLogin() {
                   {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Verifying…</> : 'Activate & continue'}
                 </button>
               </form>
+              <TotpFallbackLinks onFallback={handleTotpFallback} disabled={loading} />
             </div>
           )}
 
@@ -337,6 +365,7 @@ export default function ConsoleLogin() {
               <button type="button" onClick={reset} className="w-full text-slate-500 hover:text-slate-300 text-xs py-1 transition-colors">
                 ← Back to sign in
               </button>
+              <TotpFallbackLinks onFallback={handleTotpFallback} disabled={loading} />
             </form>
           )}
         </div>

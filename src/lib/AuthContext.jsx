@@ -186,6 +186,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const totpFallback = async (mfaToken, method) => {
+    try {
+      const res = await fetch('/api/auth/totp/fallback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mfa_token: mfaToken, method }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.error || 'Could not send code.' };
+      return { success: true, method: data.method, emailHint: data.email_hint, phoneHint: data.phone_hint };
+    } catch (e) {
+      return { success: false, error: e.message || 'Could not send code.' };
+    }
+  };
+
   const forgotPassword = async (email) => {
     try {
       const res = await fetch('/api/auth/forgot-password', {
@@ -276,6 +291,7 @@ export const AuthProvider = ({ children }) => {
       verifyOtp,
       verifyTotp,
       resendOtp,
+      totpFallback,
       forgotPassword,
       resetPassword,
       register,
