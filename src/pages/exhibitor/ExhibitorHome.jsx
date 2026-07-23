@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
+import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired } from '@/lib/subscription';
@@ -48,9 +49,9 @@ export default function ExhibitorHome() {
     queryFn: () => MeetingRequest.list('-created_date'),
   });
 
-  const { data: activeAdSlots = [] } = useQuery({
-    queryKey: ['adslots-active'],
-    queryFn: () => AdSlot.listActive(),
+  const { data: allAdSlots = [] } = useQuery({
+    queryKey: ['adslots'],
+    queryFn: () => AdSlot.list(),
   });
 
   const myBooth = exhibitors.find(
@@ -58,7 +59,10 @@ export default function ExhibitorHome() {
       || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
   ) ?? exhibitors[0];
 
-  const myAd = myBooth ? (activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null) : null;
+  // Fetches the exhibitor's own ad slot regardless of active/review state — unlike the
+  // attendee-facing carousel/footer (which only ever read AdSlot.listActive()), the
+  // exhibitor needs to see a slot that's still pending its first review or paused.
+  const myAd = myBooth ? (allAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null) : null;
   const isPremiumPkg = myBooth?.package === 'Premium';
   const standTier = myBooth ? getStandTier(myBooth) : 'Basic';
   const isEnhancedPlus = myBooth ? standTierAtLeast(myBooth, 'Enhanced') : false;
@@ -187,6 +191,49 @@ export default function ExhibitorHome() {
     await Exhibitor.update(myBooth.id, { booth_image_url: null });
     qc.invalidateQueries({ queryKey: ['exhibitors-all'] });
   };
+
+  // Ad Banner self-service — creating a new slot or editing an existing one both go
+  // through organiser review: new slots are created inactive, edits are held in
+  // `pending_changes` on the live record until the organiser approves.
+  const [adEditOpen, setAdEditOpen] = useState(false);
+  const [adForm, setAdForm] = useState({});
+
+  const openAdEdit = () => {
+    const base = myAd ? { ...myAd, ...(myAd.pending_changes || {}) } : {};
+    setAdForm({
+      company: base.company || myBooth.name || '',
+      headline: base.headline || '',
+      sub: base.sub || '',
+      label: base.label || 'Platinum Exhibitor',
+      logo_url: base.logo_url || '',
+      image_url: base.image_url || '',
+      image_type: base.image_type || 'bg',
+      url: base.url || myBooth.website || '',
+      bg: base.bg || 'from-slate-700 to-slate-900',
+    });
+    setAdEditOpen(true);
+  };
+
+  const saveAdRequest = useMutation({
+    mutationFn: async (formValues) => {
+      if (myAd) {
+        await AdSlot.update(myAd.id, { pending_changes: formValues });
+        return AdSlot.requestReview(myAd.id);
+      }
+      const created = await AdSlot.create({
+        ...formValues,
+        exhibitor_id: myBooth.id,
+        exhibitor_name: myBooth.name,
+        placement: 'carousel',
+        active: false,
+      });
+      return AdSlot.requestReview(created.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      setAdEditOpen(false);
+    },
+  });
 
   if (!myBooth) {
     return (
@@ -675,27 +722,127 @@ export default function ExhibitorHome() {
           </div>
         </div>
         <div className="p-5">
-          {isPremiumPkg && myAd ? (
+          {isPremiumPkg ? (
             <div className="space-y-3">
-              <AdBannerPreview ad={myAd} />
-              <p className="text-xs text-muted-foreground">
-                This banner rotates in the attendee home screen carousel. Click performance is tracked in{' '}
-                <a href="/exhibitor/analytics" className="text-amber font-medium hover:underline">Analytics</a>.
-              </p>
-            </div>
-          ) : isPremiumPkg ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
-              <Megaphone className="w-8 h-8 text-muted-foreground" />
-              <p className="text-sm font-medium">No ad configured</p>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                Contact the organiser to set up your carousel ad slot.
-              </p>
-              <a
-                href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Ad%20Banner%20Setup`}
-                className="mt-1 text-xs text-amber font-semibold hover:underline flex items-center gap-1"
-              >
-                Contact organiser <ArrowRight className="w-3 h-3" />
-              </a>
+              {myAd && myAd.active !== false && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Live</p>
+                  <AdBannerPreview ad={myAd} />
+                </div>
+              )}
+              {myAd?.pending_changes && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber mb-1.5">Pending Review</p>
+                  <AdBannerPreview ad={{ ...myAd, ...myAd.pending_changes }} />
+                </div>
+              )}
+              {myAd && myAd.active === false && !myAd.pending_changes && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber mb-1.5">Awaiting First Review</p>
+                  <AdBannerPreview ad={myAd} />
+                </div>
+              )}
+              {!myAd && !adEditOpen && (
+                <div className="flex flex-col items-center justify-center gap-1 py-4 text-center">
+                  <Megaphone className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">No ad configured yet</p>
+                  <p className="text-xs text-muted-foreground max-w-xs">
+                    Create your carousel ad — the organiser will review it before it goes live.
+                  </p>
+                </div>
+              )}
+
+              {!adEditOpen ? (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground flex-1">
+                    {myAd?.review_status === 'requested'
+                      ? 'Your changes are awaiting organiser review.'
+                      : myAd
+                        ? <>This banner rotates in the attendee home screen carousel. Click performance is tracked in{' '}
+                            <a href="/exhibitor/analytics" className="text-amber font-medium hover:underline">Analytics</a>.</>
+                        : ''}
+                  </p>
+                  <button
+                    onClick={openAdEdit}
+                    disabled={myAd?.review_status === 'requested'}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-amber/90 disabled:opacity-50 transition-colors"
+                  >
+                    <Edit className="w-3.5 h-3.5" /> {myAd ? 'Edit Ad' : 'Create Ad'}
+                  </button>
+                </div>
+              ) : (
+                <div className="border-t border-border pt-3 space-y-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium block mb-1">Company Name</label>
+                    <input
+                      type="text"
+                      value={adForm.company || ''}
+                      onChange={e => setAdForm(f => ({ ...f, company: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium block mb-1">Headline</label>
+                    <input
+                      type="text"
+                      value={adForm.headline || ''}
+                      placeholder="World-Class Farm Equipment"
+                      onChange={e => setAdForm(f => ({ ...f, headline: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium block mb-1">Subtext</label>
+                    <input
+                      type="text"
+                      value={adForm.sub || ''}
+                      placeholder="Visit our booth"
+                      onChange={e => setAdForm(f => ({ ...f, sub: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                    />
+                  </div>
+                  <ImageUploadOrUrlField
+                    label="Logo"
+                    value={adForm.logo_url}
+                    onChange={v => setAdForm(f => ({ ...f, logo_url: v }))}
+                    ownerId={myBooth.id}
+                    purpose="adslot"
+                  />
+                  <ImageUploadOrUrlField
+                    label="Background/Cutout Image (optional)"
+                    value={adForm.image_url}
+                    onChange={v => setAdForm(f => ({ ...f, image_url: v }))}
+                    ownerId={myBooth.id}
+                    purpose="adslot"
+                  />
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium block mb-1">Destination URL</label>
+                    <input
+                      type="url"
+                      value={adForm.url || ''}
+                      placeholder="https://company.com"
+                      onChange={e => setAdForm(f => ({ ...f, url: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Submitting sends this to the organiser for review — it won't go live until approved.</p>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => saveAdRequest.mutate(adForm)}
+                      disabled={saveAdRequest.isPending || !adForm.company || !adForm.headline}
+                      className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 touch-manipulation"
+                    >
+                      {saveAdRequest.isPending ? 'Submitting…' : 'Submit for Review'}
+                    </button>
+                    <button
+                      onClick={() => setAdEditOpen(false)}
+                      className="px-4 py-2 text-sm font-medium border border-border rounded-lg hover:bg-muted transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="relative">

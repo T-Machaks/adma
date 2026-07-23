@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { JobListing, TenderListing, Collaboration } from '@/api/entities';
-import { CheckCircle, Clock, Briefcase, FileText, Handshake, Loader2, XCircle } from 'lucide-react';
+import { JobListing, TenderListing, Collaboration, AdSlot } from '@/api/entities';
+import { CheckCircle, Clock, Briefcase, FileText, Handshake, Loader2, XCircle, Megaphone } from 'lucide-react';
 
 function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline, busy }) {
   return (
@@ -41,10 +41,12 @@ export default function PaidListingRequests() {
   const { data: jobs = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list('-created_date') });
   const { data: tenders = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list('-created_date') });
   const { data: collabs = [] } = useQuery({ queryKey: ['collaborations'], queryFn: () => Collaboration.list('-created_date') });
+  const { data: adSlots = [] } = useQuery({ queryKey: ['adslots'], queryFn: () => AdSlot.list('-created_date') });
 
   const pendingJobs = jobs.filter(j => j.interactive_status === 'requested');
   const pendingTenders = tenders.filter(t => t.interactive_status === 'requested');
   const pendingCollabs = collabs.filter(c => (c.status || 'Pending') === 'Pending');
+  const pendingAdSlots = adSlots.filter(a => a.review_status === 'requested');
 
   const activateJob = useMutation({
     mutationFn: (id) => JobListing.update(id, { interactive_status: 'active' }),
@@ -70,8 +72,18 @@ export default function PaidListingRequests() {
     mutationFn: (id) => Collaboration.update(id, { status: 'Closed' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['collaborations'] }),
   });
+  const activateAdSlot = useMutation({
+    mutationFn: (slot) => AdSlot.update(slot.id, slot.pending_changes
+      ? { ...slot.pending_changes, pending_changes: null, review_status: null }
+      : { active: true, review_status: null }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['adslots'] }),
+  });
+  const declineAdSlot = useMutation({
+    mutationFn: (id) => AdSlot.update(id, { pending_changes: null, review_status: 'declined' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['adslots'] }),
+  });
 
-  const totalPending = pendingJobs.length + pendingTenders.length + pendingCollabs.length;
+  const totalPending = pendingJobs.length + pendingTenders.length + pendingCollabs.length + pendingAdSlots.length;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -90,6 +102,26 @@ export default function PaidListingRequests() {
         </div>
       ) : (
         <div className="space-y-6">
+          {pendingAdSlots.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Ad Slots — New/Edit Review</p>
+              <div className="space-y-2">
+                {pendingAdSlots.map(a => (
+                  <RequestCard
+                    key={a.id}
+                    icon={Megaphone}
+                    title={a.company}
+                    subtitle={a.pending_changes ? (a.pending_changes.headline || a.headline) : a.headline}
+                    meta={a.pending_changes ? 'Edit to an existing live ad' : 'New ad slot'}
+                    busy={activateAdSlot.isPending || declineAdSlot.isPending}
+                    onActivate={() => activateAdSlot.mutate(a)}
+                    onDecline={() => declineAdSlot.mutate(a.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {pendingCollabs.length > 0 && (
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Partner Collaborations</p>

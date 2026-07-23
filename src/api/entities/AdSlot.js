@@ -21,4 +21,7 @@ export const AdSlot = {
   async listActive() {
     return apiFetch(`${BASE}/active`);
   },
+  async requestReview(id) {
+    return apiFetch(`${BASE}/${id}/request-review`, { method: 'POST' });
+  },
 };
