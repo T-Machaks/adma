@@ -3,10 +3,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Lock, Loader2, AlertTriangle } from "lucide-react";
+import { Lock, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function ResetPassword() {
+  const { resetPassword } = useAuth();
   const [searchParams] = useSearchParams();
   const resetToken = searchParams.get("token");
 
@@ -14,6 +16,7 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,10 +25,15 @@ export default function ResetPassword() {
       setError("Passwords do not match");
       return;
     }
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
+    const result = await resetPassword(resetToken, newPassword);
     setLoading(false);
-    window.location.href = "/login";
+    if (!result.success) { setError(result.error); return; }
+    setDone(true);
   };
 
   if (!resetToken) {
@@ -47,6 +55,20 @@ export default function ResetPassword() {
     );
   }
 
+  if (done) {
+    return (
+      <AuthLayout
+        icon={CheckCircle}
+        title="Password updated"
+        subtitle="You can now log in with your new password"
+      >
+        <Link to="/login">
+          <Button className="w-full h-12 font-medium">Continue to log in</Button>
+        </Link>
+      </AuthLayout>
+    );
+  }
+
   return (
     <AuthLayout
       icon={Lock}
@@ -56,6 +78,9 @@ export default function ResetPassword() {
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
+          {error.includes('expired') && (
+            <> <Link to="/forgot-password" className="underline font-medium">Request a new link</Link></>
+          )}
         </div>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">

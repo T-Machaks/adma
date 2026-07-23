@@ -186,6 +186,36 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email) => {
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.error || 'Something went wrong.' };
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || 'Something went wrong.' };
+    }
+  };
+
+  const resetPassword = async (token, newPassword) => {
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.error || 'Could not reset password.' };
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message || 'Could not reset password.' };
+    }
+  };
+
   const register = async (data) => {
     try {
       const res = await fetch('/api/auth/signup', {
@@ -246,6 +276,8 @@ export const AuthProvider = ({ children }) => {
       verifyOtp,
       verifyTotp,
       resendOtp,
+      forgotPassword,
+      resetPassword,
       register,
       setSession,
       logout,

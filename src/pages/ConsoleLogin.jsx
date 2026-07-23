@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { LogIn, Mail, Lock, Loader2, ShieldCheck, KeyRound } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import EventLogo from '@/components/layout/EventLogo';
@@ -195,7 +195,10 @@ export default function ConsoleLogin() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">Password</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-slate-400">Password</label>
+                  <Link to="/forgot-password" className="text-xs text-amber hover:underline">Forgot password?</Link>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <input

@@ -42,6 +42,16 @@ function welcomeHtml(user) {
     </div>`;
 }
 
+function resetPasswordHtml(resetUrl) {
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+      <h2 style="margin:0 0 8px;color:#111">Reset your password</h2>
+      <p style="margin:0 0 24px;color:#555">Click the button below to set a new password for your ADMA Agri Show account. This link expires in 30 minutes.</p>
+      <a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Reset Password →</a>
+      <p style="margin:24px 0 0;font-size:13px;color:#888">If you didn't request this, you can safely ignore this email — your password will stay unchanged.</p>
+    </div>`;
+}
+
 // Superadmins — only these accounts can hold the organizer role and add other organizers
 const SUPERADMIN_EMAILS = ['info@agrishow.co.zw', 'tamuka@tyflex.co.zw'];
 
@@ -58,6 +68,7 @@ function cleanExpired() {
 
 function newToken() { return crypto.randomUUID(); }
 function newExpiry() { return Date.now() + 10 * 60 * 1000; } // 10 min
+function newResetExpiry() { return Date.now() + 30 * 60 * 1000; } // 30 min — email link, not an in-session OTP
 function generateOtp() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
@@ -337,6 +348,68 @@ router.post('/change-password', async (req, res) => {
 
     challengeStore.set(token, { type: 'totp', userId: updatedUser.id, expiresAt: newExpiry() });
     return res.json({ totp_required: true, mfa_token: token, first_time: false });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/forgot-password  — request a reset link by email ──────
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+    // Always respond the same way whether or not the account exists, so this
+    // endpoint can't be used to enumerate registered emails.
+    const user = await findByEmail(email);
+    if (user) {
+      cleanExpired();
+      const token = newToken();
+      challengeStore.set(token, { type: 'password_reset', userId: user.id, expiresAt: newResetExpiry() });
+      const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+      try {
+        await sendOtpEmail(user.email, null, {
+          subject: 'ADMA Agri Show — Reset your password',
+          html: resetPasswordHtml(resetUrl),
+        });
+      } catch (mailErr) {
+        console.error('Password reset email failed:', mailErr.message);
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/reset-password  — consume the emailed token ───────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, new_password } = req.body;
+    if (!token || !new_password)
+      return res.status(400).json({ error: 'token and new_password are required.' });
+    if (new_password.length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+    cleanExpired();
+    const entry = challengeStore.get(token);
+    if (!entry || entry.type !== 'password_reset')
+      return res.status(401).json({ error: 'This reset link has expired or was already used. Please request a new one.' });
+
+    const user = await getById(entry.userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const password_hash = await bcrypt.hash(new_password, 10);
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { id: user.id },
+      UpdateExpression: 'SET password_hash = :p REMOVE must_change_password',
+      ExpressionAttributeValues: { ':p': password_hash },
+    }));
+
+    challengeStore.delete(token);
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
