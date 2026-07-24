@@ -8,10 +8,12 @@ import { notifyAnnouncement } from '@/api/notify';
 import {
   Megaphone, Sparkles, BarChart2, TrendingUp, MousePointerClick,
   Plus, Trash2, Download, ExternalLink, ImageIcon, Link2, Check, Play,
-  ChevronDown, ChevronUp, Layers, BookOpen, Monitor, FileEdit,
+  ChevronDown, ChevronUp, Layers, BookOpen, Monitor, FileEdit, Video,
 } from 'lucide-react';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
+import VideoAdCarousel from '@/components/home/VideoAdCarousel';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
+import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,6 +92,13 @@ const EMPTY_POST = {
   type: 'General', title: '', body: '', sponsored: true, sponsor_name: '',
 };
 
+const DURATION_TAGS = ['15s', '30s', '60s'];
+
+const EMPTY_VIDEO_SLOT = {
+  company: '', headline: '', url: '', video_url: '', duration_tag: '15s',
+  exhibitor_id: '', exhibitor_name: '', placement: 'video-carousel',
+};
+
 function exportCSV(rows, filename, headers) {
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -110,6 +119,9 @@ export default function MarketingHub() {
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [postForm, setPostForm] = useState(EMPTY_POST);
   const [deleteSlotId, setDeleteSlotId] = useState(null);
+  const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [videoSlotForm, setVideoSlotForm] = useState(EMPTY_VIDEO_SLOT);
+  const [editingVideoSlotId, setEditingVideoSlotId] = useState(null);
   const [deletePostId, setDeletePostId] = useState(null);
   const [expandedSection, setExpandedSection] = useState('magazine');
 
@@ -176,6 +188,7 @@ export default function MarketingHub() {
   const activeSlots = adSlots.filter(s => s.active !== false);
   const carouselSlots = adSlots.filter(s => !s.placement || s.placement === 'carousel');
   const footerSlots = adSlots.filter(s => s.placement === 'footer-strip');
+  const videoSlots = adSlots.filter(s => s.placement === 'video-carousel');
   const adClicks = events.filter(e => e.type === 'ad_click');
   const totalEngagements = events.length;
 
@@ -260,6 +273,34 @@ export default function MarketingHub() {
     setEditingSlotId(slot.id);
     setSlotForm({ ...EMPTY_SLOT, ...slot });
     setSlotDialogOpen(true);
+  };
+
+  // Mutations — Video Ads (same adma_adslots table, placement: 'video-carousel')
+  const createVideoSlot = useMutation({
+    mutationFn: (data) => AdSlot.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+      setVideoDialogOpen(false); setVideoSlotForm(EMPTY_VIDEO_SLOT);
+    },
+  });
+  const updateVideoSlot = useMutation({
+    mutationFn: ({ id, data }) => AdSlot.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+      setVideoDialogOpen(false); setEditingVideoSlotId(null); setVideoSlotForm(EMPTY_VIDEO_SLOT);
+    },
+  });
+  const openCreateVideoSlot = () => {
+    setEditingVideoSlotId(null);
+    setVideoSlotForm(EMPTY_VIDEO_SLOT);
+    setVideoDialogOpen(true);
+  };
+  const openEditVideoSlot = (slot) => {
+    setEditingVideoSlotId(slot.id);
+    setVideoSlotForm({ ...EMPTY_VIDEO_SLOT, ...slot });
+    setVideoDialogOpen(true);
   };
 
   // Mutations — Sponsored Announcements
@@ -866,6 +907,91 @@ export default function MarketingHub() {
         )}
       </Section>
 
+      {/* ── Video Ads ── */}
+      <Section
+        id="video-ads"
+        title="Video Ads"
+        icon={<Video className="w-4 h-4 text-amber" />}
+        expanded={expandedSection === 'video-ads'}
+        onToggle={() => toggle('video-ads')}
+        action={
+          <Button size="sm" onClick={openCreateVideoSlot} className="flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Add Video Ad
+          </Button>
+        }
+      >
+        {/* Live preview */}
+        <div className="border-b border-border bg-muted/30 px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
+            <Monitor className="w-3 h-3" /> Live Attendee Preview
+          </p>
+          <div className="-mx-1">
+            <VideoAdCarousel />
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">All active video ads play back-to-back on the home page, looping continuously.</p>
+        </div>
+
+        {videoSlots.length === 0 ? (
+          <EmptyState icon={<Video className="w-8 h-8 text-muted-foreground" />} label="No video ads configured" sub="Add a video ad to start the home page video rotation." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-xs">
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Company</th>
+                  <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Duration</th>
+                  <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden md:table-cell">Clicks</th>
+                  <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Status</th>
+                  <th className="px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {videoSlots.map(slot => (
+                  <tr key={slot.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-sm">{slot.company}</p>
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground text-xs hidden sm:table-cell">
+                      {slot.duration_tag || '15s'}
+                    </td>
+                    <td className="px-3 py-3 hidden md:table-cell">
+                      <span className="font-bold text-emerald-600">{clicksByExhibitor[slot.company] || 0}</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={slot.active !== false}
+                          onCheckedChange={(v) => toggleSlot.mutate({ id: slot.id, active: v })}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {slot.active !== false ? 'Live' : 'Paused'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEditVideoSlot(slot)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-amber hover:bg-amber/10 transition-colors"
+                        >
+                          <FileEdit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteSlotId(slot.id)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
       {/* ── Sponsored Announcements ── */}
       <Section
         id="posts"
@@ -1143,6 +1269,78 @@ export default function MarketingHub() {
                 {editingSlotId
                   ? (updateSlot.isPending ? 'Saving…' : 'Save Changes')
                   : (createSlot.isPending ? 'Saving…' : 'Create Slot')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add/Edit Video Ad Dialog ── */}
+      <Dialog open={videoDialogOpen} onOpenChange={(open) => { setVideoDialogOpen(open); if (!open) { setEditingVideoSlotId(null); setVideoSlotForm(EMPTY_VIDEO_SLOT); } }}>
+        <DialogContent className="sm:max-w-lg" onPointerDownOutside={e => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>{editingVideoSlotId ? 'Edit' : 'New'} Video Ad</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!videoSlotForm.company || !videoSlotForm.video_url) return;
+              if (editingVideoSlotId) updateVideoSlot.mutate({ id: editingVideoSlotId, data: videoSlotForm });
+              else createVideoSlot.mutate(videoSlotForm);
+            }}
+            className="space-y-3 pt-1"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company Name</label>
+                <Input
+                  placeholder="e.g. SANY Group"
+                  value={videoSlotForm.company}
+                  onChange={e => setVideoSlotForm(f => ({ ...f, company: e.target.value, exhibitor_name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Duration</label>
+                <Select value={videoSlotForm.duration_tag || '15s'} onValueChange={v => setVideoSlotForm(f => ({ ...f, duration_tag: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DURATION_TAGS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Headline <span className="normal-case font-normal text-muted-foreground/70">(optional CTA text)</span></label>
+                <Input
+                  placeholder="Learn more"
+                  value={videoSlotForm.headline}
+                  onChange={e => setVideoSlotForm(f => ({ ...f, headline: e.target.value }))}
+                />
+              </div>
+              <div className="col-span-2">
+                <VideoUploadOrUrlField
+                  label="Video"
+                  value={videoSlotForm.video_url}
+                  onChange={v => setVideoSlotForm(f => ({ ...f, video_url: v }))}
+                  ownerId={editingVideoSlotId || videoSlotForm.exhibitor_id}
+                  purpose="videoad"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Destination URL <span className="normal-case font-normal text-muted-foreground/70">(optional)</span></label>
+                <Input
+                  placeholder="https://company.com or /register"
+                  value={videoSlotForm.url}
+                  onChange={e => setVideoSlotForm(f => ({ ...f, url: e.target.value }))}
+                />
+              </div>
+            </div>
+            <DialogFooter className="pt-1">
+              <Button type="button" variant="outline" onClick={() => { setVideoDialogOpen(false); setEditingVideoSlotId(null); setVideoSlotForm(EMPTY_VIDEO_SLOT); }}>Cancel</Button>
+              <Button type="submit" disabled={createVideoSlot.isPending || updateVideoSlot.isPending || !videoSlotForm.video_url}>
+                {editingVideoSlotId
+                  ? (updateVideoSlot.isPending ? 'Saving…' : 'Save Changes')
+                  : (createVideoSlot.isPending ? 'Saving…' : 'Add Video Ad')}
               </Button>
             </DialogFooter>
           </form>

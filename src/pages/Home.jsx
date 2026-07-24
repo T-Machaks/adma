@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Announcement, Exhibitor } from '@/api/entities';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
+import VideoAdCarousel from '@/components/home/VideoAdCarousel';
 import MarketingVideoEmbed from '@/components/home/MarketingVideoEmbed';
 import VirtualBanner from '@/components/VirtualBanner';
 import CountdownBanner from '@/components/CountdownBanner';
@@ -90,6 +91,9 @@ export default function Home() {
       <div className="pt-4">
         <AdBannerCarousel />
       </div>
+
+      {/* Video ad rotation — plays back-to-back under the banner carousel */}
+      <VideoAdCarousel />
 
       {/* Virtual exhibition banner */}
       {settings.virtualExhibitionOpen && <VirtualBanner />}

@@ -106,6 +106,19 @@ r.post('/marketing-image-url', async (req, res) => {
   }
 });
 
+r.post('/video-ad-url', async (req, res) => {
+  try {
+    const { ownerId, purpose } = req.body;
+    if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
+
+    const key = `video-ads/${purpose || 'misc'}/${ownerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, 'video/mp4');
+    res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 r.post('/guide-image-url', async (req, res) => {
   try {
     const { pageNum, oldImageUrl } = req.body;
