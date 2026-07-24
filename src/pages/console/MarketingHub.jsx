@@ -1005,7 +1005,7 @@ export default function MarketingHub() {
 
       {/* ── Add/Edit Ad Slot Dialog ── */}
       <Dialog open={slotDialogOpen} onOpenChange={(open) => { setSlotDialogOpen(open); if (!open) { setEditingSlotId(null); setSlotForm(EMPTY_SLOT); } }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg" onPointerDownOutside={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>
               {editingSlotId ? 'Edit' : 'New'} {slotForm.placement === 'footer-strip' ? 'Footer Strip' : 'Ad Carousel'} Slot
