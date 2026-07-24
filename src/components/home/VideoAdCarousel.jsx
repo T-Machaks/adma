@@ -23,6 +23,11 @@ export default function VideoAdCarousel() {
     .sort((a, b) => (a.created_date || '').localeCompare(b.created_date || ''));
 
   const [idx, setIdx] = useState(0);
+  // Bumped on every advance — with just one ad, (idx + 1) % 1 is always 0, so idx alone
+  // never actually changes and React bails out of the re-render, leaving the finished
+  // video/iframe on-screen with nothing to remount or replay it. `cycle` is monotonic, so
+  // it always changes and forces a fresh remount/timer every single loop regardless.
+  const [cycle, setCycle] = useState(0);
   const [muted, setMuted] = useState(true);
   const videoRef = useRef(null);
   const timerRef = useRef(null);
@@ -31,7 +36,10 @@ export default function VideoAdCarousel() {
   const ad = ads.length ? ads[idx % ads.length] : undefined;
   const embed = ad ? isEmbedVideoUrl(ad.video_url) : false;
 
-  const advance = () => setIdx(i => (i + 1) % ads.length);
+  const advance = () => {
+    setIdx(i => (i + 1) % ads.length);
+    setCycle(c => c + 1);
+  };
 
   useEffect(() => {
     clearTimeout(timerRef.current);
@@ -39,7 +47,7 @@ export default function VideoAdCarousel() {
     timerRef.current = setTimeout(advance, DURATION_MS[ad.duration_tag] || 15000);
     return () => clearTimeout(timerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, ad?.id, embed]);
+  }, [cycle, ad?.id, embed]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
@@ -63,7 +71,7 @@ export default function VideoAdCarousel() {
 
         {embed ? (
           <iframe
-            key={ad.id}
+            key={`${ad.id}-${cycle}`}
             src={`${ad.video_url}${ad.video_url.includes('?') ? '&' : '?'}autoplay=1&mute=1`}
             className="absolute inset-0 w-full h-full"
             allow="autoplay; encrypted-media"
@@ -71,7 +79,7 @@ export default function VideoAdCarousel() {
           />
         ) : (
           <video
-            key={ad.id}
+            key={`${ad.id}-${cycle}`}
             ref={videoRef}
             src={ad.video_url}
             autoPlay
