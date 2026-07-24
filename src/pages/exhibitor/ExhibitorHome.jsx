@@ -782,7 +782,7 @@ export default function ExhibitorHome() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1">Headline</label>
+                    <label className="text-xs text-muted-foreground font-medium block mb-1">Headline <span className="text-muted-foreground/70">(optional)</span></label>
                     <input
                       type="text"
                       value={adForm.headline || ''}
@@ -792,7 +792,7 @@ export default function ExhibitorHome() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1">Subtext</label>
+                    <label className="text-xs text-muted-foreground font-medium block mb-1">Subtext <span className="text-muted-foreground/70">(optional)</span></label>
                     <input
                       type="text"
                       value={adForm.sub || ''}
@@ -844,7 +844,7 @@ export default function ExhibitorHome() {
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={() => saveAdRequest.mutate(adForm)}
-                      disabled={saveAdRequest.isPending || !adForm.company || !adForm.headline}
+                      disabled={saveAdRequest.isPending || !adForm.company}
                       className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 touch-manipulation"
                     >
                       {saveAdRequest.isPending ? 'Submitting…' : 'Submit for Review'}

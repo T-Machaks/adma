@@ -1033,7 +1033,7 @@ export default function MarketingHub() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!slotForm.company || !slotForm.headline) return;
+              if (!slotForm.company) return;
               if (editingSlotId) updateSlot.mutate({ id: editingSlotId, data: slotForm });
               else createSlot.mutate(slotForm);
             }}
@@ -1079,16 +1079,15 @@ export default function MarketingHub() {
                 </Select>
               </div>
               <div className="col-span-2">
-                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Headline</label>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Headline <span className="normal-case font-normal text-muted-foreground/70">(optional)</span></label>
                 <Input
                   placeholder="World-Class Mining Equipment"
                   value={slotForm.headline}
                   onChange={e => setSlotForm(f => ({ ...f, headline: e.target.value }))}
-                  required
                 />
               </div>
               <div className="col-span-2">
-                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Subtext</label>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Subtext <span className="normal-case font-normal text-muted-foreground/70">(optional)</span></label>
                 <Input
                   placeholder="Visit Booth A07 · Main Hall"
                   value={slotForm.sub}
