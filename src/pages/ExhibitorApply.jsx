@@ -14,6 +14,17 @@ const TIERS = [
   { value: 'Bronze',    label: 'Bronze',    desc: 'Entry-level presence',                   color: 'text-orange-700' },
 ];
 
+const PACKAGES = [
+  { value: 'Basic',    label: 'Basic',    desc: 'Logo, brief profile & contact form',              color: 'text-slate-400' },
+  { value: 'Enhanced', label: 'Enhanced', desc: 'Full profile, product gallery & analytics',        color: 'text-amber-400' },
+  { value: 'Premium',  label: 'Premium',  desc: 'Everything, plus ad carousel slot & magazine ad',  color: 'text-emerald-500' },
+];
+
+const EXHIBIT_TYPES = [
+  { value: 'physical', label: 'Physical Booth', desc: 'Stand space at the physical show' },
+  { value: 'virtual',  label: 'Virtual Only',   desc: 'Digital presence on ADMA Digital — no physical stand' },
+];
+
 const MAX_DESC = 150;
 
 export default function ExhibitorApply() {
@@ -21,7 +32,8 @@ export default function ExhibitorApply() {
   const fileRef  = useRef(null);
 
   const [form, setForm] = useState({
-    full_name: '', email: '', company: '', tier: '', description: '', password: '', confirmPassword: '',
+    full_name: '', email: '', company: '', exhibit_type: 'physical', tier: '', package: '',
+    description: '', password: '', confirmPassword: '',
   });
   const [logoFile, setLogoFile]   = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
@@ -31,6 +43,7 @@ export default function ExhibitorApply() {
   const [submitted, setSubmitted] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setExhibitType = (t) => setForm(f => ({ ...f, exhibit_type: t, tier: '', package: '' }));
 
   const handleLogoChange = async (e) => {
     const file = e.target.files?.[0];
@@ -58,7 +71,8 @@ export default function ExhibitorApply() {
     e.preventDefault();
     setError('');
 
-    if (!form.tier)           return setError('Please select a tier.');
+    if (form.exhibit_type === 'physical' && !form.tier) return setError('Please select a tier.');
+    if (form.exhibit_type === 'virtual' && !form.package) return setError('Please select a package.');
     if (!logoFile)            return setError('Please upload your company logo.');
     if (form.description.length > MAX_DESC) return setError(`Description must be ${MAX_DESC} characters or fewer.`);
     if (form.password !== form.confirmPassword) return setError('Passwords do not match.');
@@ -84,13 +98,15 @@ export default function ExhibitorApply() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          full_name:   form.full_name,
-          email:       form.email,
-          company:     form.company,
-          tier:        form.tier,
-          description: form.description,
-          logo_url:    publicUrl,
-          password:    form.password,
+          full_name:    form.full_name,
+          email:        form.email,
+          company:      form.company,
+          exhibit_type: form.exhibit_type,
+          tier:         form.exhibit_type === 'physical' ? form.tier : undefined,
+          package:      form.exhibit_type === 'virtual' ? form.package : undefined,
+          description:  form.description,
+          logo_url:     publicUrl,
+          password:     form.password,
         }),
       });
       const data = await appRes.json();
@@ -125,7 +141,7 @@ export default function ExhibitorApply() {
     <AuthLayout
       icon={Building2}
       title="Exhibitor Application"
-      subtitle="Apply to exhibit at ADMA Agri Show 2026 — subject to organizer approval"
+      subtitle="Apply for a stand at ADMA Agri Show 2026 or a virtual-only presence — subject to organizer approval"
       footer={
         <>
           Already have an account?{' '}
@@ -170,27 +186,51 @@ export default function ExhibitorApply() {
           </div>
         </div>
 
-        {/* Tier */}
+        {/* Exhibiting as */}
         <div className="space-y-2">
-          <Label>Exhibitor tier</Label>
+          <Label>Exhibiting as</Label>
           <div className="grid grid-cols-2 gap-2">
-            {TIERS.map(t => (
+            {EXHIBIT_TYPES.map(t => (
               <button
                 key={t.value}
                 type="button"
-                onClick={() => set('tier', t.value)}
+                onClick={() => setExhibitType(t.value)}
                 className={`p-3 rounded-xl border text-left transition-all ${
-                  form.tier === t.value
+                  form.exhibit_type === t.value
                     ? 'border-primary bg-primary/5 ring-1 ring-primary'
                     : 'border-border hover:border-muted-foreground/50'
                 }`}
               >
-                <p className={`text-sm font-semibold ${t.color}`}>{t.label}</p>
+                <p className="text-sm font-semibold">{t.label}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{t.desc}</p>
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Tier is subject to organizer confirmation.</p>
+        </div>
+
+        {/* Tier / Package — depends on exhibiting-as choice above */}
+        <div className="space-y-2">
+          <Label>{form.exhibit_type === 'physical' ? 'Exhibitor tier' : 'Virtual package'}</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {(form.exhibit_type === 'physical' ? TIERS : PACKAGES).map(o => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => set(form.exhibit_type === 'physical' ? 'tier' : 'package', o.value)}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  (form.exhibit_type === 'physical' ? form.tier : form.package) === o.value
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-border hover:border-muted-foreground/50'
+                }`}
+              >
+                <p className={`text-sm font-semibold ${o.color}`}>{o.label}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{o.desc}</p>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {form.exhibit_type === 'physical' ? 'Tier is subject to organizer confirmation.' : 'Package is subject to organizer confirmation.'}
+          </p>
         </div>
 
         {/* Logo upload */}

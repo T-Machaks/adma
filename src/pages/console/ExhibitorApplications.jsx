@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 const TIERS = ['Platinum', 'Gold', 'Silver', 'Bronze'];
+const PACKAGES = ['Basic', 'Enhanced', 'Premium'];
 
 const STATUS_CONFIG = {
   pending:  { label: 'Pending',  icon: Clock,        className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
@@ -16,6 +17,9 @@ const TIER_COLORS = {
   Gold:     'text-amber-500',
   Silver:   'text-slate-400',
   Bronze:   'text-orange-700',
+  Basic:    'text-slate-400',
+  Enhanced: 'text-amber-500',
+  Premium:  'text-emerald-500',
 };
 
 function StatusBadge({ status }) {
@@ -30,8 +34,9 @@ function StatusBadge({ status }) {
 }
 
 function ApplicationCard({ app, onApprove, onReject, busy }) {
+  const isVirtual = app.exhibit_type === 'virtual';
   const [open, setOpen]           = useState(false);
-  const [approvedTier, setApprovedTier] = useState(app.tier);
+  const [approvedValue, setApprovedValue] = useState(isVirtual ? app.package : app.tier);
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
 
@@ -49,7 +54,14 @@ function ApplicationCard({ app, onApprove, onReject, busy }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-sm">{app.company}</p>
-            <span className={`text-xs font-medium ${TIER_COLORS[app.tier]}`}>{app.tier}</span>
+            {isVirtual ? (
+              <>
+                <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500">Virtual Only</span>
+                <span className={`text-xs font-medium ${TIER_COLORS[app.package]}`}>{app.package}</span>
+              </>
+            ) : (
+              <span className={`text-xs font-medium ${TIER_COLORS[app.tier]}`}>{app.tier}</span>
+            )}
             <StatusBadge status={app.status} />
           </div>
           <p className="text-xs text-muted-foreground truncate">{app.full_name} · {app.email}</p>
@@ -80,15 +92,15 @@ function ApplicationCard({ app, onApprove, onReject, busy }) {
               {/* Approve */}
               <div className="flex items-center gap-2 flex-wrap">
                 <select
-                  value={approvedTier}
-                  onChange={e => setApprovedTier(e.target.value)}
+                  value={approvedValue}
+                  onChange={e => setApprovedValue(e.target.value)}
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+                  {(isVirtual ? PACKAGES : TIERS).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <Button
                   size="sm"
-                  onClick={() => onApprove(app.id, approvedTier)}
+                  onClick={() => onApprove(app.id, approvedValue, isVirtual)}
                   disabled={busy === app.id}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
@@ -130,7 +142,11 @@ function ApplicationCard({ app, onApprove, onReject, busy }) {
           )}
 
           {app.status === 'approved' && (
-            <p className="text-xs text-green-600">Approved at {app.approved_tier} tier on {new Date(app.approved_date).toLocaleDateString()}</p>
+            <p className="text-xs text-green-600">
+              {isVirtual
+                ? `Approved with ${app.approved_package} package on ${new Date(app.approved_date).toLocaleDateString()}`
+                : `Approved at ${app.approved_tier} tier on ${new Date(app.approved_date).toLocaleDateString()}`}
+            </p>
           )}
           {app.status === 'rejected' && app.rejection_reason && (
             <p className="text-xs text-muted-foreground">Reason: {app.rejection_reason}</p>
@@ -162,13 +178,13 @@ export default function ExhibitorApplications() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const handleApprove = async (id, tier) => {
+  const handleApprove = async (id, value, isVirtual) => {
     setBusy(id);
     try {
       const res = await fetch(`/api/exhibitor-applications/${id}/approve`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approved_tier: tier }),
+        body: JSON.stringify(isVirtual ? { approved_package: value } : { approved_tier: value }),
       });
       if (res.ok) { showToast('Approved — account created and email sent.'); load(); }
       else { const d = await res.json(); showToast(`Error: ${d.error}`); }
