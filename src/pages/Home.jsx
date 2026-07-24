@@ -92,9 +92,6 @@ export default function Home() {
         <AdBannerCarousel />
       </div>
 
-      {/* Video ad rotation — plays back-to-back under the banner carousel */}
-      <VideoAdCarousel />
-
       {/* Virtual exhibition banner */}
       {settings.virtualExhibitionOpen && <VirtualBanner />}
 
@@ -135,9 +132,14 @@ export default function Home() {
             </Link>
           ))}
         </div>
+      </div>
 
+      {/* Video ad rotation — placed after primary navigation so it doesn't block wayfinding */}
+      <VideoAdCarousel />
+
+      <div className="px-4 pb-2 w-full max-w-2xl lg:max-w-5xl mx-auto">
         {/* Stats strip */}
-        <div className="grid grid-cols-3 gap-3 mt-6">
+        <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Exhibitors', value: String(allExhibitors.length || 231) },
             { label: 'Booth Zones', value: String(EVENT_CONFIG.exhibitorSections.length) },
