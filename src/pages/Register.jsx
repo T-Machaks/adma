@@ -49,7 +49,7 @@ export default function Register() {
           <div>
             <p className="font-heading font-bold text-sm">Become an Exhibitor</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Apply for a physical stand at the show, or a virtual-only presence on ADMA Digital — subject to organizer approval.
+              Apply for a virtual presence on ADMA Digital — subject to organizer approval.
             </p>
           </div>
         </div>
