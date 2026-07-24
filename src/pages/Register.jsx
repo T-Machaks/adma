@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ExternalLink, UserPlus, LogIn, QrCode, CheckCircle, Ticket } from 'lucide-react';
+import { ExternalLink, UserPlus, LogIn, QrCode, CheckCircle, Ticket, Building2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -38,6 +38,27 @@ export default function Register() {
         >
           Register for the Physical Show <ExternalLink className="w-4 h-4" />
         </a>
+      </div>
+
+      {/* Exhibitor application — physical booth or virtual-only */}
+      <div className="bg-card border border-border rounded-2xl p-5 mb-4">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Building2 className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="font-heading font-bold text-sm">Become an Exhibitor</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Apply for a physical stand at the show, or a virtual-only presence on ADMA Digital — subject to organizer approval.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/exhibitor-apply"
+          className="flex items-center justify-center gap-2 bg-card border border-border text-sm font-semibold px-4 py-3 rounded-xl hover:bg-muted active:scale-95 transition-all"
+        >
+          Apply as an Exhibitor <ArrowRight className="w-4 h-4" />
+        </Link>
       </div>
 
       {/* Digital platform account — QR account-holder badge lives here */}
