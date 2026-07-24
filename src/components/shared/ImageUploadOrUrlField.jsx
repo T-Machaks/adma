@@ -3,6 +3,22 @@ import { ImagePlus, X, Link2 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import { standardizeImage, IMAGE_PRESETS, IMAGE_PRESET_LABELS } from '@/lib/imageUtils';
 
+// Aspect ratio (as a CSS class) matching each preset's target dimensions, so the preview
+// reflects roughly how the auto-cropped image will actually look, not a generic square.
+const PREVIEW_ASPECT = {
+  logo: 'aspect-square max-w-[140px]',
+  banner: 'aspect-video max-w-[280px]',
+  cutout: 'aspect-[3/4] max-w-[180px]',
+};
+
+// Checkered backdrop (instead of solid white) so PNG transparency is actually visible in
+// the preview rather than hidden behind a forced background color.
+const TRANSPARENCY_BG = {
+  backgroundImage: 'linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)',
+  backgroundSize: '16px 16px',
+  backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
+};
+
 // Reusable image input: upload a file (auto-cropped/fit to the given preset's standard
 // dimensions and format, then presigned-PUT to S3 via /api/upload/marketing-image-url)
 // or paste a public URL directly. `ownerId` namespaces the S3 key (e.g. exhibitor id, ad
@@ -11,6 +27,7 @@ import { standardizeImage, IMAGE_PRESETS, IMAGE_PRESET_LABELS } from '@/lib/imag
 export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label, preset = 'banner' }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [previewBroken, setPreviewBroken] = useState(false);
 
   const presetSpec = IMAGE_PRESETS[preset] || IMAGE_PRESETS.banner;
 
@@ -19,6 +36,7 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
     if (!file) return;
     setUploading(true);
     setError(null);
+    setPreviewBroken(false);
     try {
       const blob = await standardizeImage(file, preset);
       const { uploadUrl, publicUrl } = await apiFetch('/api/upload/marketing-image-url', {
@@ -40,22 +58,39 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
     <div>
       {label && <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">{label}</label>}
       {value ? (
-        <div className="flex items-center gap-2">
-          <div className="w-12 h-12 bg-white border border-border rounded-md overflow-hidden flex items-center justify-center flex-shrink-0">
-            <img src={value} alt="" className="w-full h-full object-contain" />
-          </div>
-          <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
-            <ImagePlus className="w-3.5 h-3.5" />
-            {uploading ? 'Uploading…' : 'Replace'}
-            <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
-          </label>
-          <button
-            type="button"
-            onClick={() => onChange('')}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+        <div className="space-y-2">
+          <div
+            className={`relative w-full rounded-lg overflow-hidden border border-border ${PREVIEW_ASPECT[preset] || PREVIEW_ASPECT.banner}`}
+            style={TRANSPARENCY_BG}
           >
-            <X className="w-3.5 h-3.5" />
-          </button>
+            {!previewBroken ? (
+              <img
+                key={value}
+                src={value}
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain"
+                onError={() => setPreviewBroken(true)}
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-[10px] text-red-500 font-medium bg-red-50 dark:bg-red-950/20 px-2 text-center">
+                Couldn't load this image
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              <ImagePlus className="w-3.5 h-3.5" />
+              {uploading ? 'Uploading…' : 'Replace'}
+              <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
+            </label>
+            <button
+              type="button"
+              onClick={() => { onChange(''); setPreviewBroken(false); }}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex gap-2">

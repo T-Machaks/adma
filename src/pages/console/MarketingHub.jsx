@@ -215,21 +215,40 @@ export default function MarketingHub() {
   };
 
   // Mutations — AdSlot
+  // Every mutation invalidates both ['adslots'] (this page's tables) and
+  // ['adslots-active'] (the Live Attendee Preview carousel embedded below, and the
+  // real homepage/footer strip) — otherwise the live preview keeps showing stale data
+  // after a create/edit/toggle until the page is manually reloaded.
   const createSlot = useMutation({
     mutationFn: (data) => AdSlot.create(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adslots'] }); setSlotDialogOpen(false); setSlotForm(EMPTY_SLOT); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+      setSlotDialogOpen(false); setSlotForm(EMPTY_SLOT);
+    },
   });
   const updateSlot = useMutation({
     mutationFn: ({ id, data }) => AdSlot.update(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adslots'] }); setSlotDialogOpen(false); setEditingSlotId(null); setSlotForm(EMPTY_SLOT); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+      setSlotDialogOpen(false); setEditingSlotId(null); setSlotForm(EMPTY_SLOT);
+    },
   });
   const toggleSlot = useMutation({
     mutationFn: ({ id, active }) => AdSlot.update(id, { active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['adslots'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+    },
   });
   const deleteSlot = useMutation({
     mutationFn: (id) => AdSlot.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['adslots'] }); setDeleteSlotId(null); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+      setDeleteSlotId(null);
+    },
   });
 
   const openCreateSlot = (placement = 'carousel') => {

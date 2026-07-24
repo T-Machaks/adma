@@ -76,11 +76,17 @@ export default function PaidListingRequests() {
     mutationFn: (slot) => AdSlot.update(slot.id, slot.pending_changes
       ? { ...slot.pending_changes, pending_changes: null, review_status: null }
       : { active: true, review_status: null }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['adslots'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+    },
   });
   const declineAdSlot = useMutation({
     mutationFn: (id) => AdSlot.update(id, { pending_changes: null, review_status: 'declined' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['adslots'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['adslots'] });
+      qc.invalidateQueries({ queryKey: ['adslots-active'] });
+    },
   });
 
   const totalPending = pendingJobs.length + pendingTenders.length + pendingCollabs.length + pendingAdSlots.length;
