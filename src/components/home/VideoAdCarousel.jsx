@@ -1,17 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdSlot } from '@/api/entities';
-import { isEmbedVideoUrl } from '@/lib/videoUtils';
+import { isEmbedVideoUrl, toLoopingEmbedUrl } from '@/lib/videoUtils';
 import { track } from '@/lib/tracking';
 import { Volume2, VolumeX, ExternalLink } from 'lucide-react';
 
 const DURATION_MS = { '15s': 15000, '30s': 30000, '60s': 60000 };
 
 // Sitewide video-ad playlist, rendered once on the home page below the image carousel.
-// All active 'video-carousel' slots play back-to-back, looping continuously: direct MP4
-// files advance on their real onEnded event, YouTube/Vimeo embeds (whose completion we
-// can't observe without loading their JS APIs) advance on a timer derived from the ad's
-// duration tag instead.
+// With more than one active ad, they play back-to-back: direct MP4 files advance on
+// their real onEnded event, YouTube/Vimeo embeds (whose completion we can't observe
+// without loading their JS APIs) advance on a timer derived from the ad's duration tag.
+// With exactly one ad, there's nothing to advance TO, so it loops natively instead —
+// the <video loop> attribute for direct files, or the platform's own loop/playlist
+// params for embeds — rather than trying to detect "ended" and remount ourselves.
 export default function VideoAdCarousel() {
   const { data: allSlots = [] } = useQuery({
     queryKey: ['adslots-active'],
@@ -23,11 +25,6 @@ export default function VideoAdCarousel() {
     .sort((a, b) => (a.created_date || '').localeCompare(b.created_date || ''));
 
   const [idx, setIdx] = useState(0);
-  // Bumped on every advance — with just one ad, (idx + 1) % 1 is always 0, so idx alone
-  // never actually changes and React bails out of the re-render, leaving the finished
-  // video/iframe on-screen with nothing to remount or replay it. `cycle` is monotonic, so
-  // it always changes and forces a fresh remount/timer every single loop regardless.
-  const [cycle, setCycle] = useState(0);
   const [muted, setMuted] = useState(true);
   const videoRef = useRef(null);
   const timerRef = useRef(null);
@@ -35,19 +32,17 @@ export default function VideoAdCarousel() {
   // Modulo-safe: avoids needing a reset effect when ads.length shrinks/grows between renders.
   const ad = ads.length ? ads[idx % ads.length] : undefined;
   const embed = ad ? isEmbedVideoUrl(ad.video_url) : false;
+  const single = ads.length === 1;
 
-  const advance = () => {
-    setIdx(i => (i + 1) % ads.length);
-    setCycle(c => c + 1);
-  };
+  const advance = () => setIdx(i => (i + 1) % ads.length);
 
   useEffect(() => {
     clearTimeout(timerRef.current);
-    if (!ad || !embed) return undefined;
+    if (!ad || !embed || single) return undefined;
     timerRef.current = setTimeout(advance, DURATION_MS[ad.duration_tag] || 15000);
     return () => clearTimeout(timerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cycle, ad?.id, embed]);
+  }, [idx, ad?.id, embed, single]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
@@ -58,6 +53,9 @@ export default function VideoAdCarousel() {
   const handleClick = () => {
     if (ad.exhibitor_id) track(ad.exhibitor_id, ad.exhibitor_name || ad.company, 'ad_click', 'home_carousel');
   };
+
+  const embedBase = single ? toLoopingEmbedUrl(ad.video_url) : ad.video_url;
+  const embedSrc = `${embedBase}${embedBase.includes('?') ? '&' : '?'}autoplay=1&mute=1`;
 
   return (
     <div className="px-4 mb-4 max-w-2xl lg:max-w-6xl mx-auto">
@@ -71,21 +69,22 @@ export default function VideoAdCarousel() {
 
         {embed ? (
           <iframe
-            key={`${ad.id}-${cycle}`}
-            src={`${ad.video_url}${ad.video_url.includes('?') ? '&' : '?'}autoplay=1&mute=1`}
+            key={ad.id}
+            src={embedSrc}
             className="absolute inset-0 w-full h-full"
             allow="autoplay; encrypted-media"
             title={ad.company}
           />
         ) : (
           <video
-            key={`${ad.id}-${cycle}`}
+            key={ad.id}
             ref={videoRef}
             src={ad.video_url}
             autoPlay
             muted={muted}
             playsInline
-            onEnded={advance}
+            loop={single}
+            onEnded={single ? undefined : advance}
             className="absolute inset-0 w-full h-full object-contain"
           />
         )}
