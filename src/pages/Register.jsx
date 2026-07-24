@@ -26,7 +26,7 @@ export default function Register() {
           <div>
             <p className="font-heading font-bold text-sm">Physical Event Registration</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Entry passes and tickets for the physical {EVENT_CONFIG.eventName} are handled on the official show site.
+              Entry passes and tickets for the physical ADMA Agri Show are handled on the official show site.
             </p>
           </div>
         </div>

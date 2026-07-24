@@ -111,7 +111,7 @@ function RegisterInfoCard() {
           <Ticket size={15} className="text-amber shrink-0 mt-0.5" />
           <div>
             <p className="text-amber font-semibold text-xs uppercase tracking-wide">Physical Show Tickets</p>
-            <p className="text-gray-300 text-xs mt-1">Entry passes and tickets for the physical {EVENT_CONFIG.eventName} are handled on the official show site.</p>
+            <p className="text-gray-300 text-xs mt-1">Entry passes and tickets for the physical ADMA Agri Show are handled on the official show site.</p>
           </div>
         </div>
         <a

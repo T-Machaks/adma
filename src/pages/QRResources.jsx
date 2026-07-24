@@ -137,29 +137,12 @@ export default function QRResources() {
     );
   }
 
-  if (!isLoadingReg && myRegs.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
-        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-          <Ticket className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h2 className="font-heading text-2xl font-bold mb-2">No Ticket Linked</h2>
-        <p className="text-muted-foreground text-sm mb-2 max-w-xs">
-          Your account <span className="font-medium text-foreground">{user?.email}</span> does not have a registered event ticket.
-        </p>
-        <p className="text-muted-foreground text-xs mb-6 max-w-xs">
-          Register for {EVENT_CONFIG.eventFullName} to receive your entry ticket and visitor badge QR codes.
-        </p>
-        <Link to="/register" className="flex items-center gap-2 bg-amber text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-amber/90 transition-colors">
-          <Ticket className="w-4 h-4" /> Register for {EVENT_CONFIG.eventFullName}
-        </Link>
-        <p className="text-xs text-muted-foreground mt-4">
-          Already registered?{' '}
-          <span className="text-amber">Contact support if your ticket isn't appearing.</span>
-        </p>
-      </div>
-    );
-  }
+  // Note: no "must have a registration" gate here — the visitor/account badge (badgeQR,
+  // just below) only depends on the signed-in account and is explicitly available with
+  // no physical ticket required (see Register.jsx). Only the Entry Ticket section further
+  // down needs a registration, and it already has its own "no ticket" empty state — gating
+  // the whole page here previously sent ticket-less account holders back and forth between
+  // this page and /register in a loop.
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-4xl mx-auto">
