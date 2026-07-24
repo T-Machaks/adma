@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AdSlot } from '@/api/entities';
 import { isEmbedVideoUrl, toLoopingEmbedUrl } from '@/lib/videoUtils';
 import { track } from '@/lib/tracking';
-import { Volume2, VolumeX, ExternalLink } from 'lucide-react';
+import { Volume2, VolumeX, ExternalLink, Play, Pause } from 'lucide-react';
 
 const DURATION_MS = { '15s': 15000, '30s': 30000, '60s': 60000 };
 
@@ -26,6 +26,7 @@ export default function VideoAdCarousel() {
 
   const [idx, setIdx] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [paused, setPaused] = useState(false);
   const videoRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -52,6 +53,12 @@ export default function VideoAdCarousel() {
 
   const handleClick = () => {
     if (ad.exhibitor_id) track(ad.exhibitor_id, ad.exhibitor_name || ad.company, 'ad_click', 'home_carousel');
+  };
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) videoRef.current.play();
+    else videoRef.current.pause();
   };
 
   const embedBase = single ? toLoopingEmbedUrl(ad.video_url) : ad.video_url;
@@ -85,17 +92,27 @@ export default function VideoAdCarousel() {
             playsInline
             loop={single}
             onEnded={single ? undefined : advance}
+            onPlay={() => setPaused(false)}
+            onPause={() => setPaused(true)}
             className="absolute inset-0 w-full h-full object-contain"
           />
         )}
 
         {!embed && (
-          <button
-            onClick={() => setMuted(m => !m)}
-            className="absolute bottom-2 right-2 z-10 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
-          >
-            {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
-          </button>
+          <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2">
+            <button
+              onClick={togglePlay}
+              className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
+            >
+              {paused ? <Play className="w-4 h-4 text-white" /> : <Pause className="w-4 h-4 text-white" />}
+            </button>
+            <button
+              onClick={() => setMuted(m => !m)}
+              className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
+            >
+              {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
+            </button>
+          </div>
         )}
 
         {ad.url && (
