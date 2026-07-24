@@ -118,8 +118,8 @@ export default function ExhibitorApply() {
         footer={<Link to="/login" className="text-primary font-medium hover:underline">← Back to login</Link>}
       >
         <div className="space-y-4 text-sm text-muted-foreground">
-          <p>Your exhibitor application for <strong className="text-foreground">{form.company}</strong> has been received.</p>
-          <p>An organizer will review your application and you'll receive an email at <strong className="text-foreground">{form.email}</strong> once a decision has been made.</p>
+          <p>Your virtual exhibitor registration for <strong className="text-foreground">{form.company}</strong> has been received.</p>
+          <p>It's subject to approval — you'll receive an email at <strong className="text-foreground">{form.email}</strong> once a decision has been made.</p>
           <p>Once approved you can log in to the Exhibitor Portal using your registered email and password.</p>
         </div>
       </AuthLayout>
@@ -129,8 +129,8 @@ export default function ExhibitorApply() {
   return (
     <AuthLayout
       icon={Building2}
-      title="Exhibitor Application"
-      subtitle="Apply for a virtual presence on ADMA Digital — subject to organizer approval"
+      title="Virtual Exhibitor Registration"
+      subtitle="Apply for a virtual presence on ADMA Digital — subject to approval"
       footer={
         <>
           Already have an account?{' '}
@@ -195,7 +195,7 @@ export default function ExhibitorApply() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Package is subject to organizer confirmation.</p>
+          <p className="text-xs text-muted-foreground">Package is subject to approval.</p>
         </div>
 
         {/* Logo upload */}
@@ -273,7 +273,7 @@ export default function ExhibitorApply() {
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">
-          Your application will be reviewed by an organizer. You'll receive an email once a decision is made.
+          Your registration is subject to approval. You'll receive an email once a decision is made.
         </p>
       </form>
     </AuthLayout>
