@@ -12,9 +12,9 @@ import { standardizeImage } from '@/lib/imageUtils';
 // still supports exhibit_type: 'physical', so re-enabling it later is just a matter of
 // bringing back the toggle UI, not touching the API.
 const PACKAGES = [
-  { value: 'Basic',    label: 'Basic',    desc: 'Logo, brief profile & contact form',              color: 'text-slate-400' },
-  { value: 'Enhanced', label: 'Enhanced', desc: 'Full profile, product gallery & analytics',        color: 'text-amber-400' },
-  { value: 'Premium',  label: 'Premium',  desc: 'Everything, plus ad carousel slot & magazine ad',  color: 'text-emerald-500' },
+  { value: 'Premium',  label: 'Premium',  desc: 'Full profile, 9-photo gallery, ad carousel slot & magazine ad', color: 'text-emerald-500' },
+  { value: 'Enhanced', label: 'Enhanced', desc: 'Full profile, product gallery & analytics',                     color: 'text-amber-400' },
+  { value: 'Basic',    label: 'Basic',    desc: 'Logo, brief profile & contact form',                            color: 'text-slate-400' },
 ];
 
 const MAX_DESC = 150;
