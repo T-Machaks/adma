@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { createPresignedPut, deleteS3Object } from '../lib/s3.js';
+import { requireAuth } from '../lib/authMiddleware.js';
 
 const r = Router();
 
-r.post('/booth-image-url', async (req, res) => {
+r.post('/booth-image-url', requireAuth, async (req, res) => {
   try {
     const { exhibitorId, oldImageUrl } = req.body;
     if (!exhibitorId) return res.status(400).json({ error: 'exhibitorId required' });
@@ -23,7 +24,7 @@ r.post('/booth-image-url', async (req, res) => {
   }
 });
 
-r.post('/gallery-image-url', async (req, res) => {
+r.post('/gallery-image-url', requireAuth, async (req, res) => {
   try {
     const { exhibitorId } = req.body;
     if (!exhibitorId) return res.status(400).json({ error: 'exhibitorId required' });
@@ -36,7 +37,7 @@ r.post('/gallery-image-url', async (req, res) => {
   }
 });
 
-r.post('/tender-document-url', async (req, res) => {
+r.post('/tender-document-url', requireAuth, async (req, res) => {
   try {
     const { exhibitorId, oldDocumentUrl } = req.body;
     if (!exhibitorId) return res.status(400).json({ error: 'exhibitorId required' });
@@ -55,7 +56,7 @@ r.post('/tender-document-url', async (req, res) => {
   }
 });
 
-r.post('/job-cv-url', async (req, res) => {
+r.post('/job-cv-url', requireAuth, async (req, res) => {
   try {
     const { jobId } = req.body;
     if (!jobId) return res.status(400).json({ error: 'jobId required' });
@@ -68,7 +69,7 @@ r.post('/job-cv-url', async (req, res) => {
   }
 });
 
-r.post('/lot-image-url', async (req, res) => {
+r.post('/lot-image-url', requireAuth, async (req, res) => {
   try {
     const { lotId } = req.body;
     if (!lotId) return res.status(400).json({ error: 'lotId required' });
@@ -81,6 +82,8 @@ r.post('/lot-image-url', async (req, res) => {
   }
 });
 
+// Deliberately public — ExhibitorApply.jsx uploads a logo as part of the exhibitor
+// application form, before the applicant has any account to authenticate with.
 r.post('/exhibitor-logo-url', async (req, res) => {
   try {
     const key = `exhibitor-logos/${Date.now()}.png`;
@@ -91,7 +94,7 @@ r.post('/exhibitor-logo-url', async (req, res) => {
   }
 });
 
-r.post('/marketing-image-url', async (req, res) => {
+r.post('/marketing-image-url', requireAuth, async (req, res) => {
   try {
     const { ownerId, purpose, format } = req.body;
     if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
@@ -106,7 +109,7 @@ r.post('/marketing-image-url', async (req, res) => {
   }
 });
 
-r.post('/video-ad-url', async (req, res) => {
+r.post('/video-ad-url', requireAuth, async (req, res) => {
   try {
     const { ownerId, purpose } = req.body;
     if (!ownerId) return res.status(400).json({ error: 'ownerId required' });
@@ -119,7 +122,7 @@ r.post('/video-ad-url', async (req, res) => {
   }
 });
 
-r.post('/guide-image-url', async (req, res) => {
+r.post('/guide-image-url', requireAuth, async (req, res) => {
   try {
     const { pageNum, oldImageUrl } = req.body;
     if (!pageNum) return res.status(400).json({ error: 'pageNum required' });

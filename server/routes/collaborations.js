@@ -2,16 +2,18 @@ import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { sendOtpEmail } from '../lib/mailer.js';
+import { requireAuth } from '../lib/authMiddleware.js';
 
 const TABLE = 'adma_collaborations';
 
 export default crudRouter(TABLE, {
   defaults: () => ({ status: 'Pending' }),
   gsiFields: { exhibitor_id: 'exhibitor-index' },
+  auth: { read: 'public', write: 'auth' },
   extraRoutes(r) {
     // POST /api/collaborations/:id/request-payment — notifies the configured
     // billing contact that a Partner Collaboration listing is awaiting payment/activation.
-    r.post('/:id/request-payment', async (req, res) => {
+    r.post('/:id/request-payment', requireAuth, async (req, res) => {
       try {
         const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
         const item = result.Item;

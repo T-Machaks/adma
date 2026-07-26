@@ -212,13 +212,18 @@ router.post('/login', async (req, res) => {
     if (user.status === 'pending')
       return res.status(403).json({ error: 'Your account is pending organizer approval.' });
 
-    // Password check — required for accounts that have one set
-    if (user.password_hash) {
-      const match = await bcrypt.compare(password || '', user.password_hash);
-      if (!match) {
-        logSecurityEvent('login_failed', { userId: user.id, email: user.email, reason: 'bad_password', ip: req.ip });
-        return res.status(401).json({ error: 'Incorrect password.' });
-      }
+    // Accounts with no password set (OAuth-only signups, exhibitor team members
+    // added without a password) must not be loggable via this endpoint at all —
+    // any password value would otherwise silently pass since there's nothing to
+    // compare against.
+    if (!user.password_hash) {
+      logSecurityEvent('login_failed', { userId: user.id, email: user.email, reason: 'no_password_set', ip: req.ip });
+      return res.status(401).json({ error: 'This account has no password set. Please sign in with Google/Microsoft/Facebook, or contact your organiser.' });
+    }
+    const match = await bcrypt.compare(password || '', user.password_hash);
+    if (!match) {
+      logSecurityEvent('login_failed', { userId: user.id, email: user.email, reason: 'bad_password', ip: req.ip });
+      return res.status(401).json({ error: 'Incorrect password.' });
     }
 
     logSecurityEvent('login_password_verified', { userId: user.id, email: user.email, role: user.role, ip: req.ip });

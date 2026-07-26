@@ -26,6 +26,8 @@ export async function createSession(user) {
       user_id: user.id,
       role: user.role,
       exhibitor_id: user.exhibitor_id, // set only for the synthetic exhibitor-login session
+      email: user.email,
+      company: user.company || '',
       created_at: new Date(now).toISOString(),
       expires_at: expiresAt.toISOString(),
       expires_at_ttl: Math.floor(expiresAt.getTime() / 1000), // DynamoDB TTL attribute (epoch seconds)

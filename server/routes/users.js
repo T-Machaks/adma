@@ -3,6 +3,7 @@ import { GetCommand, PutCommand, UpdateCommand, ScanCommand, QueryCommand } from
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { crudRouter } from '../lib/crudRouter.js';
+import { requireAuth } from '../lib/authMiddleware.js';
 
 const TABLE = 'adma_users';
 
@@ -32,7 +33,7 @@ export default crudRouter(TABLE, {
     // These are registered before crudRouter's own generic handlers for the
     // same paths, so they take priority -- strips password_hash/totp_secret
     // from every response instead of returning the raw DynamoDB item.
-    r.get('/by-email', async (req, res) => {
+    r.get('/by-email', requireAuth, async (req, res) => {
       try {
         const email = req.query.email?.toLowerCase();
         if (!email) return res.status(400).json({ error: 'email required' });
@@ -49,7 +50,7 @@ export default crudRouter(TABLE, {
       }
     });
 
-    r.post('/', async (req, res) => {
+    r.post('/', requireAuth, async (req, res) => {
       try {
         const body = { ...req.body };
         for (const f of NEVER_CLIENT_SETTABLE) delete body[f];
@@ -75,7 +76,7 @@ export default crudRouter(TABLE, {
       }
     });
 
-    r.get('/', async (req, res) => {
+    r.get('/', requireAuth, async (req, res) => {
       try {
         const { sortBy, filter: filterJson } = req.query;
         const filterObj = filterJson ? JSON.parse(decodeURIComponent(filterJson)) : null;
@@ -115,7 +116,7 @@ export default crudRouter(TABLE, {
       }
     });
 
-    r.get('/:id', async (req, res) => {
+    r.get('/:id', requireAuth, async (req, res) => {
       try {
         const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
         if (!result.Item) return res.status(404).json({ error: 'Not found' });
@@ -125,7 +126,7 @@ export default crudRouter(TABLE, {
       }
     });
 
-    r.put('/:id', async (req, res) => {
+    r.put('/:id', requireAuth, async (req, res) => {
       try {
         const body = { ...req.body };
         for (const f of NEVER_CLIENT_SETTABLE) delete body[f];

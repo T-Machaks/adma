@@ -4,8 +4,25 @@ import { crudRouter } from '../lib/crudRouter.js';
 import { nextMay30ISO } from '../lib/subscription.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
 
+// Mirrors the same email/company matching ExhibitorHome.jsx uses client-side to
+// resolve "my booth" — whichever login path put them there (regular /login or the
+// exhibitor-login picker), the session always carries email/company the same way.
+function ownsBooth(req, exhibitor) {
+  if (!req.user) return false;
+  if (req.user.role === 'organizer' || req.user.role === 'superadmin') return true;
+  // portal_locked is an organiser-only control — an exhibitor must never be able to
+  // unlock/lock their own account via a self-service edit.
+  if ('portal_locked' in req.body) return false;
+  if (req.user.role !== 'exhibitor') return false;
+  const email = req.user.email?.toLowerCase();
+  const company = req.user.company?.toLowerCase();
+  return (exhibitor.contact_email && email && exhibitor.contact_email.toLowerCase() === email)
+      || (exhibitor.name && company && exhibitor.name.toLowerCase() === company);
+}
+
 export default crudRouter('adma_exhibitors', {
   defaults: () => ({ featured: false, package: 'Basic', subscription_expires_at: nextMay30ISO() }),
+  auth: { read: 'public', write: ownsBooth },
   extraRoutes(r) {
     // Logs lock/unlock separately before falling through to crudRouter's own generic
     // PUT /:id handler (registered after extraRoutes runs) — Express runs both handlers

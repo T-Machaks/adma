@@ -3,6 +3,12 @@ import { GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { sendOtpEmail } from '../lib/mailer.js';
+import { requireAuth, requireRole } from '../lib/authMiddleware.js';
+
+function isSelfOrOrganizer(req, email) {
+  if (req.user?.role === 'organizer' || req.user?.role === 'superadmin') return true;
+  return !!req.user?.email && req.user.email.toLowerCase() === email.toLowerCase();
+}
 
 const TABLE = 'adma_registrations';
 const APP_URL = 'https://admadigital.co.zw';
@@ -91,11 +97,13 @@ export default crudRouter(TABLE, {
     checked_in: false,
     check_in_time: null,
   }),
+  auth: { read: ['organizer', 'superadmin'], write: ['organizer', 'superadmin'] },
   extraRoutes(r) {
-    r.get('/by-email', async (req, res) => {
+    r.get('/by-email', requireAuth, async (req, res) => {
       try {
         const email = req.query.email?.toLowerCase();
         if (!email) return res.status(400).json({ error: 'email required' });
+        if (!isSelfOrOrganizer(req, email)) return res.status(403).json({ error: 'You do not have permission to do that.' });
         const result = await ddb.send(new QueryCommand({
           TableName: TABLE,
           IndexName: 'email-index',
@@ -109,10 +117,11 @@ export default crudRouter(TABLE, {
       }
     });
 
-    r.get('/by-email-all', async (req, res) => {
+    r.get('/by-email-all', requireAuth, async (req, res) => {
       try {
         const email = req.query.email?.toLowerCase();
         if (!email) return res.status(400).json({ error: 'email required' });
+        if (!isSelfOrOrganizer(req, email)) return res.status(403).json({ error: 'You do not have permission to do that.' });
         let items = [];
         let lastKey;
         do {
@@ -132,7 +141,7 @@ export default crudRouter(TABLE, {
       }
     });
 
-    r.post('/confirm-email', async (req, res) => {
+    r.post('/confirm-email', requireRole('organizer', 'superadmin'), async (req, res) => {
       try {
         const { id } = req.body;
         if (!id) return res.status(400).json({ error: 'id required' });

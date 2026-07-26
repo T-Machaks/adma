@@ -7,7 +7,13 @@ export async function attachUser(req, _res, next) {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await validateSession(token);
   if (session) {
-    req.user = { id: session.user_id, role: session.role, exhibitor_id: session.exhibitor_id };
+    req.user = {
+      id: session.user_id,
+      role: session.role,
+      exhibitor_id: session.exhibitor_id,
+      email: session.email,
+      company: session.company,
+    };
   }
   next();
 }

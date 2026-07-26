@@ -3,6 +3,7 @@ import { GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 import { sendSms } from '../lib/omniflex.js';
+import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 
 const r = Router();
 const APP_URL = 'https://admadigital.co.zw';
@@ -145,7 +146,7 @@ function announcementHtml(a, recipientName) {
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // Meeting request created / status changed
-r.post('/meeting', async (req, res) => {
+r.post('/meeting', requireAuth, async (req, res) => {
   res.json({ ok: true }); // respond immediately
 
   const { meeting, action } = req.body;
@@ -206,7 +207,7 @@ r.post('/meeting', async (req, res) => {
 });
 
 // Announcement broadcast to all registrations
-r.post('/announcement', async (req, res) => {
+r.post('/announcement', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
   res.json({ ok: true }); // respond immediately, run blast in background
 
   const { announcement } = req.body;
@@ -281,7 +282,7 @@ function enquiryReplyHtml(q, reply, exName) {
   ` + footer();
 }
 
-r.post('/enquiry-reply', async (req, res) => {
+r.post('/enquiry-reply', requireAuth, async (req, res) => {
   res.json({ ok: true });
   const { enquiry, reply, exhibitorName } = req.body;
   if (!enquiry?.email || !reply) return;
@@ -345,7 +346,7 @@ r.post('/enquiry', async (req, res) => {
 });
 
 // Bulk SMS stub — logs payload, ready for OmniFlex mass-send when available
-r.post('/bulk-sms', async (req, res) => {
+r.post('/bulk-sms', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
   const { message, campaign } = req.body;
   if (!message) return res.status(400).json({ error: 'message required' });
   console.log(`[bulk-sms] campaign="${campaign}" message="${message.slice(0, 80)}…"`);

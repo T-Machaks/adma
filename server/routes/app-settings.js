@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
+import { requireRole } from '../lib/authMiddleware.js';
 
 const TABLE = 'adma_app_settings';
 const KEY = { pk: 'singleton' };
@@ -24,7 +25,7 @@ r.get('/', async (_req, res) => {
   }
 });
 
-r.put('/', async (req, res) => {
+r.put('/', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
   try {
     const entries = Object.entries(req.body).filter(([k]) => k !== 'pk');
     if (!entries.length) return res.json(DEFAULTS);

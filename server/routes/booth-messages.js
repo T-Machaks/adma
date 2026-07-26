@@ -5,4 +5,5 @@ import { crudRouter } from '../lib/crudRouter.js';
 export default crudRouter('adma_booth_messages', {
   defaults: () => ({ from_exhibitor: false }),
   gsiFields: { exhibitor_id: 'exhibitor-index' },
+  auth: { read: 'auth', write: 'auth' },
 });

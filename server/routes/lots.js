@@ -2,6 +2,7 @@ import { GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { crudRouter } from '../lib/crudRouter.js';
+import { requireAuth } from '../lib/authMiddleware.js';
 
 const TABLE = 'adma_lots';
 
@@ -16,8 +17,9 @@ function paddleFromEmail(email) {
 export default crudRouter(TABLE, {
   defaults: () => ({ status: 'Upcoming', current_bid: null, bid_count: 0, images: [] }),
   gsiFields: { auction_id: 'auction-index' },
+  auth: { read: 'public', write: ['organizer', 'superadmin'] },
   extraRoutes(r) {
-    r.post('/:id/bid', async (req, res) => {
+    r.post('/:id/bid', requireAuth, async (req, res) => {
       try {
         const { bidder_name, bidder_email, amount } = req.body;
         if (!bidder_name || !bidder_email || !amount) {

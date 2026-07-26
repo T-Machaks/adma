@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ScanCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
+import { requireRole } from '../lib/authMiddleware.js';
 
 const TABLE = 'adma_magazine_pages';
 const r = Router();
@@ -14,7 +15,7 @@ r.get('/', async (_req, res) => {
   }
 });
 
-r.put('/:pageNum', async (req, res) => {
+r.put('/:pageNum', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
   try {
     const page_num = req.params.pageNum;
     const item = { page_num, ...req.body, updated_at: new Date().toISOString() };

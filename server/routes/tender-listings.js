@@ -2,16 +2,18 @@ import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { sendOtpEmail } from '../lib/mailer.js';
+import { requireAuth } from '../lib/authMiddleware.js';
 
 const TABLE = 'adma_tender_listings';
 
 export default crudRouter(TABLE, {
   defaults: () => ({ status: 'Open' }),
   gsiFields: { exhibitor_id: 'exhibitor-index' },
+  auth: { read: 'public', write: 'auth' },
   extraRoutes(r) {
     // POST /api/tender-listings/:id/request-payment — requests activation of the paid
     // document-attachment feature for this tender listing.
-    r.post('/:id/request-payment', async (req, res) => {
+    r.post('/:id/request-payment', requireAuth, async (req, res) => {
       try {
         const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
         const item = result.Item;

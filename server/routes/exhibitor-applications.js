@@ -5,6 +5,7 @@ import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 import { nextMay30ISO } from '../lib/subscription.js';
+import { requireRole } from '../lib/authMiddleware.js';
 
 const APP_TABLE  = 'adma_exhibitor_applications';
 const USER_TABLE = 'adma_users';
@@ -72,7 +73,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/exhibitor-applications  — organizer only, list all applications
-router.get('/', async (req, res) => {
+router.get('/', requireRole('organizer', 'superadmin'), async (req, res) => {
   try {
     const { status } = req.query;
     let result;
@@ -95,7 +96,7 @@ router.get('/', async (req, res) => {
 });
 
 // PUT /api/exhibitor-applications/:id/approve  — organizer only
-router.put('/:id/approve', async (req, res) => {
+router.put('/:id/approve', requireRole('organizer', 'superadmin'), async (req, res) => {
   try {
     const { approved_tier, approved_package } = req.body;
 
@@ -190,7 +191,7 @@ router.put('/:id/approve', async (req, res) => {
 });
 
 // PUT /api/exhibitor-applications/:id/reject  — organizer only
-router.put('/:id/reject', async (req, res) => {
+router.put('/:id/reject', requireRole('organizer', 'superadmin'), async (req, res) => {
   try {
     const { reason } = req.body;
 
