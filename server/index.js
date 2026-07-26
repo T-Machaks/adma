@@ -32,6 +32,7 @@ import auctions from './routes/auctions.js';
 import lots from './routes/lots.js';
 import bids from './routes/bids.js';
 import collaborations from './routes/collaborations.js';
+import cspReport from './routes/csp-report.js';
 
 const app = express();
 
@@ -63,8 +64,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https://adma-zw.s3.af-south-1.amazonaws.com'],
-      mediaSrc: ["'self'", 'https://adma-zw.s3.af-south-1.amazonaws.com'],
+      imgSrc: ["'self'", 'data:', 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com'],
+      mediaSrc: ["'self'", 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com'],
       frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://accounts.google.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       // 'unsafe-inline' for styles only — the app uses inline style={{...}} props and a
@@ -136,6 +137,7 @@ app.use('/api/auctions',               auctions);
 app.use('/api/lots',                   lots);
 app.use('/api/bids',                   bids);
 app.use('/api/collaborations',         collaborations);
+app.use('/api/csp-report',             cspReport);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
