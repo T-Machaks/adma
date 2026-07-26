@@ -16,6 +16,7 @@ import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired } from '@/lib/subscription';
+import { toEmbedUrl } from '@/lib/videoUtils';
 
 const STATUS_STYLES = {
   Pending:   { cls: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -733,11 +734,11 @@ export default function ExhibitorHome() {
                 <input
                   type="url"
                   value={videoDraft}
-                  placeholder="https://www.youtube.com/embed/… or https://player.vimeo.com/video/…"
-                  onChange={e => setVideoDraft(e.target.value)}
+                  placeholder="Paste a YouTube or Vimeo link…"
+                  onChange={e => setVideoDraft(toEmbedUrl(e.target.value))}
                   className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
                 />
-                <p className="text-[11px] text-muted-foreground">Use a YouTube/Vimeo embed URL, not a regular watch link.</p>
+                <p className="text-[11px] text-muted-foreground">Any YouTube or Vimeo link works — it's converted automatically.</p>
                 <div className="flex gap-2">
                   <button
                     type="button"
