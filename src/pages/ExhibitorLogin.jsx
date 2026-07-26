@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Store, ChevronDown, Search, LogIn, FlaskConical, Eye, EyeOff } from 'lucide-react';
+import { Store, ChevronDown, Search, LogIn, Info, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import EventLogo from '@/components/layout/EventLogo';
-
-const DEMO_PASSWORD = '@AgriShow2026';
 
 export default function ExhibitorLogin() {
   const navigate = useNavigate();
@@ -21,7 +19,7 @@ export default function ExhibitorLogin() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/exhibitors/demo-list')
+    fetch('/api/exhibitors/login-list')
       .then(r => r.json())
       .then(data => { setExhibitors(Array.isArray(data) ? data : []); })
       .catch(() => setExhibitors([]))
@@ -46,10 +44,10 @@ export default function ExhibitorLogin() {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/exhibitor-demo-login', {
+      const res = await fetch('/api/auth/exhibitor-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: selected.user_id, password }),
+        body: JSON.stringify({ exhibitor_id: selected.id, password }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Login failed.'); return; }
@@ -76,10 +74,10 @@ export default function ExhibitorLogin() {
           </div>
         </div>
 
-        {/* Demo notice */}
+        {/* Login notice */}
         <div className="flex items-start gap-2 bg-amber/10 border border-amber/30 rounded-xl px-4 py-3 mb-6 text-amber text-sm">
-          <FlaskConical className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>Demo mode — select your company and use the shared demo password.</span>
+          <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>Select your company and sign in. Don't have your password yet? Contact the organiser for access.</span>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col gap-5">
@@ -143,13 +141,13 @@ export default function ExhibitorLogin() {
 
           {/* Password */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-slate-300 text-sm font-medium">Demo Password</label>
+            <label className="text-slate-300 text-sm font-medium">Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => { setPassword(e.target.value); setError(''); }}
-                placeholder="Enter demo password"
+                placeholder="Enter your password"
                 className="w-full bg-white/10 border border-white/20 rounded-xl px-4 pr-11 py-3 text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-amber/50 focus:border-amber/50 transition-all"
               />
               <button

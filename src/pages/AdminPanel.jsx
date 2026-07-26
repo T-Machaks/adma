@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, MeetingRequest, Exhibitor } from '@/api/entities';
-import { Shield, User, Building2, Star, Mic, Crown, Lock, Eye, EyeOff, CheckCircle, Settings, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle } from 'lucide-react';
+import { Shield, User, Building2, Star, Mic, Crown, Lock, Unlock, Eye, EyeOff, CheckCircle, Settings, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
@@ -75,6 +75,20 @@ export default function AdminPanel() {
       setSaveError(e.message);
     } finally {
       setSavingPackageId(null);
+    }
+  };
+
+  const [savingLockId, setSavingLockId] = useState(null);
+  const toggleLock = async (id, locked) => {
+    setSavingLockId(id);
+    setSaveError(null);
+    try {
+      await Exhibitor.update(id, { portal_locked: locked });
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSavingLockId(null);
     }
   };
 
@@ -229,7 +243,7 @@ export default function AdminPanel() {
       <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
         <div className="px-4 py-3 border-b border-border">
           <p className="font-heading text-sm font-bold uppercase tracking-wide">Exhibitor Portal Logins</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Set the login email for each exhibitor so they only see their own meeting requests</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Set the login email for each exhibitor so they only see their own meeting requests. Lock an exhibitor to block all portal access, including the superadmin override.</p>
         </div>
 
         <div className="px-4 py-3 border-b border-border">
@@ -271,6 +285,11 @@ export default function AdminPanel() {
                       ) : (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 flex-shrink-0">Active</span>
                       )}
+                      {e.portal_locked && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 flex-shrink-0">
+                          <Lock className="w-2.5 h-2.5" /> Locked
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <Mail className="w-3 h-3 text-muted-foreground flex-shrink-0" />
@@ -291,6 +310,19 @@ export default function AdminPanel() {
                   >
                     {PACKAGES.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
+                  <button
+                    type="button"
+                    disabled={savingLockId === e.id}
+                    onClick={() => toggleLock(e.id, !e.portal_locked)}
+                    title={e.portal_locked ? 'Unlock exhibitor portal access' : 'Lock exhibitor portal access'}
+                    className={`flex-shrink-0 p-1.5 rounded-lg border transition-colors disabled:opacity-60 ${
+                      e.portal_locked
+                        ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/30'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {e.portal_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                  </button>
                   {isDirty && (
                     <button
                       type="button"

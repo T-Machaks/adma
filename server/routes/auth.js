@@ -499,23 +499,63 @@ router.post('/totp/fallback', async (req, res) => {
   }
 });
 
-// ── POST /api/auth/exhibitor-demo-login  — demo mode, no OTP step ────────
-// Checks the exhibitor's own password_hash (bcrypt) rather than a single
-// hardcoded string, so most exhibitors share the demo password (their
-// hash was seeded from it) while specific exhibitors can have unique
-// credentials by having their password_hash set independently.
-router.post('/exhibitor-demo-login', async (req, res) => {
+// ── POST /api/auth/exhibitor-login  — no OTP step ─────────────────────────
+// Real 2026 physical-show exhibitors were imported as directory listings without
+// their own login credentials yet. Until each exhibitor sets up their own account,
+// any current superadmin's own password unlocks any exhibitor's portal (checked
+// after their own password_hash, if they have one) — this is the interim access
+// path, not a permanent shared/hardcoded credential. `portal_locked` on the
+// exhibitor record (settable from the organiser console) blocks ALL access,
+// including the superadmin override, until an organiser unlocks it again.
+router.post('/exhibitor-login', async (req, res) => {
   try {
-    const { user_id, password } = req.body;
-    if (!user_id || !password) return res.status(400).json({ error: 'user_id and password required.' });
-    const user = await getById(user_id);
-    if (!user || user.role !== 'exhibitor') return res.status(404).json({ error: 'Exhibitor not found.' });
-    if (user.status !== 'active') return res.status(403).json({ error: 'Account is not active.' });
-    const match = user.password_hash
-      ? await bcrypt.compare(password, user.password_hash)
-      : password === '@AgriShow2026';
-    if (!match) return res.status(401).json({ error: 'Incorrect password.' });
-    res.json(sanitize(user));
+    const { exhibitor_id, password } = req.body;
+    if (!exhibitor_id || !password) return res.status(400).json({ error: 'Exhibitor and password are required.' });
+
+    const exhResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitor_id } }));
+    const exhibitor = exhResult.Item;
+    if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
+
+    if (exhibitor.portal_locked) {
+      return res.status(403).json({ error: 'This exhibitor account has been locked by the organiser.' });
+    }
+
+    const linkedUser = exhibitor.user_id ? await getById(exhibitor.user_id) : null;
+    if (linkedUser && linkedUser.status && linkedUser.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active.' });
+    }
+
+    let authenticated = linkedUser?.password_hash
+      ? await bcrypt.compare(password, linkedUser.password_hash)
+      : false;
+
+    if (!authenticated) {
+      for (const email of SUPERADMIN_EMAILS) {
+        const sa = await findByEmail(email);
+        // A superadmin account still flagged must_change_password is sitting on its
+        // original seeded default, not a real personalized password — don't let that
+        // count as a valid override credential.
+        if (sa?.password_hash && !sa.must_change_password && await bcrypt.compare(password, sa.password_hash)) {
+          authenticated = true;
+          break;
+        }
+      }
+    }
+
+    if (!authenticated) return res.status(401).json({ error: 'Incorrect password.' });
+
+    const session = linkedUser
+      ? sanitize(linkedUser)
+      : {
+          id: `exh-${exhibitor.id}`,
+          email: exhibitor.contact_email || '',
+          full_name: exhibitor.name,
+          company: exhibitor.name,
+          role: 'exhibitor',
+          status: 'active',
+        };
+
+    res.json(session);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
