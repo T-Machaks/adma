@@ -73,3 +73,16 @@ export async function revokeAllSessionsForUser(userId) {
   }));
   await Promise.all((result.Items || []).map(s => revokeSession(s.token)));
 }
+
+// Kills every live session tied to an exhibitor, however they got logged in — the
+// exhibitor-login flow always stamps exhibitor_id on the session (linked-user or
+// synthetic), but a linked user who happened to log in via the regular /login form
+// instead only has user_id, no exhibitor_id — so both are checked.
+export async function revokeAllSessionsForExhibitor(exhibitorId, linkedUserId) {
+  const result = await ddb.send(new ScanCommand({
+    TableName: TABLE,
+    FilterExpression: '(exhibitor_id = :ex OR user_id = :u) AND revoked = :f',
+    ExpressionAttributeValues: { ':ex': exhibitorId, ':u': linkedUserId || '__none__', ':f': false },
+  }));
+  await Promise.all((result.Items || []).map(s => revokeSession(s.token)));
+}

@@ -1,8 +1,9 @@
-import { ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { nextMay30ISO } from '../lib/subscription.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
+import { revokeAllSessionsForExhibitor } from '../lib/session.js';
 
 // Mirrors the same email/company matching ExhibitorHome.jsx uses client-side to
 // resolve "my booth" — whichever login path put them there (regular /login or the
@@ -27,13 +28,19 @@ export default crudRouter('adma_exhibitors', {
     // Logs lock/unlock separately before falling through to crudRouter's own generic
     // PUT /:id handler (registered after extraRoutes runs) — Express runs both handlers
     // in registration order for the same method+path as long as this one calls next().
-    r.put('/:id', (req, res, next) => {
+    r.put('/:id', async (req, res, next) => {
       if ('portal_locked' in req.body) {
         logSecurityEvent('exhibitor_lock_changed', {
           exhibitorId: req.params.id,
           locked: !!req.body.portal_locked,
           ip: req.ip,
         });
+        // Locking should take effect immediately, not just block the next login attempt —
+        // kill any session the exhibitor is actively using right now.
+        if (req.body.portal_locked) {
+          const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+          await revokeAllSessionsForExhibitor(req.params.id, result.Item?.user_id);
+        }
       }
       next();
     });
