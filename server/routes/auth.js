@@ -52,8 +52,10 @@ function resetPasswordHtml(resetUrl) {
     </div>`;
 }
 
-// Superadmins — only these accounts can hold the organizer role and add other organizers
-const SUPERADMIN_EMAILS = ['info@agrishow.co.zw', 'tamuka@tyflex.co.zw'];
+// Superadmins — only these accounts can hold the organizer role and add other organizers.
+// info@agrishow.co.zw was a stale demo account (removed) — tamuka@tyflex.co.zw is the only
+// real console-level account as of now. Add real emails here as more are provisioned.
+const SUPERADMIN_EMAILS = ['tamuka@tyflex.co.zw'];
 
 // ── In-memory challenge store ─────────────────────────────────────────────────
 // token -> { type: 'email'|'totp'|'totp_setup', userId, email, otp?, secret?, expiresAt }
