@@ -68,17 +68,27 @@ export default crudRouter(TABLE, {
           }
         }
 
+        // A lot with no closing_time (open-ended, no deadline set) must not try to write
+        // one — an undefined :ct value makes DynamoDB reject the whole UpdateExpression
+        // ("attribute value used in expression is not defined"), so only include it when
+        // there's an actual value to set.
+        let updateExpr = 'SET current_bid = :amt, bid_count = :cnt, highest_bidder_name = :n, highest_bidder_email = :e';
+        const values = {
+          ':amt': bidAmount,
+          ':cnt': (lot.bid_count || 0) + 1,
+          ':n': bidder_name,
+          ':e': bidder_email,
+        };
+        if (closing_time) {
+          updateExpr += ', closing_time = :ct';
+          values[':ct'] = closing_time;
+        }
+
         const updateResult = await ddb.send(new UpdateCommand({
           TableName: TABLE,
           Key: { id: lot.id },
-          UpdateExpression: 'SET current_bid = :amt, bid_count = :cnt, highest_bidder_name = :n, highest_bidder_email = :e, closing_time = :ct',
-          ExpressionAttributeValues: {
-            ':amt': bidAmount,
-            ':cnt': (lot.bid_count || 0) + 1,
-            ':n': bidder_name,
-            ':e': bidder_email,
-            ':ct': closing_time,
-          },
+          UpdateExpression: updateExpr,
+          ExpressionAttributeValues: values,
           ReturnValues: 'ALL_NEW',
         }));
 
