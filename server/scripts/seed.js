@@ -325,13 +325,6 @@ const SEED_SESSIONS = [
   },
 ];
 
-const SEED_USERS = [
-  { id: 'usr_organizer',  email: 'organizer@agrishow.co.zw',  full_name: 'Demo Organizer',      role: 'organizer',         company: 'ADMA',              status: 'active', created_date: new Date().toISOString() },
-  { id: 'usr_partner',    email: 'partner@agrishow.co.zw',    full_name: 'Marketing Partner',   role: 'marketing_partner', company: 'ADMA Media',        status: 'active', created_date: new Date().toISOString() },
-  { id: 'usr_exhibitor',  email: 'exhibitor@agrishow.co.zw',  full_name: 'Demo Exhibitor',      role: 'exhibitor',         company: 'Afritractors',      status: 'active', created_date: new Date().toISOString() },
-  { id: 'usr_attendee',   email: 'attendee@agrishow.co.zw',   full_name: 'Demo Attendee',       role: 'attendee',          company: '',                  status: 'active', created_date: new Date().toISOString() },
-];
-
 async function batchWrite(table, items) {
   for (let i = 0; i < items.length; i += 25) {
     const chunk = items.slice(i, i + 25).map(Item => ({ PutRequest: { Item } }));
@@ -356,7 +349,6 @@ for (const exh of SEED_EXHIBITORS) {
 await batchWrite('adma_exhibitors',    SEED_EXHIBITORS);
 await batchWrite('adma_sponsors',      SEED_SPONSORS);
 await batchWrite('adma_announcements', SEED_ANNOUNCEMENTS);
-await batchWrite('adma_users',         SEED_USERS);
 await batchWrite('adma_sessions',      SEED_SESSIONS);
 
 // Singleton app settings

@@ -1,5 +1,5 @@
 /**
- * Creates the two superadmin organizer accounts if they don't already exist.
+ * Creates the superadmin organizer account(s) if they don't already exist.
  * Default password: @AgriShow2026  (must be changed on first login)
  *
  * Usage: node server/scripts/seed-superadmins.js
@@ -13,8 +13,10 @@ import { generateId } from '../lib/idgen.js';
 const TABLE = 'adma_users';
 const DEFAULT_PASSWORD = '@AgriShow2026';
 
+// info@agrishow.co.zw was a stale demo account (deleted) — keep this list to only real,
+// intended console-level accounts. Add new entries here only when actually provisioning
+// a real person.
 const SUPERADMINS = [
-  { email: 'info@agrishow.co.zw', full_name: 'ADMA Admin' },
   { email: 'tamuka@tyflex.co.zw', full_name: 'Tamuka' },
 ];
 
