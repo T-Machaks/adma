@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import exhibitors from './routes/exhibitors.js';
 import users from './routes/users.js';
 import registrations from './routes/registrations.js';
@@ -29,6 +32,77 @@ import bids from './routes/bids.js';
 import collaborations from './routes/collaborations.js';
 
 const app = express();
+
+// nginx is the only reverse proxy in front of this app (single hop, same host) — trust
+// its X-Forwarded-For so rate limiting and IP logging see real client IPs, not just
+// nginx's own loopback address for every request.
+app.set('trust proxy', 1);
+
+const ALLOWED_ORIGINS = [
+  'https://admadigital.co.zw',
+  'https://www.admadigital.co.zw',
+  'https://adma.tyflex.co.zw',
+  'http://localhost:5173',
+];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+
+app.use(helmet({
+  // Cross-origin isolation (COEP) isn't needed (no SharedArrayBuffer usage) and would
+  // otherwise silently block loading exhibitor images/video from S3 and the YouTube/
+  // Vimeo embeds, since those origins don't send a matching CORP header.
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https://adma-zw.s3.af-south-1.amazonaws.com'],
+      mediaSrc: ["'self'", 'https://adma-zw.s3.af-south-1.amazonaws.com'],
+      frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://accounts.google.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      // 'unsafe-inline' for styles only — the app uses inline style={{...}} props and a
+      // couple of inline <style> blocks (e.g. AdBannerCarousel's keyframes) extensively;
+      // removing every one of those is a larger refactor, not part of this hardening pass.
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      scriptSrc: ["'self'", 'https://connect.facebook.net', 'https://accounts.google.com', 'https://apis.google.com'],
+      connectSrc: [
+        "'self'",
+        'https://accounts.google.com', 'https://www.googleapis.com',
+        'https://login.microsoftonline.com', 'https://graph.microsoft.com',
+        'https://graph.facebook.com', 'https://connect.facebook.net',
+      ],
+      frameAncestors: ["'self'"],
+    },
+  },
+}));
+
+// Strict limiter on auth endpoints (login, OTP/TOTP verify, password reset, exhibitor
+// login) — blunts brute-force/credential-stuffing on the routes that matter most.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again later.' },
+});
+app.use('/api/auth/', authLimiter);
+
+// Lighter global limiter on everything else — high enough not to disrupt normal PWA
+// polling (the service worker's 60s update check, react-query refetches) but blocks
+// scripted abuse.
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', globalLimiter);
+
 app.use(express.json({ limit: '2mb' }));
 
 app.use('/api/exhibitors',        exhibitors);

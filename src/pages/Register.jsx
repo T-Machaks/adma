@@ -100,6 +100,10 @@ export default function Register() {
           </div>
         )}
       </div>
+
+      <p className="text-xs text-muted-foreground text-center mt-6">
+        <Link to="/privacy" className="hover:underline">Privacy Policy</Link>
+      </p>
     </div>
   );
 }

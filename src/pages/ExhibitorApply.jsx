@@ -135,6 +135,8 @@ export default function ExhibitorApply() {
         <>
           Already have an account?{' '}
           <Link to="/login" className="text-primary font-medium hover:underline">Log in</Link>
+          {' · '}
+          <Link to="/privacy" className="text-primary font-medium hover:underline">Privacy Policy</Link>
         </>
       }
     >

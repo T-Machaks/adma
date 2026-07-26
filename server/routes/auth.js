@@ -7,6 +7,7 @@ import { generateId } from '../lib/idgen.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
+import { logSecurityEvent } from '../lib/securityLog.js';
 
 const TABLE = 'adma_users';
 const APP_URL = 'https://admadigital.co.zw';
@@ -105,6 +106,10 @@ function maskPhone(phone) {
   return `${digits.slice(0, 3)}****${digits.slice(-3)}`;
 }
 
+function isValidEmail(value) {
+  return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 function isValidZimPhone(value) {
   if (!value) return true;
   const clean = value.replace(/[\s\-\(\)]/g, '');
@@ -123,6 +128,10 @@ router.post('/signup', async (req, res) => {
     const { full_name, email, password, company, phone } = req.body;
     if (!full_name || !email || !password)
       return res.status(400).json({ error: 'Name, email and password are required.' });
+    if (!isValidEmail(email))
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    if (password.length < 6)
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
     if (phone && !isValidZimPhone(phone))
       return res.status(400).json({ error: 'Phone number must be a valid Zimbabwe mobile number (e.g. 0771234567 or +263771234567).' });
@@ -159,18 +168,26 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required.' });
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
 
     const user = await findByEmail(email);
-    if (!user) return res.status(401).json({ error: 'No account found with that email.' });
+    if (!user) {
+      logSecurityEvent('login_failed', { email: email.toLowerCase(), reason: 'no_account', ip: req.ip });
+      return res.status(401).json({ error: 'No account found with that email.' });
+    }
     if (user.status === 'pending')
       return res.status(403).json({ error: 'Your account is pending organizer approval.' });
 
     // Password check — required for accounts that have one set
     if (user.password_hash) {
       const match = await bcrypt.compare(password || '', user.password_hash);
-      if (!match) return res.status(401).json({ error: 'Incorrect password.' });
+      if (!match) {
+        logSecurityEvent('login_failed', { userId: user.id, email: user.email, reason: 'bad_password', ip: req.ip });
+        return res.status(401).json({ error: 'Incorrect password.' });
+      }
     }
 
+    logSecurityEvent('login_password_verified', { userId: user.id, email: user.email, role: user.role, ip: req.ip });
     cleanExpired();
 
     // Force password change on first login
@@ -249,16 +266,20 @@ router.post('/otp/verify', async (req, res) => {
       try {
         await verifySmsOtp(entry.phone, otp.trim());
       } catch {
+        logSecurityEvent('otp_failed', { userId: entry.userId, method: 'sms', ip: req.ip });
         return res.status(401).json({ error: 'Incorrect verification code.' });
       }
     } else {
-      if (entry.otp !== otp.trim())
+      if (entry.otp !== otp.trim()) {
+        logSecurityEvent('otp_failed', { userId: entry.userId, method: 'email', ip: req.ip });
         return res.status(401).json({ error: 'Incorrect verification code.' });
+      }
     }
 
     challengeStore.delete(mfa_token);
     const user = await getById(entry.userId);
     if (!user) return res.status(404).json({ error: 'User not found.' });
+    logSecurityEvent('login_success', { userId: user.id, email: user.email, role: user.role, method: entry.type, ip: req.ip });
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -360,6 +381,7 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required.' });
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
 
     // Always respond the same way whether or not the account exists, so this
     // endpoint can't be used to enumerate registered emails.
@@ -368,6 +390,7 @@ router.post('/forgot-password', async (req, res) => {
       cleanExpired();
       const token = newToken();
       challengeStore.set(token, { type: 'password_reset', userId: user.id, expiresAt: newResetExpiry() });
+      logSecurityEvent('password_reset_requested', { userId: user.id, email: user.email, ip: req.ip });
       const resetUrl = `${APP_URL}/reset-password?token=${token}`;
       try {
         await sendOtpEmail(user.email, null, {
@@ -411,6 +434,7 @@ router.post('/reset-password', async (req, res) => {
     }));
 
     challengeStore.delete(token);
+    logSecurityEvent('password_reset_completed', { userId: user.id, email: user.email, ip: req.ip });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -435,8 +459,10 @@ router.post('/totp/verify', async (req, res) => {
     const secret = entry.type === 'totp_setup' ? entry.secret : user.totp_secret;
     if (!secret) return res.status(401).json({ error: 'TOTP not configured for this account.' });
 
-    if (!await verifyToken(secret, code.trim()))
+    if (!await verifyToken(secret, code.trim())) {
+      logSecurityEvent('totp_failed', { userId: user.id, email: user.email, ip: req.ip });
       return res.status(401).json({ error: 'Incorrect authenticator code. Please try again.' });
+    }
 
     // If this was first-time setup, persist the TOTP secret
     if (entry.type === 'totp_setup') {
@@ -449,6 +475,7 @@ router.post('/totp/verify', async (req, res) => {
     }
 
     challengeStore.delete(mfa_token);
+    logSecurityEvent('login_success', { userId: user.id, email: user.email, role: user.role, method: 'totp', ip: req.ip });
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -519,6 +546,7 @@ router.post('/exhibitor-login', async (req, res) => {
     if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
 
     if (exhibitor.portal_locked) {
+      logSecurityEvent('exhibitor_login_blocked', { exhibitorId: exhibitor.id, company: exhibitor.name, reason: 'locked', ip: req.ip });
       return res.status(403).json({ error: 'This exhibitor account has been locked by the organiser.' });
     }
 
@@ -531,6 +559,7 @@ router.post('/exhibitor-login', async (req, res) => {
       ? await bcrypt.compare(password, linkedUser.password_hash)
       : false;
 
+    let viaOverride = false;
     if (!authenticated) {
       for (const email of SUPERADMIN_EMAILS) {
         const sa = await findByEmail(email);
@@ -539,12 +568,18 @@ router.post('/exhibitor-login', async (req, res) => {
         // count as a valid override credential.
         if (sa?.password_hash && !sa.must_change_password && await bcrypt.compare(password, sa.password_hash)) {
           authenticated = true;
+          viaOverride = true;
           break;
         }
       }
     }
 
-    if (!authenticated) return res.status(401).json({ error: 'Incorrect password.' });
+    if (!authenticated) {
+      logSecurityEvent('exhibitor_login_failed', { exhibitorId: exhibitor.id, company: exhibitor.name, ip: req.ip });
+      return res.status(401).json({ error: 'Incorrect password.' });
+    }
+
+    logSecurityEvent('exhibitor_login_success', { exhibitorId: exhibitor.id, company: exhibitor.name, viaSuperadminOverride: viaOverride, ip: req.ip });
 
     const session = linkedUser
       ? sanitize(linkedUser)
@@ -646,11 +681,17 @@ router.post('/facebook', async (req, res) => {
 router.post('/organizer/add-user', async (req, res) => {
   try {
     const { requester_email, full_name, email, password } = req.body;
-    if (!requester_email || !SUPERADMIN_EMAILS.includes(requester_email.toLowerCase()))
+    if (!requester_email || !SUPERADMIN_EMAILS.includes(requester_email.toLowerCase())) {
+      logSecurityEvent('add_organizer_denied', { requesterEmail: requester_email, ip: req.ip });
       return res.status(403).json({ error: 'Only superadmin organizers can add organizer accounts.' });
+    }
 
     if (!full_name || !email || !password)
       return res.status(400).json({ error: 'full_name, email and password are required.' });
+    if (!isValidEmail(email))
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    if (password.length < 8)
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
     const existing = await findByEmail(email);
     if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
@@ -668,6 +709,7 @@ router.post('/organizer/add-user', async (req, res) => {
       password_hash,
     };
     await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
+    logSecurityEvent('organizer_added', { requesterEmail: requester_email, newUserId: user.id, newUserEmail: user.email, ip: req.ip });
     res.status(201).json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -46,6 +46,7 @@ import CollaborationDetail from '@/pages/CollaborationDetail';
 import Login from '@/pages/Login';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import Signup from '@/pages/Signup';
 
 // Console pages
@@ -126,6 +127,7 @@ const AuthenticatedApp = () => {
       <Route path="/exhibitor-login"   element={<ExhibitorLogin />} />
       <Route path="/forgot-password"  element={<ForgotPassword />} />
       <Route path="/reset-password"   element={<ResetPassword />} />
+      <Route path="/privacy"          element={<PrivacyPolicy />} />
 
       {/* ── Management Console (organizer + marketing_partner only) ── */}
       <Route element={<ConsoleGuard />}>

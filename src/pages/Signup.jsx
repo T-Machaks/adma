@@ -105,6 +105,10 @@ export default function Signup() {
           <Link to="/register" className="text-primary font-medium hover:underline">
             Event registration
           </Link>
+          {' · '}
+          <Link to="/privacy" className="text-primary font-medium hover:underline">
+            Privacy Policy
+          </Link>
         </>
       }
     >
