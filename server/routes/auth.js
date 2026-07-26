@@ -8,10 +8,22 @@ import { sendOtpEmail } from '../lib/mailer.js';
 import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
+import { createSession, revokeSession, SESSION_COOKIE } from '../lib/session.js';
 
 const TABLE = 'adma_users';
 const APP_URL = 'https://admadigital.co.zw';
 const router = Router();
+
+async function issueSession(res, user) {
+  const { token, expiresAt } = await createSession(user);
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    expires: expiresAt,
+    path: '/',
+  });
+}
 
 function welcomeHtml(user) {
   return `
@@ -152,6 +164,7 @@ router.post('/signup', async (req, res) => {
       password_hash,
     };
     await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
+    await issueSession(res, user);
     res.status(201).json(sanitize(user));
 
     sendOtpEmail(user.email, null, {
@@ -200,6 +213,7 @@ router.post('/login', async (req, res) => {
     // Explicitly-flagged demo accounts skip MFA entirely (no TOTP, no email OTP).
     // Opt-in per account -- real organizer/superadmin accounts are unaffected.
     if (user.mfa_exempt) {
+      await issueSession(res, user);
       return res.json(sanitize(user));
     }
 
@@ -280,6 +294,7 @@ router.post('/otp/verify', async (req, res) => {
     const user = await getById(entry.userId);
     if (!user) return res.status(404).json({ error: 'User not found.' });
     logSecurityEvent('login_success', { userId: user.id, email: user.email, role: user.role, method: entry.type, ip: req.ip });
+    await issueSession(res, user);
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -476,6 +491,7 @@ router.post('/totp/verify', async (req, res) => {
 
     challengeStore.delete(mfa_token);
     logSecurityEvent('login_success', { userId: user.id, email: user.email, role: user.role, method: 'totp', ip: req.ip });
+    await issueSession(res, user);
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -592,6 +608,7 @@ router.post('/exhibitor-login', async (req, res) => {
           status: 'active',
         };
 
+    await issueSession(res, { ...session, exhibitor_id: exhibitor.id });
     res.json(session);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -636,6 +653,7 @@ router.post('/google', async (req, res) => {
     const { email, name, sub } = await r.json();
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Google' });
     const user = await upsertOAuthUser({ email, full_name: name, oauth_provider: 'google', oauth_id: sub });
+    await issueSession(res, user);
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -655,6 +673,7 @@ router.post('/microsoft', async (req, res) => {
     const email = profile.mail || profile.userPrincipalName;
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Microsoft' });
     const user = await upsertOAuthUser({ email, full_name: profile.displayName, oauth_provider: 'microsoft', oauth_id: profile.id });
+    await issueSession(res, user);
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -671,6 +690,7 @@ router.post('/facebook', async (req, res) => {
     const profile = await r.json();
     if (!profile.email) return res.status(401).json({ error: 'Facebook account has no email. Please use email registration.' });
     const user = await upsertOAuthUser({ email: profile.email, full_name: profile.name, oauth_provider: 'facebook', oauth_id: profile.id });
+    await issueSession(res, user);
     res.json(sanitize(user));
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -714,6 +734,13 @@ router.post('/organizer/add-user', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ── POST /api/auth/logout  ────────────────────────────────────────────────
+router.post('/logout', async (req, res) => {
+  await revokeSession(req.cookies?.[SESSION_COOKIE]);
+  res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.json({ ok: true });
 });
 
 export default router;

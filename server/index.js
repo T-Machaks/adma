@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import exhibitors from './routes/exhibitors.js';
 import users from './routes/users.js';
@@ -104,6 +105,7 @@ const globalLimiter = rateLimit({
 app.use('/api/', globalLimiter);
 
 app.use(express.json({ limit: '2mb' }));
+app.use(cookieParser());
 
 app.use('/api/exhibitors',        exhibitors);
 app.use('/api/users',             users);

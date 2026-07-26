@@ -47,6 +47,7 @@ export default function ExhibitorLogin() {
       const res = await fetch('/api/auth/exhibitor-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ exhibitor_id: selected.id, password }),
       });
       const data = await res.json();

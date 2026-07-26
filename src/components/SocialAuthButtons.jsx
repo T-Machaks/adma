@@ -115,6 +115,7 @@ export default function SocialAuthButtons({ onSuccess, onError }) {
       const res = await fetch(`/api/auth/${provider}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ access_token: token }),
       });
       const data = await res.json();

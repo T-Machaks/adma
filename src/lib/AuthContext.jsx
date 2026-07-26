@@ -54,6 +54,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
       const found = await res.json();
@@ -101,6 +102,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ mfa_token: mfaToken, otp }),
       });
       const found = await res.json();
@@ -126,6 +128,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ change_token: changeToken, new_password: newPassword }),
       });
       const found = await res.json();
@@ -151,6 +154,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/totp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ mfa_token: mfaToken, code }),
       });
       const found = await res.json();
@@ -176,6 +180,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/otp/resend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ mfa_token: mfaToken, method }),
       });
       const data = await res.json();
@@ -191,6 +196,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/totp/fallback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ mfa_token: mfaToken, method }),
       });
       const data = await res.json();
@@ -206,6 +212,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
@@ -221,6 +228,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ token, new_password: newPassword }),
       });
       const data = await res.json();
@@ -236,6 +244,7 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       const newUser = await res.json();
@@ -265,6 +274,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     localStorage.removeItem(EVENT_CONFIG.storageUserKey);
     setUser(null);
     setIsAuthenticated(false);

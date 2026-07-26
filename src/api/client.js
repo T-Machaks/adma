@@ -3,6 +3,7 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 export async function apiFetch(path, options = {}) {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     ...options,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
