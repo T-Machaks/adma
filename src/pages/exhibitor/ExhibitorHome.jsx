@@ -8,7 +8,7 @@ import {
   Store, Calendar, CheckCircle, XCircle, Clock,
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
-  Images, MessageCircle, Award, Plus,
+  Images, MessageCircle, Award, Plus, Video,
 } from 'lucide-react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
@@ -100,6 +100,13 @@ export default function ExhibitorHome() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
 
+  const [videoEditOpen, setVideoEditOpen] = useState(false);
+  const [videoDraft, setVideoDraft] = useState('');
+  const updateVideo = useMutation({
+    mutationFn: (video_url) => Exhibitor.update(myBooth.id, { video_url }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
+  });
+
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const updateGallery = useMutation({
     mutationFn: (gallery) => Exhibitor.update(myBooth.id, { gallery }),
@@ -140,7 +147,6 @@ export default function ExhibitorHome() {
       contact_email: myBooth.contact_email || '',
       phone: myBooth.phone || '',
       website: myBooth.website || '',
-      video_url: myBooth.video_url || '',
       specialties: (myBooth.specialties || []).join(', '),
       certifications: (myBooth.certifications || []).join(', '),
       faq: myBooth.faq?.length ? myBooth.faq : [],
@@ -371,20 +377,6 @@ export default function ExhibitorHome() {
                 className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
               />
             </div>
-
-            {isEnhancedPlus && (
-              <div className="pt-2 border-t border-border">
-                <label className="text-xs text-muted-foreground font-medium block mb-1">Company Video URL</label>
-                <input
-                  type="url"
-                  value={editForm.video_url || ''}
-                  placeholder="https://www.youtube.com/embed/… or https://player.vimeo.com/video/…"
-                  onChange={e => setEditForm(f => ({ ...f, video_url: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">Shown as an embedded video on your public booth page. Use a YouTube/Vimeo embed URL, not a regular watch link.</p>
-              </div>
-            )}
 
             {isPremiumPkg && (
               <div className="pt-2 border-t border-border space-y-3">
@@ -704,6 +696,80 @@ export default function ExhibitorHome() {
           )}
         </div>
       </div>
+
+      {/* Company Video — Enhanced+ */}
+      {isEnhancedPlus && (
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+            <Video className="w-5 h-5 text-amber" />
+            <div>
+              <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Company Video</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Shown as an embedded video on your public booth page</p>
+            </div>
+          </div>
+          <div className="p-5 space-y-3">
+            {myBooth.video_url && !videoEditOpen && (
+              <div className="aspect-video rounded-xl overflow-hidden border border-border bg-muted">
+                <iframe
+                  src={myBooth.video_url}
+                  title="Company video"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+
+            {!videoEditOpen ? (
+              <button
+                type="button"
+                onClick={() => { setVideoDraft(myBooth.video_url || ''); setVideoEditOpen(true); }}
+                className="flex items-center gap-2 text-xs border border-border px-3 py-2 rounded-lg font-medium hover:bg-muted transition-colors"
+              >
+                <Video className="w-3.5 h-3.5" /> {myBooth.video_url ? 'Change Video' : 'Add Video'}
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <input
+                  type="url"
+                  value={videoDraft}
+                  placeholder="https://www.youtube.com/embed/… or https://player.vimeo.com/video/…"
+                  onChange={e => setVideoDraft(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                />
+                <p className="text-[11px] text-muted-foreground">Use a YouTube/Vimeo embed URL, not a regular watch link.</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={updateVideo.isPending}
+                    onClick={() => updateVideo.mutate(videoDraft, { onSuccess: () => setVideoEditOpen(false) })}
+                    className="px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60"
+                  >
+                    {updateVideo.isPending ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoEditOpen(false)}
+                    className="px-4 py-2 text-sm font-medium border border-border rounded-lg hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  {myBooth.video_url && (
+                    <button
+                      type="button"
+                      disabled={updateVideo.isPending}
+                      onClick={() => updateVideo.mutate('', { onSuccess: () => { setVideoEditOpen(false); setVideoDraft(''); } })}
+                      className="ml-auto px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-60"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {myBooth.featured && (
         <div className="flex items-center gap-2 text-xs text-amber font-semibold bg-amber/10 border border-amber/20 rounded-xl px-4 py-3">
