@@ -89,6 +89,24 @@ function newExpiry() { return Date.now() + 10 * 60 * 1000; } // 10 min
 function newResetExpiry() { return Date.now() + 30 * 60 * 1000; } // 30 min — email link, not an in-session OTP
 function generateOtp() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
+// Organizer/superadmin accounts require TOTP no matter which login path got them
+// here (password, OAuth, ...) — sends the totp_required challenge response and
+// returns true if it did, so the caller knows to stop instead of logging them in.
+async function totpChallengeIfRequired(res, user) {
+  if (user.role !== 'organizer' && user.role !== 'superadmin') return false;
+  const token = newToken();
+  if (!user.totp_secret) {
+    const secret = generateSecret();
+    const qr_code = await generateQrDataUrl(user.email, secret);
+    challengeStore.set(token, { type: 'totp_setup', userId: user.id, secret, expiresAt: newExpiry() });
+    res.json({ totp_required: true, mfa_token: token, first_time: true, qr_code });
+    return true;
+  }
+  challengeStore.set(token, { type: 'totp', userId: user.id, expiresAt: newExpiry() });
+  res.json({ totp_required: true, mfa_token: token, first_time: false });
+  return true;
+}
+
 // ── DB helpers ────────────────────────────────────────────────────────────────
 async function findByEmail(email) {
   const result = await ddb.send(new QueryCommand({
@@ -221,21 +239,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Organizers + superadmin → TOTP (authenticator app)
-    if (user.role === 'organizer' || user.role === 'superadmin') {
-      const token = newToken();
-
-      if (!user.totp_secret) {
-        // First time — generate secret and QR code for setup
-        const secret = generateSecret();
-        const qr_code = await generateQrDataUrl(user.email, secret);
-        challengeStore.set(token, { type: 'totp_setup', userId: user.id, secret, expiresAt: newExpiry() });
-        return res.json({ totp_required: true, mfa_token: token, first_time: true, qr_code });
-      }
-
-      // TOTP already configured — just prompt for code
-      challengeStore.set(token, { type: 'totp', userId: user.id, expiresAt: newExpiry() });
-      return res.json({ totp_required: true, mfa_token: token, first_time: false });
-    }
+    if (await totpChallengeIfRequired(res, user)) return;
 
     // All other roles → email OTP via NoReply@tyflex.co.zw
     const otp = generateOtp();
@@ -656,6 +660,7 @@ router.post('/google', async (req, res) => {
     const { email, name, sub } = await r.json();
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Google' });
     const user = await upsertOAuthUser({ email, full_name: name, oauth_provider: 'google', oauth_id: sub });
+    if (!user.mfa_exempt && await totpChallengeIfRequired(res, user)) return;
     await issueSession(req, res, user);
     res.json(sanitize(user));
   } catch (e) {
@@ -676,6 +681,7 @@ router.post('/microsoft', async (req, res) => {
     const email = profile.mail || profile.userPrincipalName;
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Microsoft' });
     const user = await upsertOAuthUser({ email, full_name: profile.displayName, oauth_provider: 'microsoft', oauth_id: profile.id });
+    if (!user.mfa_exempt && await totpChallengeIfRequired(res, user)) return;
     await issueSession(req, res, user);
     res.json(sanitize(user));
   } catch (e) {
@@ -693,6 +699,7 @@ router.post('/facebook', async (req, res) => {
     const profile = await r.json();
     if (!profile.email) return res.status(401).json({ error: 'Facebook account has no email. Please use email registration.' });
     const user = await upsertOAuthUser({ email: profile.email, full_name: profile.name, oauth_provider: 'facebook', oauth_id: profile.id });
+    if (!user.mfa_exempt && await totpChallengeIfRequired(res, user)) return;
     await issueSession(req, res, user);
     res.json(sanitize(user));
   } catch (e) {
@@ -703,11 +710,16 @@ router.post('/facebook', async (req, res) => {
 // ── POST /api/auth/organizer/add-user  — superadmin only ─────────────────
 router.post('/organizer/add-user', async (req, res) => {
   try {
-    const { requester_email, full_name, email, password } = req.body;
-    if (!requester_email || !SUPERADMIN_EMAILS.includes(requester_email.toLowerCase())) {
-      logSecurityEvent('add_organizer_denied', { requesterEmail: requester_email, ip: req.ip });
+    const { full_name, email, password } = req.body;
+    // req.user comes from the verified session cookie (server/lib/authMiddleware.js),
+    // not a client-supplied field — a spoofed requester can no longer claim to be a
+    // superadmin just by naming one in the request body.
+    const requester = req.user ? await getById(req.user.id) : null;
+    if (!requester || !SUPERADMIN_EMAILS.includes(requester.email.toLowerCase())) {
+      logSecurityEvent('add_organizer_denied', { requesterId: req.user?.id, ip: req.ip });
       return res.status(403).json({ error: 'Only superadmin organizers can add organizer accounts.' });
     }
+    const requester_email = requester.email;
 
     if (!full_name || !email || !password)
       return res.status(400).json({ error: 'full_name, email and password are required.' });

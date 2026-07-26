@@ -6,6 +6,20 @@ import { crudRouter } from '../lib/crudRouter.js';
 
 const TABLE = 'adma_users';
 
+// Fields that must never be settable through this generic endpoint at all —
+// password_hash/totp_secret are only ever written by the dedicated flows in
+// auth.js (bcrypt hashing, TOTP verification), never as a raw client value.
+const NEVER_CLIENT_SETTABLE = ['password_hash', 'totp_secret'];
+// Fields that change what an account can do — only an organizer/superadmin
+// session may set these; a self-service PUT (e.g. a user editing their own
+// name) or an exhibitor inviting a team member must not be able to touch them.
+const PRIVILEGED_FIELDS = ['role', 'status', 'must_change_password', 'mfa_exempt'];
+const ELEVATED_ROLES = ['organizer', 'marketing_partner', 'superadmin'];
+
+function isOrganizerSession(req) {
+  return req.user && (req.user.role === 'organizer' || req.user.role === 'superadmin');
+}
+
 function sanitize(user) {
   if (!user) return user;
   const { password_hash, totp_secret, ...rest } = user;
@@ -37,12 +51,22 @@ export default crudRouter(TABLE, {
 
     r.post('/', async (req, res) => {
       try {
+        const body = { ...req.body };
+        for (const f of NEVER_CLIENT_SETTABLE) delete body[f];
+        // Self-service account creation (signup, exhibitor team invites) may only ever
+        // create attendee/exhibitor accounts — anything with console access requires an
+        // organizer/superadmin session.
+        if (body.role && ELEVATED_ROLES.includes(body.role) && !isOrganizerSession(req)) {
+          delete body.role;
+        }
+        if (!isOrganizerSession(req)) delete body.status;
+
         const item = {
           id: generateId(),
           created_date: new Date().toISOString(),
           role: 'attendee',
           status: 'active',
-          ...req.body,
+          ...body,
         };
         await ddb.send(new PutCommand({ TableName: TABLE, Item: item }));
         res.status(201).json(sanitize(item));
@@ -103,7 +127,12 @@ export default crudRouter(TABLE, {
 
     r.put('/:id', async (req, res) => {
       try {
-        const body = req.body;
+        const body = { ...req.body };
+        for (const f of NEVER_CLIENT_SETTABLE) delete body[f];
+        if (!isOrganizerSession(req)) {
+          for (const f of PRIVILEGED_FIELDS) delete body[f];
+        }
+
         const entries = Object.entries(body).filter(([k]) => k !== 'id');
         if (!entries.length) return res.status(400).json({ error: 'No fields to update' });
 

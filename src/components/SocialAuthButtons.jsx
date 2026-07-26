@@ -120,6 +120,10 @@ export default function SocialAuthButtons({ onSuccess, onError }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Authentication failed');
+      // Organizer/superadmin accounts require an authenticator code, which this
+      // button flow doesn't collect — send them to the password+TOTP login instead
+      // of treating this as a signed-in session.
+      if (data.totp_required) throw new Error('This account requires an authenticator code. Please log in with your email and password instead.');
       onSuccess(data);
     } catch (e) {
       onError(e.message);

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import { attachUser } from './lib/authMiddleware.js';
 import exhibitors from './routes/exhibitors.js';
 import users from './routes/users.js';
 import registrations from './routes/registrations.js';
@@ -106,6 +107,7 @@ app.use('/api/', globalLimiter);
 
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
+app.use(attachUser);
 
 app.use('/api/exhibitors',        exhibitors);
 app.use('/api/users',             users);

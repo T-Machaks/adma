@@ -5,6 +5,37 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ddb } from './dynamo.js';
 import { generateId } from './idgen.js';
+import { requireAuth, requireRole } from './authMiddleware.js';
+
+// Builds the middleware for a `read`/`write` mode:
+//  - 'public'          → no restriction
+//  - 'auth'             → any logged-in user
+//  - [roles]            → only those roles
+//  - function(req,item) → ownership check (see buildOwnershipCheck below), only
+//                          meaningful for :id routes; POST / falls back to requireAuth
+function buildAccessMiddleware(mode) {
+  if (!mode || mode === 'public') return (req, res, next) => next();
+  if (mode === 'auth') return requireAuth;
+  if (Array.isArray(mode)) return requireRole(...mode);
+  if (typeof mode === 'function') return requireAuth; // ownership checked separately, after fetching the item
+  throw new Error(`crudRouter: invalid auth mode ${JSON.stringify(mode)}`);
+}
+
+// For :id routes when `write` is an ownership function — fetches the existing
+// item first (404 if missing), then lets the caller-supplied function decide.
+function buildOwnershipCheck(table, mode) {
+  if (typeof mode !== 'function') return (req, res, next) => next();
+  return async (req, res, next) => {
+    try {
+      const result = await ddb.send(new GetCommand({ TableName: table, Key: { id: req.params.id } }));
+      if (!result.Item) return res.status(404).json({ error: 'Not found' });
+      if (!mode(req, result.Item)) return res.status(403).json({ error: 'You do not have permission to do that.' });
+      next();
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  };
+}
 
 /**
  * Build an Express router with standard CRUD routes for a DynamoDB table.
@@ -14,14 +45,21 @@ import { generateId } from './idgen.js';
  *   gsiFields   – map of field name → GSI index name used for filter queries
  *   defaults    – function(data) returning fields to merge on create
  *   extraRoutes – function(router) to attach custom routes before the generic ones
+ *   auth        – { read, write } access mode, see buildAccessMiddleware above.
+ *                 No default — every call site sets this explicitly so nothing
+ *                 is silently over- or under-restricted.
  */
-export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extraRoutes } = {}) {
+export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extraRoutes, auth = {} } = {}) {
   const r = Router();
 
   if (extraRoutes) extraRoutes(r);
 
+  const readAccess = buildAccessMiddleware(auth.read);
+  const writeAccess = buildAccessMiddleware(auth.write);
+  const ownershipCheck = buildOwnershipCheck(table, auth.write);
+
   // List / filter
-  r.get('/', async (req, res) => {
+  r.get('/', readAccess, async (req, res) => {
     try {
       const { sortBy, filter: filterJson } = req.query;
       const filterObj = filterJson ? JSON.parse(decodeURIComponent(filterJson)) : null;
@@ -84,7 +122,7 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   });
 
   // Get by id
-  r.get('/:id', async (req, res) => {
+  r.get('/:id', readAccess, async (req, res) => {
     try {
       const result = await ddb.send(new GetCommand({ TableName: table, Key: { id: req.params.id } }));
       if (!result.Item) return res.status(404).json({ error: 'Not found' });
@@ -95,7 +133,7 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   });
 
   // Create
-  r.post('/', async (req, res) => {
+  r.post('/', writeAccess, async (req, res) => {
     try {
       const item = {
         id: generateId(),
@@ -111,7 +149,7 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   });
 
   // Update
-  r.put('/:id', async (req, res) => {
+  r.put('/:id', writeAccess, ownershipCheck, async (req, res) => {
     try {
       const body = req.body;
       const entries = Object.entries(body).filter(([k]) => k !== 'id');
@@ -140,7 +178,7 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   });
 
   // Delete
-  r.delete('/:id', async (req, res) => {
+  r.delete('/:id', writeAccess, ownershipCheck, async (req, res) => {
     try {
       await ddb.send(new DeleteCommand({ TableName: table, Key: { id: req.params.id } }));
       res.json({ ok: true });
