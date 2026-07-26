@@ -4,15 +4,21 @@ import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 import { requireAuth } from '../lib/authMiddleware.js';
+import { CONSOLE_ROLES, getMyExhibitorId } from '../lib/ownership.js';
 
 const TABLE = 'adma_adslots';
 
+async function ownsAdSlot(req, item) {
+  if (CONSOLE_ROLES.includes(req.user.role)) return true;
+  return item.exhibitor_id === await getMyExhibitorId(req);
+}
+
 export default crudRouter(TABLE, {
   defaults: () => ({ active: true, internal: false, accent: '#f59e0b', bg: 'from-slate-700 to-slate-900' }),
-  // read: 'auth' (not organizer-only) — ExhibitorHome.jsx needs to see its own ad slot
-  // even while pending/inactive, which only the unfiltered generic list provides
-  // (/active below stays public for the attendee-facing carousel).
-  auth: { read: 'auth', write: 'auth' },
+  // read/write: own slot only, or organizer/marketing_partner (ExhibitorHome.jsx needs
+  // to see its own ad slot even while pending/inactive — /active below stays public
+  // for the attendee-facing carousel, unaffected by this).
+  auth: { read: ownsAdSlot, write: ownsAdSlot },
   extraRoutes(r) {
     r.get('/active', async (req, res) => {
       try {
@@ -27,6 +33,14 @@ export default crudRouter(TABLE, {
       }
     });
 
+    // An exhibitor can only ever create/claim their own ad slot — override exhibitor_id
+    // instead of trusting the client, but only when the caller IS an exhibitor (an
+    // organizer creating an internal/house slot has no exhibitor_id at all).
+    r.post('/', requireAuth, async (req, res, next) => {
+      if (req.user.role === 'exhibitor') req.body.exhibitor_id = await getMyExhibitorId(req);
+      next();
+    });
+
     // POST /api/adslots/:id/request-review — exhibitor requests organiser review of a
     // new self-service ad slot, or of pending edits (item.pending_changes) to an
     // existing live one, before it goes/stays live.
@@ -35,6 +49,7 @@ export default crudRouter(TABLE, {
         const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
         const item = result.Item;
         if (!item) return res.status(404).json({ error: 'Ad slot not found' });
+        if (!await ownsAdSlot(req, item)) return res.status(403).json({ error: 'You do not have permission to do that.' });
 
         const settingsResult = await ddb.send(new GetCommand({ TableName: 'adma_app_settings', Key: { pk: 'singleton' } }));
         const reviewEmail = settingsResult.Item?.paidFeatureRequestEmail;

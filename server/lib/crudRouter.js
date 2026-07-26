@@ -21,20 +21,38 @@ function buildAccessMiddleware(mode) {
   throw new Error(`crudRouter: invalid auth mode ${JSON.stringify(mode)}`);
 }
 
-// For :id routes when `write` is an ownership function — fetches the existing
-// item first (404 if missing), then lets the caller-supplied function decide.
-function buildOwnershipCheck(table, mode) {
+// For :id routes when `read`/`write` is an ownership function — fetches the existing
+// item first (404 if missing), then awaits the caller-supplied predicate. Caches the
+// fetched item on req._crudItem so GET /:id doesn't need a second GetCommand.
+// denyStatus is 404 for `read` (hides that the record exists at all from someone who
+// can't see it — meaningful for authenticated-only resources) vs 403 for `write`
+// (matches the already-verified Batch B behavior; these resources are public-read
+// anyway, so there's no existence to hide).
+function buildOwnershipCheck(table, mode, denyStatus = 403) {
   if (typeof mode !== 'function') return (req, res, next) => next();
   return async (req, res, next) => {
     try {
       const result = await ddb.send(new GetCommand({ TableName: table, Key: { id: req.params.id } }));
       if (!result.Item) return res.status(404).json({ error: 'Not found' });
-      if (!mode(req, result.Item)) return res.status(403).json({ error: 'You do not have permission to do that.' });
+      if (!await mode(req, result.Item)) {
+        return denyStatus === 404
+          ? res.status(404).json({ error: 'Not found' })
+          : res.status(403).json({ error: 'You do not have permission to do that.' });
+      }
+      req._crudItem = result.Item;
       next();
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
   };
+}
+
+// For GET / (list) when `read` is an ownership function — filters the already-fetched
+// items array down to what the caller is allowed to see.
+async function filterByOwnership(req, items, mode) {
+  if (typeof mode !== 'function') return items;
+  const checked = await Promise.all(items.map(async item => [item, await mode(req, item)]));
+  return checked.filter(([, ok]) => ok).map(([item]) => item);
 }
 
 /**
@@ -56,7 +74,8 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
 
   const readAccess = buildAccessMiddleware(auth.read);
   const writeAccess = buildAccessMiddleware(auth.write);
-  const ownershipCheck = buildOwnershipCheck(table, auth.write);
+  const readOwnershipCheck = buildOwnershipCheck(table, auth.read, 404);
+  const writeOwnershipCheck = buildOwnershipCheck(table, auth.write, 403);
 
   // List / filter
   r.get('/', readAccess, async (req, res) => {
@@ -105,6 +124,8 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
         items = result.Items || [];
       }
 
+      items = await filterByOwnership(req, items, auth.read);
+
       if (sortBy) {
         const desc = sortBy.startsWith('-');
         const field = desc ? sortBy.slice(1) : sortBy;
@@ -122,8 +143,9 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   });
 
   // Get by id
-  r.get('/:id', readAccess, async (req, res) => {
+  r.get('/:id', readAccess, readOwnershipCheck, async (req, res) => {
     try {
+      if (req._crudItem) return res.json(req._crudItem);
       const result = await ddb.send(new GetCommand({ TableName: table, Key: { id: req.params.id } }));
       if (!result.Item) return res.status(404).json({ error: 'Not found' });
       res.json(result.Item);
@@ -149,7 +171,7 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   });
 
   // Update
-  r.put('/:id', writeAccess, ownershipCheck, async (req, res) => {
+  r.put('/:id', writeAccess, writeOwnershipCheck, async (req, res) => {
     try {
       const body = req.body;
       const entries = Object.entries(body).filter(([k]) => k !== 'id');
@@ -178,7 +200,7 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   });
 
   // Delete
-  r.delete('/:id', writeAccess, ownershipCheck, async (req, res) => {
+  r.delete('/:id', writeAccess, writeOwnershipCheck, async (req, res) => {
     try {
       await ddb.send(new DeleteCommand({ TableName: table, Key: { id: req.params.id } }));
       res.json({ ok: true });

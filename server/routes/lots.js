@@ -21,7 +21,11 @@ export default crudRouter(TABLE, {
   extraRoutes(r) {
     r.post('/:id/bid', requireAuth, async (req, res) => {
       try {
-        const { bidder_name, bidder_email, amount } = req.body;
+        // Bidding as anyone but yourself would let one attendee frame another for a bid
+        // they never placed — bidder_email always comes from the verified session.
+        const bidder_name = req.body.bidder_name;
+        const bidder_email = req.user.email;
+        const { amount } = req.body;
         if (!bidder_name || !bidder_email || !amount) {
           return res.status(400).json({ error: 'bidder_name, bidder_email and amount are required' });
         }

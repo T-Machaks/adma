@@ -3,14 +3,30 @@ import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 import { requireAuth } from '../lib/authMiddleware.js';
+import { CONSOLE_ROLES, getMyExhibitorId } from '../lib/ownership.js';
 
 const TABLE = 'adma_collaborations';
+
+async function ownsCollaboration(req, item) {
+  if (CONSOLE_ROLES.includes(req.user.role)) return true;
+  return item.exhibitor_id === await getMyExhibitorId(req);
+}
 
 export default crudRouter(TABLE, {
   defaults: () => ({ status: 'Pending' }),
   gsiFields: { exhibitor_id: 'exhibitor-index' },
-  auth: { read: 'public', write: 'auth' },
+  // Read stays public — Collaborations.jsx is a real public directory, everyone sees
+  // every listing. Only editing/deleting is scoped to the exhibitor who posted it.
+  auth: { read: 'public', write: ownsCollaboration },
   extraRoutes(r) {
+    // An exhibitor can only ever post under their own exhibitor_id — override whatever
+    // the client sent, but only when the caller IS an exhibitor (an organizer posting
+    // on behalf of the platform has no exhibitor_id).
+    r.post('/', requireAuth, async (req, res, next) => {
+      if (req.user.role === 'exhibitor') req.body.exhibitor_id = await getMyExhibitorId(req);
+      next();
+    });
+
     // POST /api/collaborations/:id/request-payment — notifies the configured
     // billing contact that a Partner Collaboration listing is awaiting payment/activation.
     r.post('/:id/request-payment', requireAuth, async (req, res) => {
@@ -18,6 +34,7 @@ export default crudRouter(TABLE, {
         const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
         const item = result.Item;
         if (!item) return res.status(404).json({ error: 'Collaboration not found' });
+        if (!await ownsCollaboration(req, item)) return res.status(403).json({ error: 'You do not have permission to do that.' });
 
         const settingsResult = await ddb.send(new GetCommand({ TableName: 'adma_app_settings', Key: { pk: 'singleton' } }));
         const billingEmail = settingsResult.Item?.paidFeatureRequestEmail;

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { GetCommand, PutCommand, UpdateCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from './dynamo.js';
+import { CONSOLE_ROLES } from './ownership.js';
 
 const TABLE = 'adma_auth_sessions';
 
@@ -9,7 +10,6 @@ export const SESSION_COOKIE = 'adma_session';
 // Console roles (organizer/superadmin/marketing_partner) get a short-lived session since
 // console access is the higher-value target; everyone else gets a longer one so attendees
 // and exhibitors aren't forced to re-login constantly during the show.
-const CONSOLE_ROLES = ['organizer', 'superadmin', 'marketing_partner'];
 const CONSOLE_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
