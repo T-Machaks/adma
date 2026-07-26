@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdSlot } from '@/api/entities';
 import { isEmbedVideoUrl, toLoopingEmbedUrl } from '@/lib/videoUtils';
@@ -6,6 +6,15 @@ import { track } from '@/lib/tracking';
 import { Volume2, VolumeX, ExternalLink, Play, Pause } from 'lucide-react';
 
 const DURATION_MS = { '15s': 15000, '30s': 30000, '60s': 60000 };
+
+function shuffled(arr) {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 // Sitewide video-ad playlist, rendered once on the home page below the image carousel.
 // With more than one active ad, they play back-to-back: direct MP4 files advance on
@@ -20,9 +29,13 @@ export default function VideoAdCarousel() {
     queryFn: () => AdSlot.listActive(),
   });
 
-  const ads = allSlots
-    .filter(s => s.placement === 'video-carousel' && s.active && s.video_url)
-    .sort((a, b) => (a.created_date || '').localeCompare(b.created_date || ''));
+  const activeAds = allSlots.filter(s => s.placement === 'video-carousel' && s.active && s.video_url);
+  // Shuffled once per distinct set of active ads (keyed on the joined ids, not the array
+  // reference, which changes every render) so playback order is randomized per visit —
+  // it previously always started from the same "first" ad by created_date — but stays
+  // stable for the rest of this session rather than reshuffling on every re-render.
+  const adIds = activeAds.map(a => a.id).join(',');
+  const ads = useMemo(() => shuffled(activeAds), [adIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [idx, setIdx] = useState(0);
   const [muted, setMuted] = useState(true);
