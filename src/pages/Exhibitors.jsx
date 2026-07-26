@@ -105,7 +105,7 @@ export default function Exhibitors() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filtered.map(ex => (
-          <div key={ex.id} className="bg-card border border-border rounded-xl overflow-hidden">
+          <div key={ex.id} className={`bg-card border border-border rounded-xl overflow-hidden ${ex.portal_locked ? 'opacity-60 grayscale' : ''}`}>
             {/* Card header */}
             <div className="p-4 flex items-start gap-3">
               <div className="w-11 h-11 bg-white border border-border rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -126,7 +126,11 @@ export default function Exhibitors() {
                     </Link>
                     <p className="text-xs text-muted-foreground mt-0.5">Booth <span className="font-bold text-foreground">{ex.booth}</span> · {ex.section || 'General'}</p>
                   </div>
-                  <TierBadge package={ex.package} />
+                  {ex.portal_locked ? (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 flex-shrink-0">Unavailable</span>
+                  ) : (
+                    <TierBadge package={ex.package} />
+                  )}
                 </div>
                 {ex.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{ex.description.slice(0, getPackageLimits(ex).descChars)}</p>}
                 <div className="flex gap-1.5 mt-2 flex-wrap">
@@ -144,21 +148,23 @@ export default function Exhibitors() {
               >
                 {settings.virtualExhibitionOpen ? 'Virtual Booth' : 'View Profile'} <ChevronRight className="w-3 h-3" />
               </Link>
-              <div className="flex gap-2">
-                {ex.website && (
-                  <a href={ex.website} target="_blank" rel="noreferrer" className="text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors flex items-center gap-1">
-                    <Globe className="w-3 h-3" /> Website
-                  </a>
-                )}
-                <Link
-                  to="/meetings"
-                  state={{ exhibitor: ex }}
-                  onClick={() => track(ex.id, ex.name, 'meeting_click', 'directory')}
-                  className="text-xs bg-amber text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90 transition-opacity"
-                >
-                  <Calendar className="w-3 h-3" /> Book Meeting
-                </Link>
-              </div>
+              {!ex.portal_locked && (
+                <div className="flex gap-2">
+                  {ex.website && (
+                    <a href={ex.website} target="_blank" rel="noreferrer" className="text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors flex items-center gap-1">
+                      <Globe className="w-3 h-3" /> Website
+                    </a>
+                  )}
+                  <Link
+                    to="/meetings"
+                    state={{ exhibitor: ex }}
+                    onClick={() => track(ex.id, ex.name, 'meeting_click', 'directory')}
+                    className="text-xs bg-amber text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 hover:opacity-90 transition-opacity"
+                  >
+                    <Calendar className="w-3 h-3" /> Book Meeting
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Expanded contact */}

@@ -116,17 +116,27 @@ export default function ExhibitorDetail() {
   const limits = getPackageLimits(ex);
 
   const expired = isSubscriptionExpired(ex);
+  const locked = !!ex.portal_locked;
   const isSelfOrOrganiser = user?.role === 'organizer' || user?.role === 'superadmin'
     || (user?.email && ex.contact_email && user.email.toLowerCase() === ex.contact_email.toLowerCase());
 
-  if (expired && !isSelfOrOrganiser) {
+  if ((expired || locked) && !isSelfOrOrganiser) {
     return (
       <div className="px-4 pt-10 text-center max-w-md mx-auto">
         <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
           <Lock className="w-6 h-6 text-muted-foreground" />
         </div>
-        <p className="font-semibold">This exhibitor profile is no longer available</p>
-        <p className="text-muted-foreground text-sm mt-1">Their subscription has expired. Check back after the exhibitor renews.</p>
+        {locked ? (
+          <>
+            <p className="font-semibold">This exhibitor profile is currently unavailable</p>
+            <p className="text-muted-foreground text-sm mt-1">This booth is temporarily restricted. Please check back later.</p>
+          </>
+        ) : (
+          <>
+            <p className="font-semibold">This exhibitor profile is no longer available</p>
+            <p className="text-muted-foreground text-sm mt-1">Their subscription has expired. Check back after the exhibitor renews.</p>
+          </>
+        )}
         <button onClick={() => navigate('/exhibitors')} className="mt-3 text-amber text-sm underline">Back to directory</button>
       </div>
     );
