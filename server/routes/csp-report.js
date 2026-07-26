@@ -19,7 +19,7 @@ router.post('/', express.json({ type: () => true, limit: '100kb' }), (req, res) 
     logSecurityEvent('csp_violation', {
       blockedUri: csp['blocked-uri'] || csp.blockedURL,
       violatedDirective: csp['violated-directive'] || csp.effectiveDirective,
-      documentUri: csp['document-uri'] || csp.url,
+      documentUri: csp['document-uri'] || csp.documentURL || csp.url,
       sourceFile: csp['source-file'] || csp.sourceFile,
       lineNumber: csp['line-number'] || csp.lineNumber,
       ip: req.ip,
