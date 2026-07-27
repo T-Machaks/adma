@@ -49,7 +49,7 @@ export default function ExhibitorShell() {
             <EventLogo />
           </Link>
 
-          <nav className="flex items-center gap-px ml-auto overflow-x-auto scrollbar-none">
+          <nav className="flex items-center gap-px mx-auto overflow-x-auto scrollbar-none">
             {exhibitorNav.map(({ path, label, icon: Icon, exact }) => (
               <Link
                 key={path}
