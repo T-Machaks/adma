@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { EventInfo as EventInfoEntity, ScheduleContent } from '@/api/entities';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import {
-  Plus, Trash2, ChevronUp, ChevronDown, Save, Loader2,
-  Info as InfoIcon, CalendarClock, Eye,
+  Plus, Trash2, ChevronUp, ChevronDown, Save, Loader2, RotateCcw,
+  Info as InfoIcon, CalendarClock, Eye, Map as MapIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import FileUploadOrUrlField from '@/components/shared/FileUploadOrUrlField';
 
 function Section({ title, icon, expanded, onToggle, children }) {
   return (
@@ -432,6 +433,51 @@ function VisibilityToggles() {
   );
 }
 
+function SitePlanEditor() {
+  const { settings, updateSettings } = useAppSettings();
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <Field label="Site Plan Image">
+          <FileUploadOrUrlField
+            value={settings.sitePlanImageUrl}
+            onChange={url => updateSettings({ sitePlanImageUrl: url })}
+            uploadEndpoint="/api/upload/site-plan-image-url"
+            accept="image/*"
+            previewKind="image"
+          />
+        </Field>
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Uploading a replacement turns off the tap-to-view exhibitor hotspots (they're
+          only positioned correctly for the default map) — the plan still shows, zoomable,
+          just without clickable stands. Remove it to restore the default map with hotspots.
+        </p>
+        {settings.sitePlanImageUrl && (
+          <Button variant="outline" size="sm" className="mt-2" onClick={() => updateSettings({ sitePlanImageUrl: '' })}>
+            <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reset to Default Plan
+          </Button>
+        )}
+      </div>
+
+      <div>
+        <Field label="Exhibitor Booth List (downloadable file)">
+          <FileUploadOrUrlField
+            value={settings.exhibitorListUrl}
+            onChange={url => updateSettings({ exhibitorListUrl: url })}
+            uploadEndpoint="/api/upload/exhibitor-list-url"
+            accept=".xlsx,.xls,.csv,.pdf"
+            previewKind="document"
+          />
+        </Field>
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Shown as a "Download Exhibitor List" link on the Site Plan and Exhibitor Directory pages.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function EventContentManager() {
   const [expanded, setExpanded] = useState('eventinfo');
   const toggle = (id) => setExpanded(e => (e === id ? null : id));
@@ -459,6 +505,10 @@ export default function EventContentManager() {
 
       <Section title="Schedule" icon={<CalendarClock className="w-4 h-4 text-amber" />} expanded={expanded === 'schedule'} onToggle={() => toggle('schedule')}>
         <ScheduleEditor />
+      </Section>
+
+      <Section title="Site Plan & Exhibitor List" icon={<MapIcon className="w-4 h-4 text-amber" />} expanded={expanded === 'siteplan'} onToggle={() => toggle('siteplan')}>
+        <SitePlanEditor />
       </Section>
     </div>
   );

@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ZoomIn, ZoomOut, RotateCcw, Navigation2, Calendar, Phone, Globe, Mail, X, MapPin, Info } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Navigation2, Calendar, Phone, Globe, Mail, X, MapPin, Info, Download } from 'lucide-react';
 import { Exhibitor } from '@/api/entities';
 import TierBadge from '@/components/ui/TierBadge';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { SITE_PLAN_SPOTS } from '@/lib/sitePlanSpots';
 import { isSubscriptionExpired } from '@/lib/subscription';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 
 const PACKAGE_COLORS = {
   Premium:  '#16a34a',
@@ -52,6 +53,14 @@ export default function SitePlan() {
   const [selectedTitle, setSelectedTitle] = useState(null);
   const [selectedExhibitorId, setSelectedExhibitorId] = useState(null);
   const [locating, setLocating] = useState(false);
+  const { settings } = useAppSettings();
+  const imgSrc = settings.sitePlanImageUrl || '/site-plan-2026.png';
+  const isCustomPlan = !!settings.sitePlanImageUrl;
+  // A custom-uploaded plan won't share the default image's exact pixel dimensions —
+  // read its real aspect ratio on load instead of assuming the hardcoded IMG_W/IMG_H,
+  // otherwise it would render stretched.
+  const [customAspect, setCustomAspect] = useState(null);
+  const aspectRatio = isCustomPlan && customAspect ? customAspect : `${IMG_W} / ${IMG_H}`;
 
   const { data: exhibitors = [] } = useQuery({
     queryKey: ['exhibitors'],
@@ -108,6 +117,16 @@ export default function SitePlan() {
         <div>
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Site Plan</h1>
           <p className="text-muted-foreground text-sm mt-1">{EVENT_CONFIG.venue} — tap a stand for details</p>
+          {settings.exhibitorListUrl && (
+            <a
+              href={settings.exhibitorListUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-amber hover:underline mt-1.5"
+            >
+              <Download className="w-3.5 h-3.5" /> Download Exhibitor List
+            </a>
+          )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button onClick={() => setZoom(z => Math.max(1, z - 0.25))} className="p-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors">
@@ -132,14 +151,18 @@ export default function SitePlan() {
             className="relative transition-transform duration-200"
             style={{ width: `${zoom * 100}%`, minWidth: '100%', transformOrigin: 'top left' }}
           >
-            <div className="relative w-full" style={{ aspectRatio: `${IMG_W} / ${IMG_H}` }}>
+            <div className="relative w-full" style={{ aspectRatio }}>
               <img
-                src="/site-plan-2026.png"
-                alt="ADMA Agri Show 2026 official site plan"
+                src={imgSrc}
+                alt="ADMA Agri Show official site plan"
                 className="absolute inset-0 w-full h-full select-none"
+                style={isCustomPlan ? { objectFit: 'contain', background: '#f8fafc' } : undefined}
                 draggable={false}
+                onLoad={e => {
+                  if (isCustomPlan) setCustomAspect(`${e.target.naturalWidth} / ${e.target.naturalHeight}`);
+                }}
               />
-              {SITE_PLAN_SPOTS.map(spot => {
+              {!isCustomPlan && SITE_PLAN_SPOTS.map(spot => {
                 const matches = spotExhibitorMap.get(spot.title) || [];
                 const isSelected = selectedTitle === spot.title;
                 const color = matches.length ? (PACKAGE_COLORS[matches[0].package] || '#16a34a') : '#64748b';

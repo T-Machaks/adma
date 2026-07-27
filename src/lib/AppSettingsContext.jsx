@@ -15,6 +15,8 @@ export function AppSettingsProvider({ children }) {
     showEventInfo: true,
     showSchedule: true,
     showUpdates: true,
+    sitePlanImageUrl: '',
+    exhibitorListUrl: '',
   });
   const [isLoading, setIsLoading] = useState(true);
 

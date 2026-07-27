@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createPresignedPut, deleteS3Object } from '../lib/s3.js';
-import { requireAuth } from '../lib/authMiddleware.js';
+import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 
 const r = Router();
 
@@ -50,6 +50,44 @@ r.post('/tender-document-url', requireAuth, async (req, res) => {
 
     const key = `tender-documents/${exhibitorId}-${Date.now()}.pdf`;
     const { uploadUrl, publicUrl } = await createPresignedPut(key, 'application/pdf');
+    res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+r.post('/site-plan-image-url', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
+  try {
+    const { oldFileUrl, contentType, fileName } = req.body;
+
+    if (oldFileUrl) {
+      const url = new URL(oldFileUrl);
+      const key = decodeURIComponent(url.pathname.slice(1));
+      await deleteS3Object(key);
+    }
+
+    const ext = fileName?.split('.').pop() || 'png';
+    const key = `site-plan/plan-${Date.now()}.${ext}`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, contentType || 'image/png');
+    res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+r.post('/exhibitor-list-url', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
+  try {
+    const { oldFileUrl, contentType, fileName } = req.body;
+
+    if (oldFileUrl) {
+      const url = new URL(oldFileUrl);
+      const key = decodeURIComponent(url.pathname.slice(1));
+      await deleteS3Object(key);
+    }
+
+    const ext = fileName?.split('.').pop() || 'xlsx';
+    const key = `exhibitor-lists/list-${Date.now()}.${ext}`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, contentType || 'application/octet-stream');
     res.json({ uploadUrl, publicUrl });
   } catch (e) {
     res.status(500).json({ error: e.message });

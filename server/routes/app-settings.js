@@ -21,6 +21,9 @@ const DEFAULTS = {
   showEventInfo: true,
   showSchedule: true,
   showUpdates: true,
+  // Empty string = fall back to the built-in default asset/behaviour.
+  sitePlanImageUrl: '',
+  exhibitorListUrl: '',
 };
 
 const r = Router();

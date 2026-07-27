@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Exhibitor } from '@/api/entities';
-import { Search, Calendar, Globe, Phone, Mail, Filter, ChevronRight } from 'lucide-react';
+import { Search, Calendar, Globe, Phone, Mail, Filter, ChevronRight, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TierBadge from '@/components/ui/TierBadge';
 import { track } from '@/lib/tracking';
@@ -38,7 +38,19 @@ export default function Exhibitors() {
 
   return (
     <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-6xl mx-auto">
-      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-4">Exhibitor Directory</h1>
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Exhibitor Directory</h1>
+        {settings.exhibitorListUrl && (
+          <a
+            href={settings.exhibitorListUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber hover:underline flex-shrink-0 mt-1"
+          >
+            <Download className="w-3.5 h-3.5" /> Download List
+          </a>
+        )}
+      </div>
 
       {/* Search */}
       <div className="relative mb-4">
