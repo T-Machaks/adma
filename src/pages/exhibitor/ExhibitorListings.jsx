@@ -74,7 +74,7 @@ export default function ExhibitorListings() {
   if (!myBooth) return null;
 
   return (
-    <div className="max-w-3xl px-3 sm:px-4 py-8 space-y-6">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div>
         <h1 className="font-heading text-xl font-bold uppercase tracking-wide flex items-center gap-2">
           <LayoutList className="w-6 h-6 text-amber" /> My Listings

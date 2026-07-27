@@ -52,7 +52,7 @@ export default function ExhibitorMessages() {
   const activeThread = selectedThread || threads[0]?.email || null;
 
   return (
-    <div className="max-w-5xl px-3 sm:px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-6">
         <h1 className="font-heading text-xl font-bold uppercase tracking-wide flex items-center gap-2">
           <MessageCircle className="w-5 h-5 text-amber" /> Attendee Messages
