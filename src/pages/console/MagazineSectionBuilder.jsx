@@ -335,6 +335,50 @@ const SECTION_FORMS = {
   animation: AnimationForm,
 };
 
+// Best-effort carry-over when switching an existing section to a different type — e.g. an
+// Image Ad's image becomes the first Carousel slide, a Carousel's first slide becomes an
+// Image Ad, and shared fields (click_url, advertiser, text, colours) copy straight across
+// whenever the new type actually has them.
+function convertSectionConfig(oldType, newType, oldConfig) {
+  const base = SECTION_TYPE_META[newType].defaultConfig();
+  const c = oldConfig || {};
+
+  const shared = {};
+  if ('click_url' in base) shared.click_url = c.click_url || '';
+  if ('advertiser' in base) shared.advertiser = c.advertiser || '';
+  if ('text' in base && typeof c.text === 'string') shared.text = c.text;
+  if ('bg' in base && c.bg) shared.bg = c.bg;
+  if ('color' in base && c.color) shared.color = c.color;
+
+  if (newType === 'carousel') {
+    const firstImage = c.image_url || (c.slides || [])[0]?.image_url || '';
+    return {
+      ...base,
+      ...shared,
+      slides: firstImage
+        ? [{ image_url: firstImage, click_url: c.click_url || '', label: c.advertiser || '' }]
+        : (c.slides || base.slides),
+    };
+  }
+
+  if (oldType === 'carousel' && (newType === 'image' || newType === 'advertorial')) {
+    const first = (c.slides || [])[0];
+    return {
+      ...base,
+      ...shared,
+      image_url: first?.image_url || '',
+      click_url: first?.click_url || shared.click_url || '',
+      advertiser: first?.label || shared.advertiser || '',
+    };
+  }
+
+  if ((newType === 'image' || newType === 'advertorial') && c.image_url) {
+    return { ...base, ...shared, image_url: c.image_url, fit: c.fit || 'cover', cropSide: c.cropSide || 'center' };
+  }
+
+  return { ...base, ...shared };
+}
+
 function PagePreview({ slot, sections }) {
   if (sections?.length) return <AdSectionPage sections={sections} />;
   return (
@@ -351,16 +395,25 @@ function PagePreview({ slot, sections }) {
   );
 }
 
-function SectionRow({ section, index, total, pageKey, onChange, onRemove, onMove }) {
+function SectionRow({ section, index, total, pageKey, onChange, onRemove, onMove, onChangeType }) {
   const meta = SECTION_TYPE_META[section.type];
   const Icon = meta?.icon || ImageIcon;
   const Form = SECTION_FORMS[section.type];
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted/40">
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 flex-wrap">
         <Icon className="w-4 h-4 text-amber-600 shrink-0" />
-        <span className="text-sm font-semibold">{meta?.label || section.type}</span>
+        <select
+          value={section.type}
+          onChange={e => onChangeType(e.target.value)}
+          title="Change section type — keeps the image/text/link where possible"
+          className="text-sm font-semibold bg-transparent border border-transparent hover:border-border rounded px-1 py-0.5 -ml-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber"
+        >
+          {SECTION_TYPES.map(t => (
+            <option key={t.type} value={t.type}>{t.label}</option>
+          ))}
+        </select>
         <div className="flex items-center gap-1 ml-2">
           {HEIGHT_PRESETS.map(p => (
             <button
@@ -453,6 +506,13 @@ export default function MagazineSectionBuilder() {
 
   const updateSection = (id, next) => {
     setDraftSections(prev => prev.map(s => (s.id === id ? next : s)));
+    setDirty(true);
+  };
+
+  const changeSectionType = (id, newType) => {
+    setDraftSections(prev => prev.map(s => (
+      s.id === id ? { ...s, type: newType, config: convertSectionConfig(s.type, newType, s.config) } : s
+    )));
     setDirty(true);
   };
 
@@ -617,6 +677,7 @@ export default function MagazineSectionBuilder() {
                       onChange={next => updateSection(section.id, next)}
                       onRemove={() => removeSection(section.id)}
                       onMove={dir => moveSection(section.id, dir)}
+                      onChangeType={newType => changeSectionType(section.id, newType)}
                     />
                   ))}
                 </div>
