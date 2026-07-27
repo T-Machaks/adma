@@ -11,6 +11,8 @@ export { User } from "./User";
 export { VirtualEnquiry } from "./VirtualEnquiry";
 export { GuidePage } from "./GuidePage";
 export { MagazinePage } from "./MagazinePage";
+export { EventInfo } from "./EventInfo";
+export { ScheduleContent } from "./ScheduleContent";
 export { Session } from "./Session";
 export { BoothMessage } from "./BoothMessage";
 export { JobListing } from "./JobListing";

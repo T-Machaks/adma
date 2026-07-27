@@ -15,6 +15,12 @@ const DEFAULTS = {
   // Exhibition Guide is physical-show content (booth maps, stand numbers) — hidden
   // while the event is virtual-only, toggled from MarketingHub.jsx when it's needed.
   showExhibitionGuide: false,
+  // Event Info / Schedule / Updates are physical-show-season content (exact dates,
+  // agenda, season notices) — default true since these pages are already live;
+  // toggled off independently from /console/event-content once the season ends.
+  showEventInfo: true,
+  showSchedule: true,
+  showUpdates: true,
 };
 
 const r = Router();

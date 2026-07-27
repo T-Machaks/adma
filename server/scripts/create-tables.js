@@ -58,5 +58,7 @@ await ensureTable('adma_collaborations',        { gsis: [{ attr: 'exhibitor_id',
 await ensureTable('adma_app_settings',   { hashKey: 'pk' });
 await ensureTable('adma_guide_pages',    { hashKey: 'page_num' });
 await ensureTable('adma_magazine_pages', { hashKey: 'page_num' });
+await ensureTable('adma_event_info',     { hashKey: 'pk' });
+await ensureTable('adma_schedule',       { hashKey: 'pk' });
 
 console.log('\nAll ADMA tables ready.');

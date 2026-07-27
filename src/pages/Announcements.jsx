@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Announcement } from '@/api/entities';
 import { Megaphone, AlertCircle, Clock, Bell, Pin, Sparkles, MapPin, Navigation } from 'lucide-react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 
 const typeIcon = { Important: AlertCircle, Reminder: Clock, General: Megaphone, Update: Bell, Venue: MapPin, Directional: Navigation };
 const typeColor = {
@@ -22,10 +23,20 @@ const typeBadge = {
 };
 
 export default function Announcements() {
+  const { settings } = useAppSettings();
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ['announcements'],
     queryFn: () => Announcement.list('-created_date'),
+    enabled: settings.showUpdates,
   });
+
+  if (!settings.showUpdates) {
+    return (
+      <div className="pb-24 px-4 pt-5 max-w-2xl mx-auto text-center text-muted-foreground">
+        <p className="mt-10">Updates aren't available right now.</p>
+      </div>
+    );
+  }
 
   const sponsored = announcements.filter(a => a.sponsored && !a.pinned);
   const pinned = announcements.filter(a => a.pinned);

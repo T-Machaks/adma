@@ -10,6 +10,7 @@ import EventLogo from './EventLogo.jsx';
 import FooterAdBanner from './FooterAdBanner.jsx';
 import { usePWAInstall } from '@/lib/PWAInstallContext';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const navGroups = [
@@ -20,7 +21,7 @@ const navGroups = [
       { path: '/exhibitors',  label: 'Exhibitors',      icon: Users },
       { path: '/partners',    label: 'Partners', icon: Star },
       { path: '/site-plan',   label: 'Site Plan',       icon: Map },
-      { path: '/schedule',    label: 'Schedule',        icon: Clock },
+      { path: '/schedule',    label: 'Schedule',        icon: Clock, settingsKey: 'showSchedule' },
       { path: '/meetings',    label: 'Meetings',        icon: Calendar },
     ],
   },
@@ -47,8 +48,8 @@ const navGroups = [
     items: [
       { path: '/sessions',      label: 'Live Sessions',      icon: Video },
       { path: '/magazine',      label: 'Publications',       icon: BookOpen },
-      { path: '/announcements', label: 'Updates',            icon: Bell },
-      { path: '/event-info',    label: 'Event Info',         icon: Info },
+      { path: '/announcements', label: 'Updates',            icon: Bell, settingsKey: 'showUpdates' },
+      { path: '/event-info',    label: 'Event Info',         icon: Info, settingsKey: 'showEventInfo' },
     ],
   },
 ];
@@ -65,7 +66,15 @@ export default function AppShell({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout, hasConsoleAccess, hasExhibitorAccess } = useAuth();
+  const { settings } = useAppSettings();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const visibleNavGroups = navGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => !item.settingsKey || settings[item.settingsKey] !== false),
+    }))
+    .filter(group => group.items.length > 0);
 
   const handleLogout = () => {
     logout();
@@ -178,7 +187,7 @@ export default function AppShell({ children }) {
         {/* Mobile dropdown menu */}
         {menuOpen && (
           <div className="lg:hidden bg-steel border-t border-white/10 px-4 py-3 flex flex-col gap-4 max-h-[80vh] overflow-y-auto">
-            {navGroups.map(group => (
+            {visibleNavGroups.map(group => (
               <div key={group.label}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 px-1">
                   {group.label}
@@ -308,7 +317,7 @@ export default function AppShell({ children }) {
 
           {/* Nav items */}
           <div className="flex-1 py-3 px-2 overflow-y-auto overflow-x-hidden">
-            {navGroups.map(group => (
+            {visibleNavGroups.map(group => (
               <div key={group.label} className="mb-4">
                 {!sidebarCollapsed && (
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 px-2">

@@ -1,53 +1,9 @@
 import { useState } from 'react';
 import { Clock, MapPin, Star, Users, Mic, Video } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ScheduleContent } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
-
-const SCHEDULE = {
-  'Day 1': {
-    date: '4 June 2026',
-    theme: 'Machinery & Mechanisation',
-    sessions: [
-      { time: '07:30', title: 'Gates Open & Registration', location: 'Main Entrance', type: 'logistics', duration: '30 min' },
-      { time: '08:00', title: 'Exhibition Opens — Machinery Hall', location: 'Machinery Hall', type: 'exhibition', duration: 'All Day' },
-      { time: '09:00', title: 'Opening Keynote: The Future of Farm Mechanisation in Zimbabwe', location: 'Main Stage', type: 'keynote', speaker: 'Senior Industry Representative', duration: '45 min' },
-      { time: '10:00', title: 'Panel: Financing Tractors & Equipment for Smallholder Farmers', location: 'Conference Tent', type: 'panel', speaker: 'Industry Panellists', duration: '60 min' },
-      { time: '11:30', title: 'Live Demo — Tractors & Implements', location: 'Outdoor Demo Zone', type: 'demo', duration: '60 min' },
-      { time: '13:00', title: 'Networking Lunch Break', location: 'Catering Area', type: 'break', duration: '60 min' },
-      { time: '14:00', title: 'Session: Precision Irrigation Technology', location: 'Conference Tent', type: 'session', speaker: 'Technical Expert', duration: '45 min' },
-      { time: '15:00', title: 'Sponsored Session: Digital Tools for Farm Management', location: 'Conference Tent', type: 'sponsored', speaker: 'Sponsor Presenter', duration: '30 min', virtual: true, webinar_url: '#' },
-      { time: '16:30', title: 'Day 1 Networking Sundowner', location: 'Exhibitor Lounge', type: 'networking', duration: '90 min' },
-      { time: '17:00', title: 'Exhibition Closes — Day 1', location: 'All Zones', type: 'logistics', duration: '' },
-    ],
-  },
-  'Day 2': {
-    date: '5 June 2026',
-    theme: 'Livestock & Inputs',
-    sessions: [
-      { time: '07:30', title: 'Gates Open', location: 'Main Entrance', type: 'logistics', duration: '30 min' },
-      { time: '08:00', title: 'Exhibition Opens — Livestock Auction Ring', location: 'Field Zone', type: 'exhibition', duration: 'All Day' },
-      { time: '09:30', title: 'Keynote: Growing Livestock Value Chains in Zimbabwe', location: 'Main Stage', type: 'keynote', speaker: 'Government & Industry Leaders', duration: '45 min' },
-      { time: '10:30', title: 'Live Livestock Auction', location: 'Field Zone', type: 'demo', duration: '90 min' },
-      { time: '12:00', title: 'Roundtable: Fertiliser & Seed Trends for the 2026/27 Season', location: 'Conference Tent', type: 'panel', speaker: 'Agronomy Experts', duration: '60 min', virtual: true, webinar_url: '#' },
-      { time: '13:00', title: 'Lunch Break', location: 'Catering Area', type: 'break', duration: '60 min' },
-      { time: '14:00', title: 'Session: Animal Health & Biosecurity', location: 'Conference Tent', type: 'session', speaker: 'Veterinary Officer', duration: '45 min' },
-      { time: '15:30', title: 'Exhibitor Speed Networking', location: 'Main Atrium', type: 'networking', duration: '60 min' },
-      { time: '17:00', title: 'Exhibition Closes — Day 2', location: 'All Zones', type: 'logistics', duration: '' },
-    ],
-  },
-  'Day 3': {
-    date: '6 June 2026',
-    theme: 'Suppliers, Finance & Closing',
-    sessions: [
-      { time: '07:30', title: 'Gates Open', location: 'Main Entrance', type: 'logistics', duration: '30 min' },
-      { time: '08:00', title: 'Exhibition Opens', location: 'All Sections', type: 'exhibition', duration: 'All Day' },
-      { time: '09:00', title: 'Session: Agri-Finance & Insurance for Growing Farm Businesses', location: 'Conference Tent', type: 'session', speaker: 'Banking & Insurance Expert', duration: '45 min' },
-      { time: '10:30', title: 'Live Demo: Irrigation & Solar Water Pumping Systems', location: 'Outdoor Demo Zone', type: 'demo', duration: '60 min' },
-      { time: '12:00', title: 'Closing Keynote & Exhibitor Awards Recognition', location: 'Main Stage', type: 'keynote', speaker: 'ADMA Organising Committee', duration: '60 min', virtual: true, webinar_url: '#' },
-      { time: '13:00', title: 'Lunch & Final Networking', location: 'Catering Area', type: 'break', duration: '90 min' },
-      { time: '15:00', title: `Exhibition Closes — ${EVENT_CONFIG.eventFullName}`, location: 'All Zones', type: 'logistics', duration: '' },
-    ],
-  },
-};
+import { useAppSettings } from '@/lib/AppSettingsContext';
 
 const typeConfig = {
   keynote: { color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/30', icon: Star, label: 'Keynote', dot: 'bg-amber-400' },
@@ -62,15 +18,41 @@ const typeConfig = {
 };
 
 export default function Schedule() {
-  const [activeDay, setActiveDay] = useState('Day 1');
-  const days = Object.keys(SCHEDULE);
-  const day = SCHEDULE[activeDay];
+  const [activeDay, setActiveDay] = useState(null);
+  const { settings } = useAppSettings();
+  const { data, isLoading } = useQuery({
+    queryKey: ['schedule-content'],
+    queryFn: () => ScheduleContent.get(),
+    staleTime: 60_000,
+  });
+
+  if (!settings.showSchedule) {
+    return (
+      <div className="pb-24 px-4 pt-5 max-w-2xl mx-auto text-center text-muted-foreground">
+        <p className="mt-10">The Event Schedule isn't available right now.</p>
+      </div>
+    );
+  }
+
+  if (isLoading || !data) {
+    return <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-4xl mx-auto text-muted-foreground text-sm">Loading…</div>;
+  }
+
+  const days = data.days || [];
+  const day = days.find(d => d.id === activeDay) || days[0];
+  if (!day) {
+    return (
+      <div className="pb-24 px-4 pt-5 max-w-2xl mx-auto text-center text-muted-foreground">
+        <p className="mt-10">No schedule has been published yet.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-4xl mx-auto">
       <div className="px-4 pt-5 mb-4">
         <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Event Schedule</h1>
-        <p className="text-muted-foreground text-sm mt-1">{EVENT_CONFIG.eventFullName} — 04–06 June 2026</p>
+        <p className="text-muted-foreground text-sm mt-1">{EVENT_CONFIG.eventFullName}</p>
       </div>
 
       {/* Day tabs */}
@@ -79,11 +61,11 @@ export default function Schedule() {
           <div className="bg-muted rounded-xl p-1 flex gap-1 lg:flex-shrink-0">
             {days.map(d => (
               <button
-                key={d}
-                onClick={() => setActiveDay(d)}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeDay === d ? 'bg-steel text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                key={d.id}
+                onClick={() => setActiveDay(d.id)}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${day.id === d.id ? 'bg-steel text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                {d}
+                {d.label}
               </button>
             ))}
           </div>
@@ -106,11 +88,11 @@ export default function Schedule() {
 
       {/* Timeline */}
       <div className="px-4 space-y-2.5">
-        {day.sessions.map((s, i) => {
+        {(day.sessions || []).map((s, i) => {
           const cfg = typeConfig[s.type] || typeConfig.logistics;
           const Icon = cfg.icon;
           return (
-            <div key={i} className={`flex gap-3 items-start p-3.5 rounded-xl border-l-4 ${cfg.color}`}>
+            <div key={s.id || i} className={`flex gap-3 items-start p-3.5 rounded-xl border-l-4 ${cfg.color}`}>
               <div className="flex-shrink-0 text-right w-10">
                 <p className="text-xs font-bold text-foreground">{s.time}</p>
                 {s.duration && <p className="text-[10px] text-muted-foreground">{s.duration}</p>}

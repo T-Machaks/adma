@@ -1026,10 +1026,10 @@ export default function MarketingHub() {
         )}
       </Section>
 
-      {/* ── Sponsored Announcements ── */}
+      {/* ── Announcements & Updates ── */}
       <Section
         id="posts"
-        title="Sponsored Announcements"
+        title="Announcements & Updates"
         icon={<Sparkles className="w-4 h-4 text-amber" />}
         expanded={expandedSection === 'posts'}
         onToggle={() => toggle('posts')}
@@ -1039,18 +1039,20 @@ export default function MarketingHub() {
           </Button>
         }
       >
-        {sponsoredPosts.length === 0 ? (
-          <EmptyState icon={<Sparkles className="w-8 h-8 text-muted-foreground" />} label="No sponsored posts yet" sub="Create a sponsored announcement to sell premium placement in the attendee feed." />
+        {announcements.length === 0 ? (
+          <EmptyState icon={<Sparkles className="w-8 h-8 text-muted-foreground" />} label="No posts yet" sub="Create a sponsored announcement or a plain update for the attendee feed." />
         ) : (
           <div className="space-y-2 p-1">
-            {sponsoredPosts.map(a => (
-              <div key={a.id} className="flex items-start gap-3 p-3 rounded-xl border border-amber/30 bg-amber-50/30 dark:bg-amber-950/10">
-                <Sparkles className="w-4 h-4 text-amber mt-0.5 flex-shrink-0" />
+            {announcements.map(a => (
+              <div key={a.id} className={`flex items-start gap-3 p-3 rounded-xl border ${a.sponsored ? 'border-amber/30 bg-amber-50/30 dark:bg-amber-950/10' : 'border-border bg-muted/20'}`}>
+                <Sparkles className={`w-4 h-4 mt-0.5 flex-shrink-0 ${a.sponsored ? 'text-amber' : 'text-muted-foreground'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <p className="text-sm font-semibold">{a.title}</p>
-                    {a.sponsor_name && (
-                      <span className="text-[10px] font-bold bg-amber/20 text-amber px-1.5 py-0.5 rounded">{a.sponsor_name}</span>
+                    {a.sponsored ? (
+                      <span className="text-[10px] font-bold bg-amber/20 text-amber px-1.5 py-0.5 rounded">{a.sponsor_name || 'Sponsored'}</span>
+                    ) : (
+                      <span className="text-[10px] font-bold bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Update</span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-1">{a.body}</p>
@@ -1385,20 +1387,32 @@ export default function MarketingHub() {
       <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>New Sponsored Post</DialogTitle>
+            <DialogTitle>{postForm.sponsored ? 'New Sponsored Post' : 'New Update'}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => { e.preventDefault(); if (!postForm.title || !postForm.body) return; createPost.mutate(postForm); }}
             className="space-y-3 pt-1"
           >
-            <div>
-              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Sponsor Name</label>
-              <Input
-                placeholder="e.g. SANY Group"
-                value={postForm.sponsor_name}
-                onChange={e => setPostForm(f => ({ ...f, sponsor_name: e.target.value }))}
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">Sponsored post</p>
+                <p className="text-xs text-muted-foreground">Off posts as a plain organiser update — no sponsor name shown.</p>
+              </div>
+              <Switch
+                checked={postForm.sponsored}
+                onCheckedChange={v => setPostForm(f => ({ ...f, sponsored: v, sponsor_name: v ? f.sponsor_name : '' }))}
               />
             </div>
+            {postForm.sponsored && (
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Sponsor Name</label>
+                <Input
+                  placeholder="e.g. SANY Group"
+                  value={postForm.sponsor_name}
+                  onChange={e => setPostForm(f => ({ ...f, sponsor_name: e.target.value }))}
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Type</label>
               <Select value={postForm.type} onValueChange={v => setPostForm(f => ({ ...f, type: v }))}>
