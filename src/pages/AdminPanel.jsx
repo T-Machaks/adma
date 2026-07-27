@@ -55,13 +55,29 @@ export default function AdminPanel() {
     setSavingId(id);
     setSaveError(null);
     try {
-      await Exhibitor.update(id, { contact_email: editingEmail[id] });
+      await Exhibitor.setLoginEmail(id, editingEmail[id], false);
       queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
       setEditingEmail(prev => { const n = { ...prev }; delete n[id]; return n; });
     } catch (e) {
       setSaveError(e.message);
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const [sendingLoginId, setSendingLoginId] = useState(null);
+  const [sentEmailId, setSentEmailId] = useState(null);
+  const resendLoginEmail = async (id, email) => {
+    setSendingLoginId(id);
+    setSaveError(null);
+    try {
+      await Exhibitor.setLoginEmail(id, email, true);
+      setSentEmailId(id);
+      setTimeout(() => setSentEmailId(cur => (cur === id ? null : cur)), 3000);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSendingLoginId(null);
     }
   };
 
@@ -334,7 +350,22 @@ export default function AdminPanel() {
                     </button>
                   )}
                   {!isDirty && e.contact_email && (
-                    <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <>
+                      <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                      {sentEmailId === e.id ? (
+                        <span className="text-xs text-emerald-600 font-medium flex-shrink-0">Sent ✓</span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={sendingLoginId === e.id}
+                          onClick={() => resendLoginEmail(e.id, e.contact_email)}
+                          title="Email this exhibitor a link to set their password"
+                          className="flex-shrink-0 text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors disabled:opacity-60"
+                        >
+                          {sendingLoginId === e.id ? 'Sending…' : 'Send Login Email'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               );

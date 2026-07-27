@@ -33,4 +33,13 @@ export const Exhibitor = {
       body: { exhibitorId },
     });
   },
+  // Sets the login email on the exhibitor's linked account — organizer-only. Pass
+  // sendEmail=true to also email them a password-reset link so they can set their
+  // own password (defaults false so fixing a typo doesn't re-send on every save).
+  async setLoginEmail(exhibitorId, email, sendEmail = false) {
+    return apiFetch('/api/auth/organizer/set-exhibitor-email', {
+      method: 'POST',
+      body: { exhibitor_id: exhibitorId, email, send_email: sendEmail },
+    });
+  },
 };

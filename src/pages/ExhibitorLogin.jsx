@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Store, ChevronDown, Search, LogIn, Info, Eye, EyeOff } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Store, ChevronDown, Search, LogIn, Info, Eye, EyeOff, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import EventLogo from '@/components/layout/EventLogo';
 
@@ -75,10 +75,20 @@ export default function ExhibitorLogin() {
           </div>
         </div>
 
+        {/* Already have a real login — the production flow, once credentials are rolled out */}
+        <Link
+          to="/login"
+          className="flex items-center gap-2.5 bg-white/5 border border-white/10 hover:border-amber/40 rounded-xl px-4 py-3 mb-4 text-slate-300 hover:text-white text-sm transition-colors group"
+        >
+          <Mail className="w-4 h-4 flex-shrink-0 text-amber" />
+          <span className="flex-1">Already have your login email? <span className="font-semibold">Sign in here</span></span>
+          <ArrowRight className="w-4 h-4 flex-shrink-0 text-slate-500 group-hover:text-amber transition-colors" />
+        </Link>
+
         {/* Login notice */}
         <div className="flex items-start gap-2 bg-amber/10 border border-amber/30 rounded-xl px-4 py-3 mb-6 text-amber text-sm">
           <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>Select your company and sign in. Don't have your password yet? Contact the organiser for access.</span>
+          <span>Don't have your login email yet? Select your company below to preview your portal.</span>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col gap-5">

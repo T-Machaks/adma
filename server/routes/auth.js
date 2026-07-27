@@ -9,6 +9,7 @@ import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
 import { createSession, revokeSession, SESSION_COOKIE } from '../lib/session.js';
+import { requireRole } from '../lib/authMiddleware.js';
 
 const TABLE = 'adma_users';
 const APP_URL = 'https://admadigital.co.zw';
@@ -403,6 +404,26 @@ router.post('/change-password', async (req, res) => {
   }
 });
 
+// Shared by /forgot-password and the organizer-driven exhibitor email-provisioning
+// endpoint below — issues a password_reset challenge and emails the link. Never
+// throws on mail failure (caller just logs it), matching /forgot-password's original
+// behavior of not letting a mail-provider hiccup surface as a user-facing error.
+async function sendPasswordResetLink(user, req) {
+  cleanExpired();
+  const token = newToken();
+  challengeStore.set(token, { type: 'password_reset', userId: user.id, expiresAt: newResetExpiry() });
+  logSecurityEvent('password_reset_requested', { userId: user.id, email: user.email, ip: req.ip });
+  const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+  try {
+    await sendOtpEmail(user.email, null, {
+      subject: 'ADMA Digital — Reset your password',
+      html: resetPasswordHtml(resetUrl),
+    });
+  } catch (mailErr) {
+    console.error('Password reset email failed:', mailErr.message);
+  }
+}
+
 // ── POST /api/auth/forgot-password  — request a reset link by email ──────
 router.post('/forgot-password', async (req, res) => {
   try {
@@ -413,21 +434,7 @@ router.post('/forgot-password', async (req, res) => {
     // Always respond the same way whether or not the account exists, so this
     // endpoint can't be used to enumerate registered emails.
     const user = await findByEmail(email);
-    if (user) {
-      cleanExpired();
-      const token = newToken();
-      challengeStore.set(token, { type: 'password_reset', userId: user.id, expiresAt: newResetExpiry() });
-      logSecurityEvent('password_reset_requested', { userId: user.id, email: user.email, ip: req.ip });
-      const resetUrl = `${APP_URL}/reset-password?token=${token}`;
-      try {
-        await sendOtpEmail(user.email, null, {
-          subject: 'ADMA Digital — Reset your password',
-          html: resetPasswordHtml(resetUrl),
-        });
-      } catch (mailErr) {
-        console.error('Password reset email failed:', mailErr.message);
-      }
-    }
+    if (user) await sendPasswordResetLink(user, req);
 
     res.json({ ok: true });
   } catch (e) {
@@ -751,6 +758,54 @@ router.post('/organizer/add-user', async (req, res) => {
     await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
     logSecurityEvent('organizer_added', { requesterEmail: requester_email, newUserId: user.id, newUserEmail: user.email, ip: req.ip });
     res.status(201).json(sanitize(user));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/organizer/set-exhibitor-email  — provision a real exhibitor login ──
+// Sets the login email on an exhibitor's linked account and, unless send_email is
+// explicitly false, emails them a password-reset link (the same one /forgot-password
+// sends) so they set their own password — the organizer never handles or knows it.
+// send_email defaults true for the explicit "Send Login Email" action; the plain Save
+// button (fixing a typo, etc.) passes false so it doesn't re-email on every edit.
+router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadmin'), async (req, res) => {
+  try {
+    const { exhibitor_id, email, send_email = true } = req.body;
+    if (!exhibitor_id || !email) return res.status(400).json({ error: 'exhibitor_id and email are required.' });
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+
+    const exhResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitor_id } }));
+    const exhibitor = exhResult.Item;
+    if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
+    if (!exhibitor.user_id) return res.status(400).json({ error: 'This exhibitor has no linked login account.' });
+
+    const existing = await findByEmail(email);
+    if (existing && existing.id !== exhibitor.user_id) {
+      return res.status(409).json({ error: 'That email is already in use by another account.' });
+    }
+
+    const linkedUser = await getById(exhibitor.user_id);
+    if (!linkedUser) return res.status(404).json({ error: 'Linked login account not found.' });
+
+    const normalizedEmail = email.toLowerCase();
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { id: linkedUser.id },
+      UpdateExpression: 'SET email = :e',
+      ExpressionAttributeValues: { ':e': normalizedEmail },
+    }));
+    await ddb.send(new UpdateCommand({
+      TableName: 'adma_exhibitors',
+      Key: { id: exhibitor_id },
+      UpdateExpression: 'SET contact_email = :e',
+      ExpressionAttributeValues: { ':e': normalizedEmail },
+    }));
+
+    logSecurityEvent('exhibitor_login_email_set', { exhibitorId: exhibitor_id, userId: linkedUser.id, sentEmail: !!send_email, ip: req.ip });
+    if (send_email) await sendPasswordResetLink({ ...linkedUser, email: normalizedEmail }, req);
+
+    res.json({ ok: true, email: normalizedEmail });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
