@@ -2,10 +2,9 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ZoomIn, ZoomOut, RotateCcw, Navigation2, Calendar, Phone, Globe, Mail, X, MapPin, Info, Download } from 'lucide-react';
-import { Exhibitor } from '@/api/entities';
+import { Exhibitor, SitePlanSpots } from '@/api/entities';
 import TierBadge from '@/components/ui/TierBadge';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
-import { SITE_PLAN_SPOTS } from '@/lib/sitePlanSpots';
 import { isSubscriptionExpired } from '@/lib/subscription';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 
@@ -66,15 +65,21 @@ export default function SitePlan() {
     queryKey: ['exhibitors'],
     queryFn: () => Exhibitor.list(),
   });
+  const { data: spotData } = useQuery({
+    queryKey: ['site-plan-spots'],
+    queryFn: () => SitePlanSpots.get(),
+    staleTime: 60_000,
+  });
+  const spots = spotData?.spots || [];
 
   const spotExhibitorMap = useMemo(() => {
     const visible = exhibitors.filter(e => !isSubscriptionExpired(e));
     const map = new Map();
-    for (const spot of SITE_PLAN_SPOTS) {
+    for (const spot of spots) {
       map.set(spot.title, matchExhibitors(spot.title, visible));
     }
     return map;
-  }, [exhibitors]);
+  }, [exhibitors, spots]);
 
   const selectSpot = (title) => {
     setSelectedExhibitorId(null);
@@ -105,7 +110,7 @@ export default function SitePlan() {
     );
   };
 
-  const selSpot = selectedTitle ? SITE_PLAN_SPOTS.find(s => s.title === selectedTitle) : null;
+  const selSpot = selectedTitle ? spots.find(s => s.title === selectedTitle) : null;
   const selMatches = selectedTitle ? (spotExhibitorMap.get(selectedTitle) || []) : [];
   const selExhibitor = selectedExhibitorId
     ? selMatches.find(e => e.id === selectedExhibitorId)
@@ -162,7 +167,7 @@ export default function SitePlan() {
                   if (isCustomPlan) setCustomAspect(`${e.target.naturalWidth} / ${e.target.naturalHeight}`);
                 }}
               />
-              {!isCustomPlan && SITE_PLAN_SPOTS.map(spot => {
+              {spots.map(spot => {
                 const matches = spotExhibitorMap.get(spot.title) || [];
                 const isSelected = selectedTitle === spot.title;
                 const color = matches.length ? (PACKAGE_COLORS[matches[0].package] || '#16a34a') : '#64748b';

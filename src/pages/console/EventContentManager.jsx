@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { EventInfo as EventInfoEntity, ScheduleContent } from '@/api/entities';
+import { EventInfo as EventInfoEntity, ScheduleContent, SitePlanSpots, Exhibitor } from '@/api/entities';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { SITE_PLAN_SPOTS } from '@/lib/sitePlanSpots';
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Save, Loader2, RotateCcw,
   Info as InfoIcon, CalendarClock, Eye, Map as MapIcon,
@@ -433,8 +434,204 @@ function VisibilityToggles() {
   );
 }
 
+const DEFAULT_PLAN_IMAGE = '/site-plan-2026.png';
+
+function SpotEditorRow({ spot, onRename, onDelete }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border p-2">
+      <Input value={spot.title} onChange={e => onRename(e.target.value)} className="flex-1 h-8 text-xs" />
+      <button type="button" onClick={onDelete} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function SitePlanSpotEditor({ imgSrc }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ['site-plan-spots'], queryFn: () => SitePlanSpots.get(), staleTime: 30_000 });
+  const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors'], queryFn: () => Exhibitor.list(), staleTime: 60_000 });
+  const [draft, setDraft] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [aspect, setAspect] = useState('2202 / 1306');
+  const [drawing, setDrawing] = useState(null);
+  const [pendingSpot, setPendingSpot] = useState(null);
+  const [pendingTitle, setPendingTitle] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (data && !draft) setDraft(data.spots || []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (spots) => SitePlanSpots.update({ spots }),
+    onSuccess: (updated) => {
+      qc.setQueryData(['site-plan-spots'], updated);
+      setDirty(false);
+    },
+  });
+
+  if (isLoading || !draft) {
+    return <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading…</div>;
+  }
+
+  const getPct = (e) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    return { x, y };
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.target.closest('[data-spot]') || pendingSpot) return;
+    const { x, y } = getPct(e);
+    setSelectedId(null);
+    setDrawing({ x0: x, y0: y, x1: x, y1: y });
+  };
+  const handleMouseMove = (e) => {
+    if (!drawing) return;
+    const { x, y } = getPct(e);
+    setDrawing(d => ({ ...d, x1: x, y1: y }));
+  };
+  const handleMouseUp = () => {
+    if (!drawing) return;
+    const x = Math.min(drawing.x0, drawing.x1);
+    const y = Math.min(drawing.y0, drawing.y1);
+    const w = Math.abs(drawing.x1 - drawing.x0);
+    const h = Math.abs(drawing.y1 - drawing.y0);
+    setDrawing(null);
+    if (w < 0.5 || h < 0.5) return;
+    setPendingSpot({ x, y, w, h });
+    setPendingTitle('');
+  };
+
+  const confirmPendingSpot = () => {
+    if (!pendingTitle.trim()) return;
+    const id = newId('spot');
+    setDraft(prev => [...prev, { id, title: pendingTitle.trim(), ...pendingSpot }]);
+    setPendingSpot(null);
+    setPendingTitle('');
+    setDirty(true);
+  };
+
+  const renameSpot = (id, title) => {
+    setDraft(prev => prev.map(s => (s.id === id ? { ...s, title } : s)));
+    setDirty(true);
+  };
+  const deleteSpot = (id) => {
+    setDraft(prev => prev.filter(s => s.id !== id));
+    if (selectedId === id) setSelectedId(null);
+    setDirty(true);
+  };
+
+  const drawBox = drawing && {
+    left: `${Math.min(drawing.x0, drawing.x1)}%`,
+    top: `${Math.min(drawing.y0, drawing.y1)}%`,
+    width: `${Math.abs(drawing.x1 - drawing.x0)}%`,
+    height: `${Math.abs(drawing.y1 - drawing.y0)}%`,
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Click and drag on the plan to add a clickable stand. Click an existing stand to rename or remove it.
+        </p>
+        <Button size="sm" onClick={() => saveMutation.mutate(draft)} disabled={!dirty || saveMutation.isPending}>
+          {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+          Save Hotspots ({draft.length})
+        </Button>
+      </div>
+
+      <datalist id="exhibitor-names">
+        {exhibitors.map(ex => <option key={ex.id} value={ex.booth ? `${ex.booth} ${ex.name}` : ex.name} />)}
+      </datalist>
+
+      <div
+        ref={containerRef}
+        className="relative w-full mx-auto select-none rounded-lg border border-border overflow-hidden bg-muted"
+        style={{ aspectRatio: aspect, maxWidth: 720, cursor: pendingSpot ? 'default' : 'crosshair' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={() => drawing && setDrawing(null)}
+      >
+        <img
+          src={imgSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+          draggable={false}
+          onLoad={e => setAspect(`${e.target.naturalWidth} / ${e.target.naturalHeight}`)}
+        />
+        {draft.map(spot => (
+          <div
+            key={spot.id}
+            data-spot
+            onClick={() => setSelectedId(spot.id)}
+            className="absolute cursor-pointer"
+            style={{
+              left: `${spot.x}%`, top: `${spot.y}%`, width: `${spot.w}%`, height: `${spot.h}%`,
+              background: selectedId === spot.id ? 'rgba(234,179,8,0.4)' : 'rgba(22,163,74,0.25)',
+              border: selectedId === spot.id ? '2px solid #eab308' : '1px solid rgba(22,163,74,0.6)',
+            }}
+            title={spot.title}
+          />
+        ))}
+        {drawBox && <div className="absolute border-2 border-dashed border-amber bg-amber/20 pointer-events-none" style={drawBox} />}
+        {pendingSpot && (
+          <div className="absolute border-2 border-dashed border-amber bg-amber/20 pointer-events-none" style={{ left: `${pendingSpot.x}%`, top: `${pendingSpot.y}%`, width: `${pendingSpot.w}%`, height: `${pendingSpot.h}%` }} />
+        )}
+      </div>
+
+      {pendingSpot && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber/40 bg-amber/5 p-2">
+          <Input
+            autoFocus
+            list="exhibitor-names"
+            value={pendingTitle}
+            onChange={e => setPendingTitle(e.target.value)}
+            placeholder="Name this stand (booth number or exhibitor name)…"
+            className="flex-1 h-8 text-xs"
+            onKeyDown={e => e.key === 'Enter' && confirmPendingSpot()}
+          />
+          <Button size="sm" onClick={confirmPendingSpot} disabled={!pendingTitle.trim()}>Add</Button>
+          <Button size="sm" variant="outline" onClick={() => setPendingSpot(null)}>Cancel</Button>
+        </div>
+      )}
+
+      {selectedId && draft.find(s => s.id === selectedId) && (
+        <SpotEditorRow
+          spot={draft.find(s => s.id === selectedId)}
+          onRename={title => renameSpot(selectedId, title)}
+          onDelete={() => deleteSpot(selectedId)}
+        />
+      )}
+    </div>
+  );
+}
+
 function SitePlanEditor() {
+  const qc = useQueryClient();
   const { settings, updateSettings } = useAppSettings();
+  const imgSrc = settings.sitePlanImageUrl || DEFAULT_PLAN_IMAGE;
+
+  const handleImageChange = async (url) => {
+    await updateSettings({ sitePlanImageUrl: url });
+    if (url) {
+      // A newly-uploaded plan has a different layout — the previous hotspots would be
+      // wrong, so clear them rather than silently showing misaligned stands.
+      await SitePlanSpots.update({ spots: [] });
+      qc.invalidateQueries({ queryKey: ['site-plan-spots'] });
+    }
+  };
+
+  const resetToDefault = async () => {
+    await updateSettings({ sitePlanImageUrl: '' });
+    await SitePlanSpots.update({ spots: SITE_PLAN_SPOTS.map((s, i) => ({ id: `default-${i}`, ...s })) });
+    qc.invalidateQueries({ queryKey: ['site-plan-spots'] });
+  };
 
   return (
     <div className="space-y-5">
@@ -442,19 +639,18 @@ function SitePlanEditor() {
         <Field label="Site Plan Image">
           <FileUploadOrUrlField
             value={settings.sitePlanImageUrl}
-            onChange={url => updateSettings({ sitePlanImageUrl: url })}
+            onChange={handleImageChange}
             uploadEndpoint="/api/upload/site-plan-image-url"
             accept="image/*"
             previewKind="image"
           />
         </Field>
         <p className="text-[11px] text-muted-foreground mt-1.5">
-          Uploading a replacement turns off the tap-to-view exhibitor hotspots (they're
-          only positioned correctly for the default map) — the plan still shows, zoomable,
-          just without clickable stands. Remove it to restore the default map with hotspots.
+          Uploading a replacement clears the old clickable stands (they're positioned for
+          the previous image) — use the hotspot editor below to draw new ones for it.
         </p>
         {settings.sitePlanImageUrl && (
-          <Button variant="outline" size="sm" className="mt-2" onClick={() => updateSettings({ sitePlanImageUrl: '' })}>
+          <Button variant="outline" size="sm" className="mt-2" onClick={resetToDefault}>
             <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reset to Default Plan
           </Button>
         )}
@@ -473,6 +669,11 @@ function SitePlanEditor() {
         <p className="text-[11px] text-muted-foreground mt-1.5">
           Shown as a "Download Exhibitor List" link on the Site Plan and Exhibitor Directory pages.
         </p>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Clickable Stands</p>
+        <SitePlanSpotEditor imgSrc={imgSrc} />
       </div>
     </div>
   );

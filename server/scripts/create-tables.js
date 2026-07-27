@@ -60,5 +60,6 @@ await ensureTable('adma_guide_pages',    { hashKey: 'page_num' });
 await ensureTable('adma_magazine_pages', { hashKey: 'page_num' });
 await ensureTable('adma_event_info',     { hashKey: 'pk' });
 await ensureTable('adma_schedule',       { hashKey: 'pk' });
+await ensureTable('adma_site_plan_spots', { hashKey: 'pk' });
 
 console.log('\nAll ADMA tables ready.');
