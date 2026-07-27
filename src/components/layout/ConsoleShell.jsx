@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart2, MessageSquare, Shield,
-  LogOut, Users, Menu, X, ChevronLeft, UserCog, ScanLine, Megaphone, ClipboardList, Inbox, Video, Gavel, Clock,
+  LogOut, Users, Menu, X, ChevronLeft, UserCog, ScanLine, Megaphone, ClipboardList, Inbox, Video, Gavel, Clock, LayoutGrid,
 } from 'lucide-react';
 import { useState } from 'react';
 import EventLogo from './EventLogo.jsx';
@@ -16,6 +16,7 @@ const consoleNav = [
   { path: '/console/auctions',        label: 'Auctions',         icon: Gavel,                        roles: ['organizer', 'superadmin'] },
   { path: '/console/communications', label: 'Communications',   icon: MessageSquare,                roles: ['organizer', 'superadmin'] },
   { path: '/console/marketing',      label: 'Marketing Hub',    icon: Megaphone,                    roles: ['marketing_partner', 'superadmin'] },
+  { path: '/console/magazine-sections', label: 'Magazine Sections', icon: LayoutGrid,               roles: ['organizer', 'marketing_partner', 'superadmin'] },
   { path: '/console/exhibitor-applications', label: 'Exhibitor Applications', icon: ClipboardList, roles: ['organizer', 'superadmin'] },
   { path: '/console/paid-listing-requests',  label: 'Paid Listing Requests',  icon: Clock,         roles: ['organizer', 'superadmin'] },
   { path: '/console/enquiries',              label: 'Enquiries',              icon: Inbox,         roles: ['organizer', 'superadmin'] },

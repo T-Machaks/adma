@@ -10,6 +10,7 @@ export { Partner } from "./Partner";
 export { User } from "./User";
 export { VirtualEnquiry } from "./VirtualEnquiry";
 export { GuidePage } from "./GuidePage";
+export { MagazinePage } from "./MagazinePage";
 export { Session } from "./Session";
 export { BoothMessage } from "./BoothMessage";
 export { JobListing } from "./JobListing";

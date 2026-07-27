@@ -57,6 +57,7 @@ import Communications from '@/pages/Communications';
 import UsersPanel from '@/pages/console/UsersPanel';
 import CheckIn from '@/pages/CheckIn';
 import MarketingHub from '@/pages/console/MarketingHub';
+import MagazineSectionBuilder from '@/pages/console/MagazineSectionBuilder';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
 import PaidListingRequests from '@/pages/console/PaidListingRequests';
 import Registrations from '@/pages/console/Registrations';
@@ -136,6 +137,7 @@ const AuthenticatedApp = () => {
           <Route path="/console"             element={<Dashboard />} />
           <Route path="/console/analytics"   element={<Analytics />} />
           <Route path="/console/marketing"   element={<MarketingHub />} />
+          <Route path="/console/magazine-sections" element={<MagazineSectionBuilder />} />
 
           {/* Organizer-only */}
           <Route element={<OrganizerGuard />}>

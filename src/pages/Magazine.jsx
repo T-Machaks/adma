@@ -2,10 +2,11 @@ import HTMLFlipBook from 'react-pageflip';
 import { forwardRef, useRef, useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ExternalLink, Play, BookOpen, ArrowLeft, FileText } from 'lucide-react';
-import { GuidePage as GuidePageData } from '@/api/entities';
+import { GuidePage as GuidePageData, MagazinePage as MagazinePageEntity } from '@/api/entities';
 import { track } from '@/lib/tracking';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { toEmbedUrl, isEmbedVideoUrl } from '@/lib/videoUtils';
 
 const M = '/magazines';
 
@@ -853,212 +854,290 @@ function GuideViewer({ onBack, isMobile }) {
   );
 }
 
-// ── Interactive ad units layered into the real ADMA 2026 magazine ────────────
-// Each swaps a flat scanned page for an interactive treatment built from that
-// same advertiser's real print artwork (cropped from the page they actually
-// bought), demonstrating the standard interactive-ad formats: hotspot/banner,
-// image carousel, scrolling ticker, flashing/animated badge, and video.
+// ── Data-driven ad sections layered into the real ADMA 2026 magazine ─────────
+// Any flip-book page can carry one or more organizer-managed "sections" (stacked
+// top-to-bottom), configured from /console/magazine-sections and stored per page
+// slot in the adma_magazine_pages table. A page with no configured sections just
+// renders its plain scanned image, unchanged.
 
-function AmcottsHotspotAd() {
-  const pins = [
-    { id: 'brands', x: 78, y: 48, title: 'Genuine Brands', detail: 'XCMG · Shacman · Sailun · Powertrac · Maxam T-King — full range of equipment and tyres.' },
-    { id: 'workshops', x: 68, y: 80, title: 'Workshops Nationwide', detail: 'Harare — 32 Anthony Road, Msasa. Bulawayo — 11 Bristol Road, North Belmont.' },
-    { id: 'contact', x: 18, y: 62, title: 'Get In Touch', detail: 'Brett +263 77 247 1299 · Tinashe +263 77 218 9862 · Shepard +263 77 468 1122' },
-  ];
-  const [active, setActive] = useState(null);
-  const stop = e => { e.stopPropagation(); e.preventDefault(); };
+function stopPropagation(e) { e.stopPropagation(); e.preventDefault?.(); }
 
+function ImageAdSection({ config }) {
+  const { image_url, click_url, advertiser, fit = 'cover' } = config || {};
+  if (!image_url) return null;
+  const img = (
+    <img
+      src={image_url}
+      alt={advertiser || 'Advertisement'}
+      className="absolute inset-0 w-full h-full select-none"
+      style={{ objectFit: fit }}
+      draggable={false}
+    />
+  );
+  if (!click_url) return <div className="relative w-full h-full bg-white">{img}</div>;
   return (
-    <div className="absolute inset-0 overflow-hidden" style={{ background: '#fff' }} onMouseDown={stop} onTouchStart={stop}>
-      <img src={`${M}/sponsor-ads/amcotts.jpg`} alt="Amcotts" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />
-      <div className="absolute top-2 left-2 rounded px-2 py-0.5 font-bold uppercase" style={{ background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 7 }}>Tap the markers ↓</div>
-      {pins.map(p => (
-        <button
-          key={p.id}
-          onMouseDown={stop}
-          onTouchStart={stop}
-          onClick={e => { stop(e); const next = active === p.id ? null : p.id; setActive(next); if (next) track('', 'Amcotts', 'hotspot_click', 'magazine'); }}
-          style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, transform: 'translate(-50%,-50%)', width: 22, height: 22 }}
-          className={`rounded-full border-2 border-white shadow-lg flex items-center justify-center transition-transform ${active === p.id ? 'bg-white scale-110' : 'bg-red-600 animate-pulse'}`}
-        >
-          <span className="font-black" style={{ fontSize: 12, color: active === p.id ? '#dc2626' : '#fff' }}>{active === p.id ? '×' : '+'}</span>
-        </button>
-      ))}
-      {active && (() => {
-        const p = pins.find(x => x.id === active);
-        return (
-          <div className="absolute inset-x-3 bottom-3 bg-white rounded-xl p-3 shadow-xl" style={{ border: '1px solid #e2e8f0' }}>
-            <div className="font-black text-slate-900" style={{ fontSize: 12 }}>{p.title}</div>
-            <div className="text-slate-600 mt-0.5" style={{ fontSize: 9.5 }}>{p.detail}</div>
-          </div>
-        );
-      })()}
-    </div>
+    <a
+      href={click_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="relative block w-full h-full bg-white"
+      onMouseDown={stopPropagation}
+      onTouchStart={stopPropagation}
+      onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+    >
+      {img}
+    </a>
   );
 }
 
-function LozinoCarouselAd() {
-  const slides = [
-    { img: `${M}/sponsor-ads/lozino-1-baler.jpg`, label: 'Baler' },
-    { img: `${M}/sponsor-ads/lozino-2-sprayer.jpg`, label: 'Self-Propelled Sprayer' },
-    { img: `${M}/sponsor-ads/lozino-3-planter.jpg`, label: 'New: Trailed Planter' },
-    { img: `${M}/sponsor-ads/lozino-4-harrow.jpg`, label: 'New: Gang Tiller' },
-  ];
-  const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const total = slides.length;
-  const firstRender = useRef(true);
-  const stop = e => { e.stopPropagation(); e.preventDefault(); };
-
-  useEffect(() => {
-    if (firstRender.current) { firstRender.current = false; return; }
-    track('', 'Lozino', 'carousel_view', 'magazine');
-  }, [idx]);
-
-  useEffect(() => {
-    if (paused) return;
-    const t = setTimeout(() => setIdx(i => (i + 1) % total), 3200);
-    return () => clearTimeout(t);
-  }, [idx, paused, total]);
-
-  return (
-    <div className="absolute inset-0 flex flex-col overflow-hidden" style={{ background: '#fff' }} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <div className="flex items-center justify-between px-3 py-1.5 shrink-0" style={{ background: '#000' }}>
-        <span className="text-white font-black tracking-widest" style={{ fontSize: 12 }}>LOZINO</span>
-        <span className="font-bold" style={{ fontSize: 7, color: '#f97316' }}>WITH TWO NEW MACHINES</span>
-      </div>
-      <div className="relative flex-1 overflow-hidden">
-        {slides.map((sl, i) => (
-          <img
-            key={sl.img}
-            src={sl.img}
-            alt={sl.label}
-            className="absolute inset-0 w-full h-full select-none transition-opacity duration-500"
-            style={{ objectFit: 'cover', opacity: i === idx ? 1 : 0 }}
-            draggable={false}
-          />
-        ))}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 65%, rgba(0,0,0,0.75) 100%)' }} />
-        <div className="absolute bottom-2 left-3 right-3 font-black text-white" style={{ fontSize: 13, textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>{slides[idx].label}</div>
-        <button style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 15 }} onMouseDown={stop} onTouchStart={stop} onClick={e => { stop(e); setPaused(true); setIdx(i => (i - 1 + total) % total); }}>‹</button>
-        <button style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 15 }} onMouseDown={stop} onTouchStart={stop} onClick={e => { stop(e); setPaused(true); setIdx(i => (i + 1) % total); }}>›</button>
-      </div>
-      <div className="flex items-center justify-center gap-2 py-2 shrink-0">
-        {slides.map((_, i) => (
-          <div key={i} onMouseDown={stop} onTouchStart={stop} onClick={e => { stop(e); setPaused(true); setIdx(i); }} style={{ height: 5, borderRadius: 3, cursor: 'pointer', width: i === idx ? 18 : 5, background: i === idx ? '#f97316' : '#e2e8f0' }} />
-        ))}
-      </div>
-      <AdLink href="https://www.lozino.co.zw" bg="#f97316" color="#fff" onAdClick={() => track('', 'Lozino', 'ad_click', 'magazine')}>
-        <ExternalLink size={11} /> lozino.co.zw ↗
-      </AdLink>
-    </div>
-  );
-}
-
-function CaltexMarqueeAd() {
-  const ticker = "DELIVERING LONG-TERM VALUE  •  Super Tractor Oil SAE 15W-40  •  1000 THF Premium Hydraulic Fluid  •  Harare +263 716 211 137  •  Bulawayo +263 715 316 372  •  Hwange +263 716 141 241  •  Authorized Caltex Distributor  •  ";
-  const stop = e => e.stopPropagation();
-  return (
-    <div className="absolute inset-0 overflow-hidden" style={{ background: '#fff' }}>
-      <style>{`@keyframes admaTicker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
-      <a
-        href="tel:+263716211137"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute inset-0"
-        onMouseDown={stop}
-        onTouchStart={stop}
-        onClick={e => { stop(e); track('', 'Caltex Braford Lubricants', 'ad_click', 'magazine'); }}
-      >
-        <img src={`${M}/sponsor-ads/caltex.jpg`} alt="Caltex Braford Lubricants" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />
-      </a>
-      <div className="absolute bottom-0 left-0 right-0 overflow-hidden py-1.5" style={{ background: 'rgba(2,132,199,0.92)' }}>
-        <div className="whitespace-nowrap font-bold text-white" style={{ fontSize: 11, animation: 'admaTicker 16s linear infinite', width: 'max-content' }}>
-          {ticker}{ticker}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PurleighFlashAd() {
-  const stop = e => e.stopPropagation();
-  return (
-    <div className="absolute inset-0 overflow-hidden" style={{ background: '#fff' }}>
-      <style>{`@keyframes admaFlash { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(1.06); } }`}</style>
-      <a
-        href="https://www.purleigh.co.zw"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute inset-0"
-        onMouseDown={stop}
-        onTouchStart={stop}
-        onClick={e => { stop(e); track('', 'Purleigh Investments', 'ad_click', 'magazine'); }}
-      >
-        <img src={`${M}/sponsor-ads/purleigh.jpg`} alt="Purleigh Investments" className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />
-      </a>
-      <div
-        className="absolute rounded-full flex flex-col items-center justify-center text-center shadow-xl"
-        style={{ right: 14, bottom: '18%', width: 74, height: 74, background: '#f97316', border: '3px solid #fff', animation: 'admaFlash 1.4s ease-in-out infinite', pointerEvents: 'none' }}
-      >
-        <span className="font-black text-white leading-none" style={{ fontFamily: 'Barlow Condensed,sans-serif', fontSize: 18 }}>2-3</span>
-        <span className="font-bold text-white leading-none" style={{ fontSize: 7 }}>YEARS</span>
-        <span className="font-bold text-white leading-none" style={{ fontSize: 7 }}>FINANCE</span>
-      </div>
-    </div>
-  );
-}
-
-function ZimplowVideoInsert() {
-  const stop = e => e.stopPropagation();
+function VideoAdSection({ config }) {
+  const { video_url, click_url, advertiser } = config || {};
   const playTracked = useRef(false);
   const handlePlay = () => {
     if (playTracked.current) return;
     playTracked.current = true;
-    track('', 'Zimplow', 'video_play', 'magazine');
+    track('', advertiser || '', 'video_play', 'magazine');
   };
+  if (!video_url) return null;
+  const embed = isEmbedVideoUrl(video_url) ? video_url : toEmbedUrl(video_url);
   return (
-    <div className="absolute inset-0 flex flex-col overflow-hidden" style={{ background: '#000' }}>
-      <div className="flex items-center justify-between px-3 py-1.5 shrink-0" style={{ background: '#14532d' }}>
-        <span className="text-white font-black tracking-widest" style={{ fontSize: 11, fontFamily: 'Barlow Condensed,sans-serif' }}>ZIMPLOW</span>
-        <span className="rounded px-1.5 py-0.5 font-bold uppercase" style={{ background: '#eab308', color: '#0f172a', fontSize: 6.5 }}>Digital Exclusive</span>
-      </div>
-      <div className="shrink-0" style={{ height: '38%' }}>
-        <a
-          href="https://www.zimplow.co.zw"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full h-full"
-          onMouseDown={stop}
-          onTouchStart={stop}
-          onClick={e => { stop(e); track('', 'Zimplow', 'ad_click', 'magazine'); }}
-        >
-          <img src={`${EVENT_CONFIG.s3Base}/gallery-images/e25-1784063469379-nd9qcw.jpg`} alt="Zimplow Mealie Brand implements" className="w-full h-full select-none" style={{ objectFit: 'contain', background: '#fff' }} draggable={false} />
-        </a>
-      </div>
-      <div className="flex-1 overflow-hidden" onMouseDown={stop} onTouchStart={stop} onPointerDown={stop} onClick={stop}>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: '#000' }} onMouseDown={stopPropagation} onTouchStart={stopPropagation} onPointerDown={stopPropagation} onClick={stopPropagation}>
+      {isEmbedVideoUrl(embed) ? (
         <iframe
-          src="https://www.youtube.com/embed/InVKgq2F8ZU"
-          title="Zimplow product video"
-          className="w-full h-full"
-          style={{ background: '#000', display: 'block', border: 0 }}
+          key={embed}
+          src={embed}
+          title={advertiser ? `${advertiser} video` : 'Advertisement video'}
+          className="absolute inset-0 w-full h-full"
+          style={{ border: 0 }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
           onLoad={handlePlay}
         />
-      </div>
-      <div className="px-2 py-1 shrink-0 text-center" style={{ background: '#0b1f14', fontSize: 7, color: 'rgba(255,255,255,0.5)' }}>Mealie Brand — Rugged Implements Since 1939 · Stand A24</div>
+      ) : (
+        <video key={embed} src={embed} controls muted playsInline className="absolute inset-0 w-full h-full object-contain" onPlay={handlePlay} />
+      )}
+      {click_url && (
+        <a
+          href={click_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-1.5 right-2 rounded px-2 py-0.5 font-bold text-white"
+          style={{ background: 'rgba(0,0,0,0.6)', fontSize: 8 }}
+          onMouseDown={stopPropagation}
+          onTouchStart={stopPropagation}
+          onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+        >
+          Visit Website ↗
+        </a>
+      )}
     </div>
   );
 }
 
-const INTERACTIVE_AD_COMPONENTS = {
-  amcotts: AmcottsHotspotAd,
-  lozino: LozinoCarouselAd,
-  caltex: CaltexMarqueeAd,
-  purleigh: PurleighFlashAd,
-  'zimplow-video': ZimplowVideoInsert,
+function CarouselAdSection({ config }) {
+  const slides = (config?.slides || []).filter(s => s?.image_url);
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const total = slides.length;
+
+  useEffect(() => {
+    if (paused || total < 2) return;
+    const t = setTimeout(() => setIdx(i => (i + 1) % total), 3800);
+    return () => clearTimeout(t);
+  }, [idx, paused, total]);
+
+  if (!total) return null;
+  const s = slides[idx];
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-white" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      {slides.map((sl, i) => (
+        <img
+          key={sl.image_url}
+          src={sl.image_url}
+          alt={sl.label || ''}
+          className="absolute inset-0 w-full h-full select-none transition-opacity duration-500"
+          style={{ objectFit: 'cover', opacity: i === idx ? 1 : 0 }}
+          draggable={false}
+        />
+      ))}
+      {s.label && (
+        <div className="absolute bottom-2 left-3 right-3 font-black text-white" style={{ fontSize: 12, textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}>{s.label}</div>
+      )}
+      {total > 1 && (
+        <>
+          <button style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 14 }} onMouseDown={stopPropagation} onTouchStart={stopPropagation} onClick={e => { stopPropagation(e); setPaused(true); setIdx(i => (i - 1 + total) % total); }}>‹</button>
+          <button style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', fontSize: 14 }} onMouseDown={stopPropagation} onTouchStart={stopPropagation} onClick={e => { stopPropagation(e); setPaused(true); setIdx(i => (i + 1) % total); }}>›</button>
+          <div className="absolute top-2 left-0 right-0 flex items-center justify-center gap-1.5">
+            {slides.map((_, i) => (
+              <div key={i} onMouseDown={stopPropagation} onTouchStart={stopPropagation} onClick={e => { stopPropagation(e); setPaused(true); setIdx(i); }} style={{ height: 4, borderRadius: 2, cursor: 'pointer', width: i === idx ? 14 : 4, background: i === idx ? '#fff' : 'rgba(255,255,255,0.5)' }} />
+            ))}
+          </div>
+        </>
+      )}
+      {s.click_url && (
+        <a
+          href={s.click_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-1.5 right-2 rounded px-2 py-0.5 font-bold text-white"
+          style={{ background: 'rgba(0,0,0,0.6)', fontSize: 8 }}
+          onMouseDown={stopPropagation}
+          onTouchStart={stopPropagation}
+          onClick={e => { stopPropagation(e); track('', s.label || '', 'ad_click', 'magazine'); }}
+        >
+          Visit Website ↗
+        </a>
+      )}
+    </div>
+  );
+}
+
+function AdvertorialSection({ config }) {
+  const { image_url, heading, body, click_url, advertiser } = config || {};
+  return (
+    <div className="relative w-full h-full flex overflow-hidden bg-white">
+      {image_url && (
+        <div className="shrink-0" style={{ width: '38%' }}>
+          <img src={image_url} alt={advertiser || ''} className="w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />
+        </div>
+      )}
+      <div className="flex-1 flex flex-col justify-center px-3 py-2 gap-1 overflow-hidden">
+        {heading && <div className="font-black text-slate-900 leading-tight" style={{ fontSize: 12, fontFamily: 'Barlow Condensed,sans-serif' }}>{heading}</div>}
+        {body && <div className="text-slate-600 leading-snug overflow-hidden" style={{ fontSize: 9 }}>{body}</div>}
+        {click_url && (
+          <a
+            href={click_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber-600 font-bold mt-1"
+            style={{ fontSize: 9 }}
+            onMouseDown={stopPropagation}
+            onTouchStart={stopPropagation}
+            onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+          >
+            Learn more ↗
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TextStripSection({ config }) {
+  const { text, bg = '#0f2e1c', color = '#fff', click_url, advertiser } = config || {};
+  if (!text) return null;
+  const content = (
+    <div className="w-full h-full flex items-center justify-center px-3 text-center font-bold" style={{ background: bg, color, fontSize: 10 }}>
+      {text}
+    </div>
+  );
+  if (!click_url) return content;
+  return (
+    <a
+      href={click_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block w-full h-full"
+      onMouseDown={stopPropagation}
+      onTouchStart={stopPropagation}
+      onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+    >
+      {content}
+    </a>
+  );
+}
+
+function AnimatedSection({ config }) {
+  const {
+    style = 'ticker', text, image_url, click_url, advertiser,
+    bg = '#0f2e1c', color = '#ffffff', accent = '#eab308',
+  } = config || {};
+  if (!text) return null;
+
+  let content;
+  if (style === 'pulse-badge') {
+    content = (
+      <div className="relative w-full h-full overflow-hidden" style={{ background: bg }}>
+        {image_url && <img src={image_url} alt={advertiser || ''} className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />}
+        <style>{`@keyframes admaPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.08); } }`}</style>
+        <div
+          className="absolute rounded-full flex items-center justify-center text-center"
+          style={{ right: '8%', bottom: '12%', width: '30%', aspectRatio: '1/1', background: accent, border: '3px solid #fff', boxShadow: '0 4px 14px rgba(0,0,0,0.35)', animation: 'admaPulse 1.4s ease-in-out infinite' }}
+        >
+          <span className="font-black leading-none px-1.5" style={{ fontFamily: 'Barlow Condensed,sans-serif', fontSize: 11, color: '#0f172a' }}>{text}</span>
+        </div>
+      </div>
+    );
+  } else if (style === 'fade-in') {
+    content = (
+      <div className="relative w-full h-full overflow-hidden flex items-center justify-center" style={{ background: bg }}>
+        {image_url && <img src={image_url} alt={advertiser || ''} className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />}
+        {image_url && <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.55))' }} />}
+        <style>{`@keyframes admaFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+        <div className="relative font-black text-center px-4" style={{ color, fontSize: 16, fontFamily: 'Barlow Condensed,sans-serif', animation: 'admaFadeIn 1.1s ease-out' }}>{text}</div>
+      </div>
+    );
+  } else {
+    content = (
+      <div className="relative w-full h-full overflow-hidden" style={{ background: bg }}>
+        {image_url && <img src={image_url} alt={advertiser || ''} className="absolute inset-0 w-full h-full select-none" style={{ objectFit: 'cover' }} draggable={false} />}
+        <style>{`@keyframes admaTicker { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
+        <div className={`absolute overflow-hidden py-1.5 ${image_url ? 'bottom-0 left-0 right-0' : 'inset-0 flex items-center'}`} style={{ background: image_url ? 'rgba(0,0,0,0.6)' : 'transparent' }}>
+          <div className="whitespace-nowrap font-bold" style={{ fontSize: 11, color, animation: 'admaTicker 14s linear infinite', width: 'max-content' }}>
+            {text}&nbsp;&nbsp;•&nbsp;&nbsp;{text}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!click_url) return content;
+  return (
+    <a
+      href={click_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block w-full h-full"
+      onMouseDown={stopPropagation}
+      onTouchStart={stopPropagation}
+      onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+    >
+      {content}
+    </a>
+  );
+}
+
+const SECTION_RENDERERS = {
+  image: ImageAdSection,
+  video: VideoAdSection,
+  carousel: CarouselAdSection,
+  advertorial: AdvertorialSection,
+  text: TextStripSection,
+  animation: AnimatedSection,
 };
+
+export function AdSectionPage({ sections }) {
+  const list = sections || [];
+  // Heights are configured as page-percentage weights, but if they're ever allowed to sum
+  // past 100 the tail sections would overflow the fixed-height page and get clipped by
+  // overflow-hidden below — scale them down proportionally so the full stack always fits.
+  const totalPercent = list.reduce((sum, s) => sum + (s.heightPercent || 100), 0);
+  const scale = totalPercent > 100 ? 100 / totalPercent : 1;
+  return (
+    <div className="absolute inset-0 flex flex-col overflow-hidden bg-white">
+      {list.map(section => {
+        const Renderer = SECTION_RENDERERS[section.type];
+        if (!Renderer) return null;
+        return (
+          <div key={section.id} style={{ flex: `0 0 ${(section.heightPercent || 100) * scale}%`, position: 'relative', overflow: 'hidden' }}>
+            <Renderer config={section.config} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ── ADMA 2026 flip book (pre-rendered page images from the official magazine) ─
 function ADMAFlipBook({ onBack, isMobile }) {
@@ -1073,20 +1152,26 @@ function ADMAFlipBook({ onBack, isMobile }) {
   // PDF pages 2-43 are landscape double-spreads (3047×1984) containing two magazine
   // pages side-by-side. Split each into left+right halves via objectPosition so the
   // flipbook shows proper portrait pages. PDF pages 1 and 44 are portrait singles.
-  // A handful of real advertiser pages are upgraded to interactive units (hotspot,
-  // carousel, marquee, flashing badge) instead of a flat scan, plus one digital-
-  // exclusive video insert, to show the format is capable of interactive ads.
-  const INTERACTIVE_PAGES = { '004-left': 'amcotts', '005-left': 'lozino', '009-left': 'caltex', '010-left': 'purleigh' };
+  // Any page slot can carry organizer-managed ad sections (image/video/carousel/
+  // advertorial) configured from /console/magazine-sections and stored per
+  // page_num ("001", "044", or "NNN-left"/"NNN-right") in adma_magazine_pages —
+  // a slot with no configured sections just renders its plain scanned image.
+  const { data: magazinePageData = [] } = useQuery({
+    queryKey: ['magazine-pages'],
+    queryFn: () => MagazinePageEntity.list(),
+    staleTime: 60_000,
+  });
+  const sectionsByPage = Object.fromEntries(magazinePageData.map(p => [p.page_num, p.sections]));
+
   const admaPages = (() => {
     const list = [];
-    list.push({ src: `${M}/adma-pages/page-001.jpg`, half: 'portrait' });
-    list.push({ interactive: 'zimplow-video' });
+    list.push({ src: `${M}/adma-pages/page-001.jpg`, half: 'portrait', pageKey: '001' });
     for (let i = 2; i <= 43; i++) {
       const n = String(i).padStart(3, '0');
-      list.push({ src: `${M}/adma-pages/page-${n}.jpg`, half: 'left', interactive: INTERACTIVE_PAGES[`${n}-left`] });
-      list.push({ src: `${M}/adma-pages/page-${n}.jpg`, half: 'right', interactive: INTERACTIVE_PAGES[`${n}-right`] });
+      list.push({ src: `${M}/adma-pages/page-${n}.jpg`, half: 'left', pageKey: `${n}-left` });
+      list.push({ src: `${M}/adma-pages/page-${n}.jpg`, half: 'right', pageKey: `${n}-right` });
     }
-    list.push({ src: `${M}/adma-pages/page-044.jpg`, half: 'portrait' });
+    list.push({ src: `${M}/adma-pages/page-044.jpg`, half: 'portrait', pageKey: '044' });
     return list;
   })();
 
@@ -1142,25 +1227,28 @@ function ADMAFlipBook({ onBack, isMobile }) {
           swipeDistance={30}
           style={{ margin: '0 auto', display: 'block' }}
         >
-          {admaPages.map((p, i) => (
-            <MagazinePage key={`adma-p${i}`}>
-              {p.interactive ? (
-                (() => { const Comp = INTERACTIVE_AD_COMPONENTS[p.interactive]; return <Comp />; })()
-              ) : (
-                <img
-                  src={p.src}
-                  alt={`Page ${i + 1}`}
-                  className="absolute inset-0 w-full h-full select-none"
-                  style={{
-                    objectFit: p.half === 'portrait' ? 'fill' : 'cover',
-                    objectPosition: p.half === 'left' ? 'left center' : p.half === 'right' ? 'right center' : 'center',
-                  }}
-                  loading={i < 8 ? 'eager' : 'lazy'}
-                  draggable={false}
-                />
-              )}
-            </MagazinePage>
-          ))}
+          {admaPages.map((p, i) => {
+            const sections = sectionsByPage[p.pageKey];
+            return (
+              <MagazinePage key={`adma-p${i}`}>
+                {sections?.length ? (
+                  <AdSectionPage sections={sections} />
+                ) : (
+                  <img
+                    src={p.src}
+                    alt={`Page ${i + 1}`}
+                    className="absolute inset-0 w-full h-full select-none"
+                    style={{
+                      objectFit: p.half === 'portrait' ? 'fill' : 'cover',
+                      objectPosition: p.half === 'left' ? 'left center' : p.half === 'right' ? 'right center' : 'center',
+                    }}
+                    loading={i < 8 ? 'eager' : 'lazy'}
+                    draggable={false}
+                  />
+                )}
+              </MagazinePage>
+            );
+          })}
         </HTMLFlipBook>
       </div>
 
@@ -1189,7 +1277,7 @@ function MagazineLibrary({ onSelect, showGuide }) {
       id: 'adma',
       title: 'ADMA 2026',
       subtitle: 'Official Show Magazine',
-      tag: 'Interactive Flip Book · 87 pages',
+      tag: 'Interactive Flip Book · 86 pages',
       type: 'flipbook',
       cover: (
         <img
