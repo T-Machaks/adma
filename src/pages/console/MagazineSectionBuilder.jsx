@@ -456,6 +456,8 @@ export default function MagazineSectionBuilder() {
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null); // null | 'save' | 'reset'
+  const [confirmText, setConfirmText] = useState('');
 
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['magazine-pages'],
@@ -627,10 +629,10 @@ export default function MagazineSectionBuilder() {
                     <p className="text-xs text-muted-foreground">{draftSections.length} section{draftSections.length === 1 ? '' : 's'} configured</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={handleReset} disabled={saveMutation.isPending}>
+                    <Button variant="outline" size="sm" onClick={() => { setConfirmAction('reset'); setConfirmText(''); }} disabled={saveMutation.isPending}>
                       <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reset to Original Scan
                     </Button>
-                    <Button size="sm" onClick={handleSave} disabled={!dirty || saveMutation.isPending}>
+                    <Button size="sm" onClick={() => { setConfirmAction('save'); setConfirmText(''); }} disabled={!dirty || saveMutation.isPending}>
                       {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
                       Save
                     </Button>
@@ -763,6 +765,58 @@ export default function MagazineSectionBuilder() {
               {filteredExtractionPages.length === 0 && (
                 <p className="text-center text-xs text-muted-foreground py-8">No extracted pages match that search.</p>
               )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!confirmAction} onOpenChange={(open) => { if (!open) { setConfirmAction(null); setConfirmText(''); } }}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{confirmAction === 'save' ? 'Confirm Save' : 'Confirm Reset'}</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                {confirmAction === 'save'
+                  ? `This publishes ${draftSections.length} section${draftSections.length === 1 ? '' : 's'} live on ${selectedSlot?.label} — visible immediately on the public magazine.`
+                  : `This permanently removes all custom sections from ${selectedSlot?.label} and reverts it to the original scanned page.`}
+              </p>
+              {selectedSlot && (
+                <div className="mx-auto rounded-lg overflow-hidden border border-border relative bg-white" style={{ width: 160, aspectRatio: '420/544' }}>
+                  <PagePreview slot={selectedSlot} sections={confirmAction === 'save' ? draftSections : []} />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground text-center">
+                This is exactly what will go live. Type <strong>{confirmAction === 'save' ? 'SAVE' : 'DELETE'}</strong> below to confirm.
+              </p>
+              <Input
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                placeholder={confirmAction === 'save' ? 'SAVE' : 'DELETE'}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && confirmText.trim().toUpperCase() === (confirmAction === 'save' ? 'SAVE' : 'DELETE')) {
+                    if (confirmAction === 'save') handleSave(); else handleReset();
+                    setConfirmAction(null);
+                    setConfirmText('');
+                  }
+                }}
+              />
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" size="sm" onClick={() => { setConfirmAction(null); setConfirmText(''); }}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant={confirmAction === 'reset' ? 'destructive' : 'default'}
+                  disabled={confirmText.trim().toUpperCase() !== (confirmAction === 'save' ? 'SAVE' : 'DELETE') || saveMutation.isPending}
+                  onClick={() => {
+                    if (confirmAction === 'save') handleSave(); else handleReset();
+                    setConfirmAction(null);
+                    setConfirmText('');
+                  }}
+                >
+                  {saveMutation.isPending && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                  Confirm {confirmAction === 'save' ? 'Save' : 'Delete'}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>
