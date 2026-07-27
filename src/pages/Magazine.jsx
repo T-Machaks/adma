@@ -863,14 +863,15 @@ function GuideViewer({ onBack, isMobile }) {
 function stopPropagation(e) { e.stopPropagation(); e.preventDefault?.(); }
 
 function ImageAdSection({ config }) {
-  const { image_url, click_url, advertiser, fit = 'cover' } = config || {};
+  const { image_url, click_url, advertiser, fit = 'cover', cropSide = 'center' } = config || {};
   if (!image_url) return null;
+  const objectPosition = cropSide === 'left' ? 'left center' : cropSide === 'right' ? 'right center' : 'center';
   const img = (
     <img
       src={image_url}
       alt={advertiser || 'Advertisement'}
       className="absolute inset-0 w-full h-full select-none"
-      style={{ objectFit: fit }}
+      style={{ objectFit: fit, objectPosition }}
       draggable={false}
     />
   );

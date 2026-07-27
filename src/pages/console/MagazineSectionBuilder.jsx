@@ -5,6 +5,7 @@ import { AdSectionPage } from '@/pages/Magazine';
 import {
   Image as ImageIcon, Video, Images, FileEdit, Type, Plus, Trash2,
   ChevronUp, ChevronDown, RotateCcw, Save, Loader2, LayoutGrid, X, Sparkles, Maximize2, RefreshCw,
+  Download, Search,
 } from 'lucide-react';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
@@ -53,6 +54,35 @@ function newSectionId() {
   return `s-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// Converts an extracted magazine page's real frames (from extraction-manifest.json) into
+// draft sections, top-to-bottom by their original vertical position on the page.
+function framesToSections(frames, defaultCropSide = 'center') {
+  const sorted = [...(frames || [])].sort((a, b) => (a.bounds?.y || 0) - (b.bounds?.y || 0));
+  return sorted.map(f => {
+    const heightPercent = Math.max(5, Math.min(100, Math.round((f.areaFraction || 0.1) * 100)));
+    if (f.type === 'image') {
+      return {
+        id: newSectionId(),
+        type: 'image',
+        heightPercent,
+        config: {
+          image_url: f.image_url || '',
+          advertiser: f.advertiser || '',
+          click_url: '',
+          fit: 'cover',
+          cropSide: f.spansMultiplePages ? defaultCropSide : 'center',
+        },
+      };
+    }
+    return {
+      id: newSectionId(),
+      type: 'text',
+      heightPercent,
+      config: { text: f.text || '', bg: '#ffffff', color: '#0f172a', click_url: '', advertiser: '' },
+    };
+  });
+}
+
 function Field({ label, children }) {
   return (
     <div>
@@ -91,6 +121,20 @@ function ImageAdForm({ config, pageKey, onChange }) {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${config.fit === f ? 'bg-amber text-slate-900 border-amber' : 'bg-muted border-border hover:bg-muted/80'}`}
             >
               {f === 'cover' ? 'Fill (crop)' : 'Fit (letterbox)'}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="Crop side (for images spanning two pages)">
+        <div className="flex gap-2">
+          {[['left', 'Left half'], ['center', 'Center'], ['right', 'Right half']].map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onChange({ ...config, cropSide: v })}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${(config.cropSide || 'center') === v ? 'bg-amber text-slate-900 border-amber' : 'bg-muted border-border hover:bg-muted/80'}`}
+            >
+              {label}
             </button>
           ))}
         </div>
@@ -357,6 +401,8 @@ export default function MagazineSectionBuilder() {
   const [draftSections, setDraftSections] = useState([]);
   const [dirty, setDirty] = useState(false);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
 
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['magazine-pages'],
@@ -364,6 +410,18 @@ export default function MagazineSectionBuilder() {
     staleTime: 30_000,
   });
   const pageMap = Object.fromEntries(pages.map(p => [p.page_num, p]));
+
+  const { data: extractionPages = [] } = useQuery({
+    queryKey: ['extraction-manifest'],
+    queryFn: () => fetch('/magazines/extraction-manifest.json').then(r => r.json()),
+    staleTime: Infinity,
+  });
+  const filteredExtractionPages = extractionPages.filter(p => {
+    const q = pickerSearch.trim().toLowerCase();
+    if (!q) return true;
+    if (p.pageName.toLowerCase().includes(q)) return true;
+    return p.frames.some(f => (f.advertiser || '').toLowerCase().includes(q) || (f.text || '').toLowerCase().includes(q));
+  });
 
   useEffect(() => {
     if (!selectedKey) return;
@@ -424,6 +482,16 @@ export default function MagazineSectionBuilder() {
     if (!selectedKey) return;
     setDraftSections([]);
     saveMutation.mutate({ pageKey: selectedKey, sections: [] });
+  };
+
+  const handleLoadExtraction = (extractionPage) => {
+    if (draftSections.length && !window.confirm('Replace the current draft sections with this extracted page\'s content? Unsaved changes will be lost.')) {
+      return;
+    }
+    const defaultCropSide = selectedSlot?.half === 'left' ? 'left' : selectedSlot?.half === 'right' ? 'right' : 'center';
+    setDraftSections(framesToSections(extractionPage.frames, defaultCropSide));
+    setDirty(true);
+    setPickerOpen(false);
   };
 
   return (
@@ -530,7 +598,7 @@ export default function MagazineSectionBuilder() {
                 {draftSections.length === 0 && (
                   <div className="rounded-xl border border-dashed border-border p-3 flex items-center justify-between gap-3 bg-muted/30">
                     <p className="text-xs text-muted-foreground">
-                      This page is still showing its original scanned image. Replace it with new creative, or add sections below.
+                      This page is still showing its original scanned image. Replace it with new creative, load the real extracted content, or add sections below.
                     </p>
                     <Button size="sm" variant="outline" onClick={() => addSection('image')} className="shrink-0">
                       <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Replace Page Image
@@ -553,7 +621,14 @@ export default function MagazineSectionBuilder() {
                   ))}
                 </div>
 
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                  <p className="text-xs text-muted-foreground">Break this page into its real, individually editable elements:</p>
+                  <Button size="sm" onClick={() => setPickerOpen(true)} className="shrink-0">
+                    <Download className="w-3.5 h-3.5 mr-1.5" /> Load Extracted Content
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
                   {SECTION_TYPES.map(t => (
                     <Button key={t.type} variant="outline" size="sm" onClick={() => addSection(t.type)}>
                       <Plus className="w-3.5 h-3.5 mr-1.5" /> {t.label}
@@ -573,6 +648,59 @@ export default function MagazineSectionBuilder() {
                 <div className="mx-auto rounded-lg overflow-hidden border border-border relative bg-white" style={{ width: '100%', maxWidth: 480, aspectRatio: '420/544' }}>
                   <PagePreview slot={selectedSlot} sections={draftSections} />
                 </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+            <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Load Extracted Content{selectedSlot ? ` — ${selectedSlot.label}` : ''}</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Pick the extracted page that matches what you're editing — compare against the live thumbnail before choosing.
+                This replaces your current draft sections; nothing saves until you click Save.
+              </p>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={pickerSearch}
+                  onChange={e => setPickerSearch(e.target.value)}
+                  placeholder="Search by page number, advertiser or text…"
+                  className="pl-8"
+                />
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {filteredExtractionPages.map((p, i) => {
+                  const dominant = [...p.frames].filter(f => f.type === 'image').sort((a, b) => b.areaFraction - a.areaFraction)[0];
+                  const firstText = p.frames.find(f => f.type === 'text')?.text;
+                  return (
+                    <button
+                      key={`${p.pageName}-${i}`}
+                      type="button"
+                      onClick={() => handleLoadExtraction(p)}
+                      className="relative rounded-lg overflow-hidden border border-border hover:border-amber transition-colors bg-white text-left"
+                      style={{ aspectRatio: '420/544' }}
+                      title={`Page ${p.pageName} · ${p.frames.length} frame(s)`}
+                    >
+                      {dominant ? (
+                        <img src={dominant.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+                      ) : firstText ? (
+                        <div className="absolute inset-0 p-1.5 text-[6.5px] leading-tight text-muted-foreground overflow-hidden">{firstText}</div>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                          <FileEdit className="w-5 h-5" />
+                        </div>
+                      )}
+                      <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] px-1 py-0.5 text-center">
+                        Pg {p.pageName} · {p.frames.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {filteredExtractionPages.length === 0 && (
+                <p className="text-center text-xs text-muted-foreground py-8">No extracted pages match that search.</p>
               )}
             </DialogContent>
           </Dialog>
