@@ -4,13 +4,14 @@ import { MagazinePage } from '@/api/entities';
 import { AdSectionPage } from '@/pages/Magazine';
 import {
   Image as ImageIcon, Video, Images, FileEdit, Type, Plus, Trash2,
-  ChevronUp, ChevronDown, RotateCcw, Save, Loader2, LayoutGrid, X, Sparkles,
+  ChevronUp, ChevronDown, RotateCcw, Save, Loader2, LayoutGrid, X, Sparkles, Maximize2, RefreshCw,
 } from 'lucide-react';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const M = '/magazines';
 
@@ -290,6 +291,22 @@ const SECTION_FORMS = {
   animation: AnimationForm,
 };
 
+function PagePreview({ slot, sections }) {
+  if (sections?.length) return <AdSectionPage sections={sections} />;
+  return (
+    <img
+      src={slot.src}
+      alt=""
+      className="absolute inset-0 w-full h-full select-none"
+      style={{
+        objectFit: slot.half === 'portrait' ? 'fill' : 'cover',
+        objectPosition: slot.half === 'left' ? 'left center' : slot.half === 'right' ? 'right center' : 'center',
+      }}
+      draggable={false}
+    />
+  );
+}
+
 function SectionRow({ section, index, total, pageKey, onChange, onRemove, onMove }) {
   const meta = SECTION_TYPE_META[section.type];
   const Icon = meta?.icon || ImageIcon;
@@ -339,6 +356,7 @@ export default function MagazineSectionBuilder() {
   const [selectedKey, setSelectedKey] = useState(null);
   const [draftSections, setDraftSections] = useState([]);
   const [dirty, setDirty] = useState(false);
+  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
 
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['magazine-pages'],
@@ -492,22 +510,33 @@ export default function MagazineSectionBuilder() {
                 </div>
 
                 {/* Live preview */}
-                <div className="mx-auto rounded-lg overflow-hidden border border-border relative bg-white" style={{ width: 180, aspectRatio: '420/544' }}>
-                  {draftSections.length ? (
-                    <AdSectionPage sections={draftSections} />
-                  ) : (
-                    <img
-                      src={selectedSlot.src}
-                      alt=""
-                      className="absolute inset-0 w-full h-full select-none"
-                      style={{
-                        objectFit: selectedSlot.half === 'portrait' ? 'fill' : 'cover',
-                        objectPosition: selectedSlot.half === 'left' ? 'left center' : selectedSlot.half === 'right' ? 'right center' : 'center',
-                      }}
-                      draggable={false}
-                    />
-                  )}
+                <div className="relative mx-auto rounded-lg overflow-hidden border border-border bg-white" style={{ width: 260, aspectRatio: '420/544' }}>
+                  <PagePreview slot={selectedSlot} sections={draftSections} />
+                  <button
+                    type="button"
+                    onClick={() => setFullPreviewOpen(true)}
+                    className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-black/55 text-white hover:bg-black/75 transition-colors"
+                    title="View full-page preview"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
+                <p className="text-center text-[11px] text-muted-foreground -mt-2">
+                  <button type="button" onClick={() => setFullPreviewOpen(true)} className="underline hover:text-foreground">
+                    View full-page preview
+                  </button>
+                </p>
+
+                {draftSections.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-border p-3 flex items-center justify-between gap-3 bg-muted/30">
+                    <p className="text-xs text-muted-foreground">
+                      This page is still showing its original scanned image. Replace it with new creative, or add sections below.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => addSection('image')} className="shrink-0">
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Replace Page Image
+                    </Button>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   {draftSections.map((section, i) => (
@@ -534,6 +563,19 @@ export default function MagazineSectionBuilder() {
               </div>
             )}
           </div>
+
+          <Dialog open={fullPreviewOpen} onOpenChange={setFullPreviewOpen}>
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle>{selectedSlot?.label}</DialogTitle>
+              </DialogHeader>
+              {selectedSlot && (
+                <div className="mx-auto rounded-lg overflow-hidden border border-border relative bg-white" style={{ width: '100%', maxWidth: 480, aspectRatio: '420/544' }}>
+                  <PagePreview slot={selectedSlot} sections={draftSections} />
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>
