@@ -12,6 +12,9 @@ const DEFAULTS = {
   paidFeatureRequestEmail: '',
   marketingVideoUrl: '',
   eventDatesLabel: '01 Aug 2026 – 30 May 2027',
+  // Exhibition Guide is physical-show content (booth maps, stand numbers) — hidden
+  // while the event is virtual-only, toggled from MarketingHub.jsx when it's needed.
+  showExhibitionGuide: false,
 };
 
 const r = Router();

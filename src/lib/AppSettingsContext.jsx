@@ -11,6 +11,7 @@ export function AppSettingsProvider({ children }) {
     paidFeatureRequestEmail: '',
     marketingVideoUrl: '',
     eventDatesLabel: '01 Aug 2026 – 30 May 2027',
+    showExhibitionGuide: false,
   });
   const [isLoading, setIsLoading] = useState(true);
 

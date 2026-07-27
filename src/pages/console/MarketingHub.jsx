@@ -15,6 +15,7 @@ import VideoAdCarousel from '@/components/home/VideoAdCarousel';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -111,6 +112,16 @@ function exportCSV(rows, filename, headers) {
 export default function MarketingHub() {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { settings, updateSettings } = useAppSettings();
+  const [togglingGuide, setTogglingGuide] = useState(false);
+  const toggleGuideVisibility = async () => {
+    setTogglingGuide(true);
+    try {
+      await updateSettings({ showExhibitionGuide: !settings.showExhibitionGuide });
+    } finally {
+      setTogglingGuide(false);
+    }
+  };
 
   // Dialog state
   const [slotDialogOpen, setSlotDialogOpen] = useState(false);
@@ -428,6 +439,29 @@ export default function MarketingHub() {
           </div>
         }
       >
+        {/* Visibility toggle — the guide is physical-show content (booth maps, stand
+            numbers), hidden while the event is virtual-only. */}
+        <div className={`flex items-center justify-between gap-3 px-4 py-3 border-b border-border ${settings.showExhibitionGuide ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-muted/30'}`}>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Visible to attendees</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {settings.showExhibitionGuide
+                ? 'Shown in the magazine library'
+                : 'Hidden — physical-show content (booth maps, stand numbers)'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Switch
+              checked={!!settings.showExhibitionGuide}
+              disabled={togglingGuide}
+              onCheckedChange={toggleGuideVisibility}
+            />
+            <span className="text-xs text-muted-foreground w-10">
+              {settings.showExhibitionGuide ? 'On' : 'Off'}
+            </span>
+          </div>
+        </div>
+
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-px bg-border border-b border-border">
           {[

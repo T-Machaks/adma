@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Play, BookOpen, ArrowLeft, Fil
 import { GuidePage as GuidePageData } from '@/api/entities';
 import { track } from '@/lib/tracking';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 
 const M = '/magazines';
 
@@ -1182,8 +1183,8 @@ function ADMAFlipBook({ onBack, isMobile }) {
 }
 
 // ── Magazine library (home screen) ───────────────────────────────────────────
-function MagazineLibrary({ onSelect }) {
-  const publications = [
+function MagazineLibrary({ onSelect, showGuide }) {
+  const allPublications = [
     {
       id: 'adma',
       title: 'ADMA 2026',
@@ -1243,6 +1244,8 @@ function MagazineLibrary({ onSelect }) {
     },
   ];
 
+  const publications = showGuide ? allPublications : allPublications.filter(p => p.id !== 'guide');
+
   return (
     <div className="pb-24 pt-2 px-4">
       <div className="mb-5">
@@ -1284,6 +1287,7 @@ function MagazineLibrary({ onSelect }) {
 export default function Magazine() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [view, setView] = useState(null); // null | 'guide' | 'adma'
+  const { settings } = useAppSettings();
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -1291,7 +1295,9 @@ export default function Magazine() {
     return () => window.removeEventListener('resize', handler);
   }, []);
 
-  if (view === 'guide') return <GuideViewer onBack={() => setView(null)} isMobile={isMobile} />;
+  // Guarded by the flag here too, not just the library tile — a stale view state
+  // (e.g. set before an organizer turns the guide back off) can't reach it either.
+  if (view === 'guide' && settings.showExhibitionGuide) return <GuideViewer onBack={() => setView(null)} isMobile={isMobile} />;
   if (view === 'adma')  return <ADMAFlipBook onBack={() => setView(null)} isMobile={isMobile} />;
-  return <MagazineLibrary onSelect={setView} />;
+  return <MagazineLibrary onSelect={setView} showGuide={settings.showExhibitionGuide} />;
 }
