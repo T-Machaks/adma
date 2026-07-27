@@ -94,6 +94,9 @@
   .border-amber { border-color: hsl(var(--adma-amber)); }
   .text-amber-dark { color: hsl(var(--adma-amber-dark)); }
 
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
   .badge-platinum { @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300; }
   .badge-gold { @apply bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300; }
   .badge-silver { @apply bg-slate-100 text-slate-600 dark:bg-slate-700/40 dark:text-slate-300; }
