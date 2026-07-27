@@ -87,7 +87,7 @@ export default function ExhibitorScanner() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="max-w-3xl px-3 sm:px-4 py-8 space-y-6">
 
       {/* Header */}
       <div>

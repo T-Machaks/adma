@@ -68,7 +68,7 @@ export default function ExhibitorTeam() {
   };
 
   return (
-    <div className="pb-12 px-4 sm:px-6 pt-6 max-w-3xl mx-auto">
+    <div className="pb-12 px-3 sm:px-4 pt-6 max-w-3xl">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Exhibitor Team</h1>

@@ -116,7 +116,7 @@ export default function ExhibitorJobs() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="max-w-4xl px-3 sm:px-4 py-8 space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-xl font-bold uppercase tracking-wide flex items-center gap-2">

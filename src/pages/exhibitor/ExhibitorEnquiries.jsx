@@ -116,7 +116,7 @@ export default function ExhibitorEnquiries() {
   }
 
   return (
-    <div className="pb-12 px-4 pt-6 max-w-2xl mx-auto">
+    <div className="pb-12 px-3 sm:px-4 pt-6 max-w-2xl">
       <div className="mb-5">
         <h1 className="font-heading text-xl font-bold uppercase tracking-wide">Enquiries</h1>
         <p className="text-sm text-muted-foreground">Information requests sent to your booth</p>

@@ -259,7 +259,7 @@ export default function ExhibitorHome() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <div className="max-w-5xl px-3 sm:px-4 py-8 space-y-8">
 
       {/* Subscription expired banner */}
       {expired && (
