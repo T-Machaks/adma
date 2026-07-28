@@ -25,12 +25,12 @@ if ('serviceWorker' in navigator) {
       })
       .catch(() => {});
 
-    // When a new SW takes control (skipWaiting fired), reload to apply the update
-    let reloading = false;
+    // When a new SW takes control (skipWaiting fired), don't reload immediately —
+    // that would blow away anything the user has open (e.g. a half-filled "New
+    // Auction" dialog) with zero warning. Instead, let UpdateBanner offer the user
+    // a "Refresh" button so they choose when it's safe to apply.
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return;
-      reloading = true;
-      window.location.reload();
+      window.dispatchEvent(new Event('adma:update-ready'));
     });
   });
 }

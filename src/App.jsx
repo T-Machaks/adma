@@ -13,6 +13,7 @@ import ExhibitorShell from '@/components/layout/ExhibitorShell';
 import ConsoleGuard from '@/components/ConsoleGuard';
 import OrganizerGuard from '@/components/OrganizerGuard';
 import ChatWidget from '@/components/ChatWidget';
+import UpdateBanner from '@/components/UpdateBanner';
 import { PWAInstallProvider } from '@/lib/PWAInstallContext';
 import { AppSettingsProvider } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -222,6 +223,7 @@ function App() {
             </Router>
             <Toaster />
             <ChatWidget />
+            <UpdateBanner />
           </QueryClientProvider>
         </AppSettingsProvider>
       </AuthProvider>

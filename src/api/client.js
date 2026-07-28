@@ -11,11 +11,15 @@ export async function apiFetch(path, options = {}) {
     const p = await res.json().catch(() => ({}));
     // 401 here means the session cookie is missing/expired/revoked (login/signup/otp
     // endpoints use raw fetch(), not apiFetch, so this never fires for "wrong password"
-    // type errors) — the stored user object is stale, so clear it and force a fresh
-    // login rather than leaving the UI looking signed in while every write silently fails.
+    // type errors) — the stored user object is stale, so clear it either way. But only
+    // force-navigate to /login when the 401 came from something the user actually did
+    // (a save/submit) — a background GET (react-query refetch-on-focus, polling) hitting
+    // a session that expired mid-session must not yank them out of an open dialog with
+    // unsaved input; they'll find out they're signed out the next time they act.
     if (res.status === 401) {
       localStorage.removeItem(EVENT_CONFIG.storageUserKey);
-      if (!window.location.pathname.startsWith('/login')) {
+      const method = (options.method || 'GET').toUpperCase();
+      if (method !== 'GET' && !window.location.pathname.startsWith('/login')) {
         window.location.href = '/login';
       }
     }
