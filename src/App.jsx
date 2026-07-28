@@ -59,6 +59,7 @@ import CheckIn from '@/pages/CheckIn';
 import MarketingHub from '@/pages/console/MarketingHub';
 import MagazineSectionBuilder from '@/pages/console/MagazineSectionBuilder';
 import EventContentManager from '@/pages/console/EventContentManager';
+import MarketplaceListings from '@/pages/console/MarketplaceListings';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
 import PaidListingRequests from '@/pages/console/PaidListingRequests';
 import Registrations from '@/pages/console/Registrations';
@@ -143,6 +144,7 @@ const AuthenticatedApp = () => {
           {/* Organizer-only */}
           <Route element={<OrganizerGuard />}>
             <Route path="/console/event-content"         element={<EventContentManager />} />
+            <Route path="/console/marketplace-listings"  element={<MarketplaceListings />} />
             <Route path="/console/sessions"              element={<SessionsManager />} />
             <Route path="/console/auctions"               element={<AuctionsManager />} />
             <Route path="/console/registrations"         element={<Registrations />} />

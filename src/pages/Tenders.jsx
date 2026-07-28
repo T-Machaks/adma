@@ -44,7 +44,7 @@ export default function Tenders() {
   return (
     <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-4xl mx-auto">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Tenders</h1>
-      <p className="text-sm text-muted-foreground mb-4">Procurement opportunities posted by exhibitors</p>
+      <p className="text-sm text-muted-foreground mb-4">Procurement opportunities from exhibitors and other public tenders</p>
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
