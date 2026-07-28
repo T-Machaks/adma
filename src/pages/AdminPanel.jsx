@@ -454,6 +454,30 @@ export default function AdminPanel() {
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Mail className="w-3 h-3" /> New exhibitor application email
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={settingValue('newApplicationNotifyEmail')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, newApplicationNotifyEmail: ev.target.value }))}
+                placeholder="applications@agrishow.co.zw"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'newApplicationNotifyEmail' || !('newApplicationNotifyEmail' in settingsDraft)}
+                onClick={() => saveSetting('newApplicationNotifyEmail')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'newApplicationNotifyEmail' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Receives a notification whenever a new exhibitor application (physical or virtual) is submitted.</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <Link2 className="w-3 h-3" /> Landing page marketing video
             </label>
             <div className="flex gap-2">

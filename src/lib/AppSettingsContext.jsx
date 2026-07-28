@@ -9,6 +9,7 @@ export function AppSettingsProvider({ children }) {
     physicalEventRegistrationUrl: 'https://agrishow.co.zw/',
     ccSalesAuctionUrl: '',
     paidFeatureRequestEmail: '',
+    newApplicationNotifyEmail: '',
     marketingVideoUrl: '',
     eventDatesLabel: '01 Aug 2026 – 30 May 2027',
     showExhibitionGuide: false,

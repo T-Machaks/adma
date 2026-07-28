@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { QueryCommand, PutCommand, UpdateCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, PutCommand, UpdateCommand, ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { sendOtpEmail } from '../lib/mailer.js';
@@ -64,6 +64,24 @@ router.post('/', async (req, res) => {
       status: 'pending',
     };
     await ddb.send(new PutCommand({ TableName: APP_TABLE, Item: app }));
+
+    try {
+      const settingsResult = await ddb.send(new GetCommand({ TableName: 'adma_app_settings', Key: { pk: 'singleton' } }));
+      const notifyEmail = settingsResult.Item?.newApplicationNotifyEmail;
+      if (notifyEmail) {
+        await sendOtpEmail(notifyEmail, null, {
+          subject: `ADMA Digital — New ${exhibit_type} exhibitor application: ${company}`,
+          html: `
+            <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+              <h2 style="margin:0 0 8px;color:#111">New exhibitor application</h2>
+              <p style="color:#555"><strong>${company}</strong> has applied for a ${exhibit_type === 'virtual' ? `virtual presence (${pkg} package)` : `physical booth (${tier} tier)`} on ADMA Digital.</p>
+              <p style="color:#555"><strong>Contact:</strong> ${full_name} &lt;${email}&gt;</p>
+              <p style="color:#555">Review and approve or reject it from the organiser console — Exhibitor Applications.</p>
+            </div>
+          `,
+        });
+      }
+    } catch (_) { /* non-fatal */ }
 
     const { password_hash: _, ...safe } = app;
     res.status(201).json(safe);

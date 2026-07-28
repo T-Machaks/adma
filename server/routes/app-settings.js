@@ -10,6 +10,7 @@ const DEFAULTS = {
   physicalEventRegistrationUrl: 'https://agrishow.co.zw/',
   ccSalesAuctionUrl: '',
   paidFeatureRequestEmail: '',
+  newApplicationNotifyEmail: '',
   marketingVideoUrl: '',
   eventDatesLabel: '01 Aug 2026 – 30 May 2027',
   // Exhibition Guide is physical-show content (booth maps, stand numbers) — hidden
