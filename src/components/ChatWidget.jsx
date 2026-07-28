@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sprout, X, Send, Loader2, UserPlus, LogIn, ExternalLink, Ticket, QrCode, WifiOff } from 'lucide-react';
+import { Sprout, X, Send, Loader2, UserPlus, LogIn, ExternalLink, Ticket, QrCode, WifiOff, Building2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -122,6 +122,15 @@ function RegisterInfoCard() {
         >
           Register for the Physical Show <ExternalLink size={13} />
         </a>
+        <div className="border-t border-gray-600 pt-2.5 flex items-start gap-2">
+          <Building2 size={15} className="text-emerald-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-gray-300 text-xs">Registering a company for a virtual presence instead — no physical booth needed?</p>
+            <a href="/exhibitor-apply" className="inline-flex items-center gap-1 mt-1.5 text-xs text-emerald-400 underline underline-offset-2 hover:text-emerald-300">
+              <Building2 size={12} /> Register as a Virtual Exhibitor
+            </a>
+          </div>
+        </div>
         <div className="border-t border-gray-600 pt-2.5 flex items-start gap-2">
           <QrCode size={15} className="text-amber shrink-0 mt-0.5" />
           <div className="flex-1">
