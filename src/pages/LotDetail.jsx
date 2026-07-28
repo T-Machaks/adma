@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Lot, Bid, AttendeeNote } from '@/api/entities';
+import { Lot, Auction, Bid, AttendeeNote } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import CountdownTimer from '@/components/auction/CountdownTimer';
@@ -25,6 +25,12 @@ export default function LotDetail() {
     queryKey: ['lot', id],
     queryFn: () => Lot.get(id),
     refetchInterval: 5000,
+  });
+
+  const { data: auction } = useQuery({
+    queryKey: ['auction', lot?.auction_id],
+    queryFn: () => Auction.get(lot.auction_id),
+    enabled: !!lot?.auction_id,
   });
 
   const { data: bids = [] } = useQuery({
@@ -93,6 +99,9 @@ export default function LotDetail() {
   const isOpen = lot.status === 'Open';
   const reserveMet = lot.reserve_price != null ? (Number(lot.current_bid) || 0) >= Number(lot.reserve_price) : null;
   const sortedBids = [...bids].sort((a, b) => (b.created_date || '').localeCompare(a.created_date || ''));
+  const isExternal = auction?.source_type === 'external';
+  const isLinkOnly = isExternal && auction?.external_sync_mode !== 'api_synced';
+  const externalName = auction?.external_source_name || 'Partner Site';
 
   const submitBid = (amount) => {
     setBidError('');
@@ -182,54 +191,73 @@ export default function LotDetail() {
           </div>
 
           {/* Bid history */}
-          <div className="bg-card border border-border rounded-2xl p-4">
-            <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-amber" /> Bid History
-            </h2>
-            {sortedBids.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">No bids yet — be the first.</p>
-            ) : (
-              <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                {sortedBids.map(b => (
-                  <div key={b.id} className="flex items-center justify-between text-xs py-1.5 border-b border-border last:border-0">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Hash className="w-3 h-3" /> Bidder #{b.paddle_number}
-                    </span>
-                    <span className="font-bold text-foreground">${b.amount}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {!isLinkOnly && (
+            <div className="bg-card border border-border rounded-2xl p-4">
+              <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-amber" /> Bid History
+              </h2>
+              {sortedBids.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">No bids yet — be the first.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                  {sortedBids.map(b => (
+                    <div key={b.id} className="flex items-center justify-between text-xs py-1.5 border-b border-border last:border-0">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Hash className="w-3 h-3" /> {b.paddle_number ? `Bidder #${b.paddle_number}` : (b.bidder_name || 'External bidder')}
+                      </span>
+                      <span className="font-bold text-foreground">${b.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: bidding panel */}
         <div className="lg:col-span-2 space-y-4 mt-4 lg:mt-0">
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">{lot.current_bid ? 'Current Bid' : 'Starting Bid'}</p>
-            <p className="font-heading text-3xl font-bold text-amber mt-1">${lot.current_bid ?? lot.starting_bid ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">{lot.bid_count || 0} bid{lot.bid_count !== 1 ? 's' : ''}</p>
+          {!isLinkOnly && (
+            <div className="bg-card border border-border rounded-2xl p-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">{lot.current_bid ? 'Current Bid' : 'Starting Bid'}</p>
+              <p className="font-heading text-3xl font-bold text-amber mt-1">${lot.current_bid ?? lot.starting_bid ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">{lot.bid_count || 0} bid{lot.bid_count !== 1 ? 's' : ''}</p>
 
-            {lot.reserve_price != null && (
-              <div className={`flex items-center gap-1.5 mt-3 text-xs font-semibold ${reserveMet ? 'text-emerald-600' : 'text-amber-600'}`}>
-                {reserveMet ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
-                {reserveMet ? 'Reserve met' : 'Reserve not yet met'}
-              </div>
-            )}
+              {lot.reserve_price != null && (
+                <div className={`flex items-center gap-1.5 mt-3 text-xs font-semibold ${reserveMet ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {reserveMet ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
+                  {reserveMet ? 'Reserve met' : 'Reserve not yet met'}
+                </div>
+              )}
 
-            {isOpen && lot.closing_time && (
-              <div className="mt-4 bg-muted/50 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold mb-0.5">Closes in</p>
-                <p className="font-heading text-lg font-bold"><CountdownTimer target={lot.closing_time} endedLabel="Closing…" /></p>
-              </div>
-            )}
+              {isOpen && lot.closing_time && (
+                <div className="mt-4 bg-muted/50 rounded-xl p-3 text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold mb-0.5">Closes in</p>
+                  <p className="font-heading text-lg font-bold"><CountdownTimer target={lot.closing_time} endedLabel="Closing…" /></p>
+                </div>
+              )}
 
-            {myPaddle && (
-              <p className="text-xs text-muted-foreground mt-3">Your paddle number: <span className="font-bold text-foreground">#{myPaddle}</span></p>
-            )}
-          </div>
+              {myPaddle && (
+                <p className="text-xs text-muted-foreground mt-3">Your paddle number: <span className="font-bold text-foreground">#{myPaddle}</span></p>
+              )}
+            </div>
+          )}
 
-          {!isOpen ? (
+          {isExternal ? (
+            <div className="bg-card border border-border rounded-2xl p-4 flex flex-col items-center gap-3 text-center">
+              <ExternalLink className="w-6 h-6 text-violet-600" />
+              <p className="text-sm text-muted-foreground">
+                This lot is bid on through {externalName}, not ADMA Digital{!isLinkOnly && ' — the details on this page stay in sync with their listing'}.
+              </p>
+              <a
+                href={auction?.external_url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 bg-violet-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 active:scale-95 transition-all"
+              >
+                Bid on {externalName} <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          ) : !isOpen ? (
             <div className="bg-muted/50 border border-border rounded-2xl p-4 text-center text-sm text-muted-foreground">
               {lot.status === 'Upcoming' ? 'Bidding has not opened for this lot yet.' : 'Bidding has closed for this lot.'}
             </div>

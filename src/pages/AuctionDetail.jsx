@@ -30,6 +30,8 @@ export default function AuctionDetail() {
     .sort((a, b) => (a.lot_number || '').localeCompare(b.lot_number || '', undefined, { numeric: true }));
 
   const hasLivestock = lots.some(l => l.category === 'Livestock');
+  const isExternal = auction?.source_type === 'external';
+  const isLinkOnly = isExternal && auction?.external_sync_mode !== 'api_synced';
 
   if (isLoading) {
     return (
@@ -77,6 +79,22 @@ export default function AuctionDetail() {
         </div>
       </div>
 
+      {isExternal && auction.external_url && (
+        <div className="px-4 mt-3">
+          <a
+            href={auction.external_url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 bg-violet-600 text-white text-sm font-semibold px-4 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all"
+          >
+            Bid on {auction.external_source_name || 'Partner Site'} <ExternalLink className="w-4 h-4" />
+          </a>
+          <p className="text-xs text-muted-foreground text-center mt-1.5">
+            This auction runs on {auction.external_source_name || "a partner's"} site{isLinkOnly ? '' : ' — bid details below are kept in sync, but bidding itself happens there'}.
+          </p>
+        </div>
+      )}
+
       {hasLivestock && settings.ccSalesAuctionUrl && (
         <div className="px-4 mt-3">
           <a
@@ -123,11 +141,13 @@ export default function AuctionDetail() {
               </div>
               <div className="p-2.5">
                 <p className="text-xs font-semibold line-clamp-2 leading-tight">{lot.title}</p>
-                <p className="text-sm font-bold text-amber mt-1">
-                  ${lot.current_bid ?? lot.starting_bid ?? 0}
-                  <span className="text-[10px] text-muted-foreground font-normal ml-1">{lot.current_bid ? `· ${lot.bid_count || 0} bid${lot.bid_count !== 1 ? 's' : ''}` : 'starting'}</span>
-                </p>
-                {lot.status === 'Open' && lot.closing_time && (
+                {!isLinkOnly && (
+                  <p className="text-sm font-bold text-amber mt-1">
+                    ${lot.current_bid ?? lot.starting_bid ?? 0}
+                    <span className="text-[10px] text-muted-foreground font-normal ml-1">{lot.current_bid ? `· ${lot.bid_count || 0} bid${lot.bid_count !== 1 ? 's' : ''}` : 'starting'}</span>
+                  </p>
+                )}
+                {!isLinkOnly && lot.status === 'Open' && lot.closing_time && (
                   <p className="text-[10px] text-muted-foreground mt-1">
                     <CountdownTimer target={lot.closing_time} />
                   </p>

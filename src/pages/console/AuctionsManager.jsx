@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Auction, Lot } from '@/api/entities';
 import {
-  Gavel, Plus, Edit2, Trash2, Package, ChevronDown, ChevronUp, ImagePlus, X,
+  Gavel, Plus, Edit2, Trash2, Package, ChevronDown, ChevronUp, ImagePlus, X, ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { LOT_CATEGORIES, AUCTION_TYPES } from '@/lib/auctionConstants';
+import { LOT_CATEGORIES, AUCTION_TYPES, EXTERNAL_SYNC_MODES, EXTERNAL_SYNC_MODE_LABELS } from '@/lib/auctionConstants';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 
 const AUCTION_STATUS_STYLES = {
@@ -22,11 +22,14 @@ const AUCTION_STATUS_STYLES = {
   Closed:   'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
 };
 
-const EMPTY_AUCTION = { title: '', type: 'Timed', location: '', description: '', start_date: '', end_date: '', status: 'Upcoming' };
+const EMPTY_AUCTION = {
+  title: '', type: 'Timed', location: '', description: '', start_date: '', end_date: '', status: 'Upcoming',
+  source_type: 'native', external_sync_mode: 'link_only', external_source_name: '', external_url: '',
+};
 const EMPTY_LOT = {
   lot_number: '', title: '', category: LOT_CATEGORIES[0], seller_name: '', description: '',
   starting_bid: '', reserve_price: '', bid_increment: '10', closing_time: '', status: 'Upcoming', images: [],
-  breed: '', registration_number: '', sire: '', dam: '', age: '', sex: '',
+  breed: '', registration_number: '', sire: '', dam: '', age: '', sex: '', external_lot_ref: '',
 };
 
 export default function AuctionsManager() {
@@ -48,6 +51,7 @@ export default function AuctionsManager() {
     queryKey: ['auctions'],
     queryFn: () => Auction.list('-created_date'),
   });
+  const lotAuction = auctions.find(a => a.id === lotAuctionId);
   const { data: lots = [] } = useQuery({
     queryKey: ['lots'],
     queryFn: () => Lot.list(),
@@ -82,6 +86,8 @@ export default function AuctionsManager() {
       title: a.title || '', type: a.type || 'Timed', location: a.location || '', description: a.description || '',
       start_date: a.start_date ? a.start_date.slice(0, 16) : '', end_date: a.end_date ? a.end_date.slice(0, 16) : '',
       status: a.status || 'Upcoming',
+      source_type: a.source_type || 'native', external_sync_mode: a.external_sync_mode || 'link_only',
+      external_source_name: a.external_source_name || '', external_url: a.external_url || '',
     });
     setAuctionDialog(true);
   };
@@ -110,7 +116,7 @@ export default function AuctionsManager() {
       starting_bid: lot.starting_bid ?? '', reserve_price: lot.reserve_price ?? '', bid_increment: lot.bid_increment ?? '10',
       closing_time: lot.closing_time ? lot.closing_time.slice(0, 16) : '', status: lot.status || 'Upcoming', images: lot.images || [],
       breed: lot.breed || '', registration_number: lot.registration_number || '', sire: lot.sire || '', dam: lot.dam || '',
-      age: lot.age || '', sex: lot.sex || '',
+      age: lot.age || '', sex: lot.sex || '', external_lot_ref: lot.external_lot_ref || '',
     });
     setLotDialog(true);
   };
@@ -198,6 +204,11 @@ export default function AuctionsManager() {
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${AUCTION_STATUS_STYLES[a.status] || AUCTION_STATUS_STYLES.Upcoming}`}>{a.status || 'Upcoming'}</span>
                     <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded">{a.type || 'Timed'}</span>
+                    {a.source_type === 'external' && (
+                      <span className="flex items-center gap-1 text-[10px] font-medium text-violet-700 bg-violet-100 dark:bg-violet-900/30 dark:text-violet-300 px-1.5 py-0.5 rounded">
+                        <ExternalLink className="w-2.5 h-2.5" /> External{a.external_source_name ? ` — ${a.external_source_name}` : ''}
+                      </span>
+                    )}
                   </div>
                   <p className="font-semibold text-sm">{a.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{a.location} · {auctionLots.length} lot{auctionLots.length !== 1 ? 's' : ''}</p>
@@ -300,6 +311,47 @@ export default function AuctionsManager() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-3 border border-border rounded-lg p-3">
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Hosting</label>
+                <Select value={auctionForm.source_type} onValueChange={v => setAuctionForm(f => ({ ...f, source_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="native">Native — hosted and bid on within ADMA</SelectItem>
+                    <SelectItem value="external">External — run on a partner's own site</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {auctionForm.source_type === 'external' && (
+                <>
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Sync Mode</label>
+                    <Select value={auctionForm.external_sync_mode} onValueChange={v => setAuctionForm(f => ({ ...f, external_sync_mode: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {EXTERNAL_SYNC_MODES.map(m => <SelectItem key={m} value={m}>{EXTERNAL_SYNC_MODE_LABELS[m]}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Partner Name</label>
+                      <Input value={auctionForm.external_source_name} onChange={e => setAuctionForm(f => ({ ...f, external_source_name: e.target.value }))} placeholder="e.g. CC Sales" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">External URL</label>
+                      <Input type="url" value={auctionForm.external_url} onChange={e => setAuctionForm(f => ({ ...f, external_url: e.target.value }))} placeholder="https://…" />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Visitors see a "Bid on {auctionForm.external_source_name || 'Partner'}" link instead of ADMA's own bidding form.
+                    {auctionForm.external_sync_mode === 'api_synced' && ' Lot bid data shown here is kept in sync via a webhook — see each lot\'s "External Lot Reference" field.'}
+                  </p>
+                </>
+              )}
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAuctionDialog(false)}>Cancel</Button>
               <Button type="submit" disabled={saveAuction.isPending}>{saveAuction.isPending ? 'Saving…' : editAuctionId ? 'Save Changes' : 'Create Auction'}</Button>
@@ -336,6 +388,14 @@ export default function AuctionsManager() {
                 <Input value={lotForm.seller_name} onChange={e => setLotForm(f => ({ ...f, seller_name: e.target.value }))} placeholder="Seller / consignor name" />
               </div>
             </div>
+
+            {lotAuction?.source_type === 'external' && lotAuction?.external_sync_mode === 'api_synced' && (
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">External Lot Reference</label>
+                <Input value={lotForm.external_lot_ref} onChange={e => setLotForm(f => ({ ...f, external_lot_ref: e.target.value }))} placeholder="The partner system's own ID for this lot" />
+                <p className="text-[11px] text-muted-foreground mt-1">Used to match this lot to incoming bid updates from {lotAuction.external_source_name || 'the partner'}'s webhook.</p>
+              </div>
+            )}
 
             {lotForm.category === 'Livestock' && (
               <div className="space-y-3 border border-amber/30 bg-amber/5 rounded-lg p-3">

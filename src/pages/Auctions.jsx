@@ -79,6 +79,11 @@ export default function Auctions() {
                     </span>
                   )}
                   <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">{a.type || 'Timed'} Auction</span>
+                  {a.source_type === 'external' && (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                      {a.external_source_name || 'External'}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                   {a.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {a.location}</span>}

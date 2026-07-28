@@ -1,4 +1,4 @@
-import { GetCommand, UpdateCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { crudRouter } from '../lib/crudRouter.js';
@@ -93,6 +93,77 @@ export default crudRouter(TABLE, {
         }));
 
         res.status(201).json({ lot: updateResult.Attributes, bid, paddle_number });
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    // Inbound sync for 'api_synced' external auctions — a partner site pushes lot/bid
+    // state into ADMA so it can be displayed here, even though bidding itself still
+    // happens on their site. Authenticated by shared secret, not session auth, since
+    // the caller is a server, not a logged-in user.
+    r.post('/webhook-update', async (req, res) => {
+      try {
+        const secret = process.env.EXTERNAL_AUCTION_WEBHOOK_SECRET;
+        if (!secret) return res.status(503).json({ error: 'External auction webhook is not configured' });
+        if (req.get('x-webhook-secret') !== secret) return res.status(401).json({ error: 'Invalid webhook secret' });
+
+        const { external_lot_ref, current_bid, bid_count, highest_bidder_name, status, closing_time, new_bids } = req.body;
+        if (!external_lot_ref) return res.status(400).json({ error: 'external_lot_ref is required' });
+
+        const scanResult = await ddb.send(new ScanCommand({
+          TableName: TABLE,
+          FilterExpression: 'external_lot_ref = :ref',
+          ExpressionAttributeValues: { ':ref': external_lot_ref },
+          Limit: 1,
+        }));
+        const lot = scanResult.Items?.[0];
+        if (!lot) return res.status(404).json({ error: `No lot found with external_lot_ref ${external_lot_ref}` });
+
+        const fields = { current_bid, bid_count, highest_bidder_name, status, closing_time };
+        const names = {};
+        const values = {};
+        const sets = Object.entries(fields)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => {
+            names[`#${k}`] = k;
+            values[`:${k}`] = v;
+            return `#${k} = :${k}`;
+          });
+
+        let updatedLot = lot;
+        if (sets.length) {
+          const updateResult = await ddb.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { id: lot.id },
+            UpdateExpression: `SET ${sets.join(', ')}`,
+            ExpressionAttributeNames: names,
+            ExpressionAttributeValues: values,
+            ReturnValues: 'ALL_NEW',
+          }));
+          updatedLot = updateResult.Attributes;
+        }
+
+        if (Array.isArray(new_bids)) {
+          for (const b of new_bids) {
+            if (!b.amount) continue;
+            await ddb.send(new PutCommand({
+              TableName: 'adma_bids',
+              Item: {
+                id: generateId(),
+                lot_id: lot.id,
+                auction_id: lot.auction_id,
+                bidder_name: b.bidder_name || 'External bidder',
+                bidder_email: null,
+                amount: Number(b.amount),
+                paddle_number: null,
+                created_date: b.created_date || new Date().toISOString(),
+              },
+            }));
+          }
+        }
+
+        res.json({ ok: true, lot: updatedLot });
       } catch (e) {
         res.status(500).json({ error: e.message });
       }
