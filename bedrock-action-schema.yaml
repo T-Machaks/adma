@@ -2,7 +2,7 @@ openapi: "3.0.0"
 info:
   title: ADMA Digital Agent API
   version: "1.0"
-  description: "Live API actions for AgriBot, the ADMA Digital AI assistant. Event: ADMA Agri Show 2026, ART Farm, Pomona, Harare, Zimbabwe."
+  description: "Live API actions for AgriBot, the ADMA Digital AI assistant. ADMA Digital is a year-round agricultural trade platform for Zimbabwe, connecting visitors with exhibitors (many virtual-only) at any time — not limited to the annual ADMA Agri Show 2026 physical event at ART Farm, Pomona, Harare."
 
 paths:
 
@@ -112,7 +112,7 @@ paths:
     post:
       operationId: submitVirtualEnquiry
       summary: "Submit an enquiry to an exhibitor"
-      description: "Sends a written product or service enquiry to an exhibitor booth. The exhibitor is notified and can reply through the exhibitor portal."
+      description: "Sends a written product or service enquiry to an exhibitor, any time of year — not limited to the physical show. The exhibitor is notified and can reply through the exhibitor portal."
       requestBody:
         required: true
         content:
@@ -344,7 +344,7 @@ components:
         preferred_date:
           type: string
           format: date
-          description: "Preferred meeting date in YYYY-MM-DD format, within the ADMA Agri Show 2026 event dates"
+          description: "Preferred meeting date in YYYY-MM-DD format. ADMA Digital is year-round — this can be any real future date the visitor chooses, not limited to the physical show dates"
         preferred_time:
           type: string
           description: "Preferred time slot, e.g. 10:00 or 14:30"
