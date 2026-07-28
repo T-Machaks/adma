@@ -18,6 +18,7 @@ const DEFAULT_PASSWORD = '@AgriShow2026';
 // a real person.
 const SUPERADMINS = [
   { email: 'tamuka@tyflex.co.zw', full_name: 'Tamuka' },
+  { email: 'mediaservad@gmail.com', full_name: 'Chris Kaitano', role: 'superadmin' },
 ];
 
 const password_hash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
@@ -45,7 +46,7 @@ for (const sa of SUPERADMINS) {
       email: sa.email,
       company: 'ADMA',
       phone: '',
-      role: 'organizer',
+      role: sa.role || 'organizer',
       status: 'active',
       password_hash,
       must_change_password: true,
