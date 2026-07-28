@@ -61,7 +61,7 @@ export const EVENT_CONFIG = {
     placeholder: `Ask anything about ${NAME}…`,
     suggestedPrompts: {
       exhibitor: ['My meeting requests', 'Book a meeting', 'Event announcements'],
-      default:   [`Register for ${NAME}`, 'Book a meeting', 'Platinum exhibitors', 'Event schedule'],
+      default:   [`Register for ${NAME}`, 'Register as a Virtual Exhibitor', 'Sign up for a free account', 'Book a meeting', 'Platinum exhibitors', 'Event schedule'],
     },
   },
 
