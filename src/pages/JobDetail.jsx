@@ -92,6 +92,7 @@ export default function JobDetail() {
   }
 
   const isClosed = (job.status || 'Open') !== 'Open';
+  const acceptsSubmissions = job.accept_submissions !== false;
 
   return (
     <div className="pb-24 max-w-2xl mx-auto">
@@ -150,6 +151,15 @@ export default function JobDetail() {
         {isClosed ? (
           <div className="bg-muted/50 border border-border rounded-2xl p-4 text-center text-sm text-muted-foreground">
             This role is no longer accepting applications.
+          </div>
+        ) : !acceptsSubmissions ? (
+          <div className="bg-card border border-border rounded-2xl p-4 text-center">
+            <p className="text-sm font-medium mb-1">Applications for this role are handled externally.</p>
+            <p className="text-xs text-muted-foreground">
+              {job.source_url
+                ? 'Use the "View Original Posting" link above to apply.'
+                : `Contact ${job.company_name} directly to apply.`}
+            </p>
           </div>
         ) : (
           <div className="bg-card border border-border rounded-2xl p-4">

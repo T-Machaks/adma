@@ -7,11 +7,12 @@ import { standTierAtLeast } from '@/lib/standTiers';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
+import { Switch } from '@/components/ui/switch';
 import {
   Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
 } from 'lucide-react';
 
-const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '' };
+const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true };
 
 export default function ExhibitorJobs() {
   const { user } = useAuth();
@@ -69,7 +70,8 @@ export default function ExhibitorJobs() {
     setForm({
       title: job.title || '', category: job.category || JOB_CATEGORIES[0], location: job.location || '',
       type: job.type || JOB_TYPES[0], description: job.description || '', requirements: job.requirements || '',
-      closing_date: job.closing_date || '', contact_email: job.contact_email || '',
+      closing_date: job.closing_date || '', contact_email: job.contact_email || '', source_url: job.source_url || '',
+      accept_submissions: job.accept_submissions !== false,
     });
     setEditingId(job.id);
     setFormOpen(true);
@@ -204,6 +206,25 @@ export default function ExhibitorJobs() {
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
             />
             <p className="text-[11px] text-muted-foreground mt-1">Leave blank to use your registered booth email, or set a different address just for applications to this role.</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">External Application Link (optional)</label>
+            <input
+              type="url" value={form.source_url}
+              onChange={e => setForm(f => ({ ...f, source_url: e.target.value }))}
+              placeholder="https://…"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3 bg-muted/50 rounded-lg px-3 py-2.5">
+            <div>
+              <p className="text-sm font-medium">Accept applications via ADMA Digital</p>
+              <p className="text-xs text-muted-foreground">Off hides the in-app application form — visitors are pointed to your external link instead.</p>
+            </div>
+            <Switch
+              checked={form.accept_submissions}
+              onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
+            />
           </div>
           <div className="flex gap-2 pt-1">
             <button

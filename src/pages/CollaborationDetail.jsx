@@ -79,6 +79,7 @@ export default function CollaborationDetail() {
   }
 
   const isClosed = (collab.status || 'Pending') !== 'Open';
+  const acceptsSubmissions = collab.accept_submissions !== false;
 
   return (
     <div className="pb-24 max-w-2xl mx-auto">
@@ -131,6 +132,15 @@ export default function CollaborationDetail() {
         {isClosed ? (
           <div className="bg-muted/50 border border-border rounded-2xl p-4 text-center text-sm text-muted-foreground">
             This opportunity is no longer accepting expressions of interest.
+          </div>
+        ) : !acceptsSubmissions ? (
+          <div className="bg-card border border-border rounded-2xl p-4 text-center">
+            <p className="text-sm font-medium mb-1">Expressions of interest are handled externally.</p>
+            <p className="text-xs text-muted-foreground">
+              {collab.source_url
+                ? 'Use the "View Original Posting" link above to submit.'
+                : `Contact ${collab.company_name} directly.`}
+            </p>
           </div>
         ) : (
           <div className="bg-card border border-border rounded-2xl p-4">

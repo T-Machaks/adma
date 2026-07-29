@@ -18,22 +18,24 @@ import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
+import { Switch } from '@/components/ui/switch';
 
 const TENDER_CATEGORIES = EVENT_CONFIG.exhibitorCategories;
 
 const EMPTY_JOB = {
   title: '', company_name: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0],
   description: '', requirements: '', closing_date: '', source_url: '', status: 'Open',
-  display_format: 'text', display_image_url: '', video_url: '', contact_email: '',
+  display_format: 'text', display_image_url: '', video_url: '', contact_email: '', accept_submissions: true,
 };
 const EMPTY_TENDER = {
   title: '', company_name: '', category: TENDER_CATEGORIES[0], description: '', closing_date: '',
   source_url: '', status: 'Open', display_format: 'text', display_image_url: '', document_url: '', video_url: '',
-  contact_email: '',
+  contact_email: '', accept_submissions: true,
 };
 const EMPTY_COLLAB = {
   title: '', company_name: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '',
   source_url: '', status: 'Open', display_format: 'text', display_image_url: '', video_url: '', contact_email: '',
+  accept_submissions: true,
 };
 
 export default function MarketplaceListings() {
@@ -101,7 +103,7 @@ export default function MarketplaceListings() {
       location: j.location || '', type: j.type || JOB_TYPES[0], description: j.description || '',
       requirements: j.requirements || '', closing_date: j.closing_date || '', source_url: j.source_url || '',
       status: j.status || 'Open', display_format: j.display_format || 'text', display_image_url: j.display_image_url || '',
-      video_url: j.video_url || '', contact_email: j.contact_email || '',
+      video_url: j.video_url || '', contact_email: j.contact_email || '', accept_submissions: j.accept_submissions !== false,
     });
     setJobDialog(true);
   };
@@ -119,6 +121,7 @@ export default function MarketplaceListings() {
       description: t.description || '', closing_date: t.closing_date || '', source_url: t.source_url || '',
       status: t.status || 'Open', display_format: t.display_format || 'text', display_image_url: t.display_image_url || '',
       document_url: t.document_url || '', video_url: t.video_url || '', contact_email: t.contact_email || '',
+      accept_submissions: t.accept_submissions !== false,
     });
     setTenderDialog(true);
   };
@@ -135,7 +138,7 @@ export default function MarketplaceListings() {
       title: c.title || '', company_name: c.company_name || '', type: c.type || COLLABORATION_TYPES[0],
       description: c.description || '', closing_date: c.closing_date || '', source_url: c.source_url || '',
       status: c.status || 'Open', display_format: c.display_format || 'text', display_image_url: c.display_image_url || '',
-      video_url: c.video_url || '', contact_email: c.contact_email || '',
+      video_url: c.video_url || '', contact_email: c.contact_email || '', accept_submissions: c.accept_submissions !== false,
     });
     setCollabDialog(true);
   };
@@ -353,6 +356,16 @@ export default function MarketplaceListings() {
               <Input type="email" value={jobForm.contact_email} onChange={e => setJobForm(f => ({ ...f, contact_email: e.target.value }))} placeholder="e.g. hr@company.com" />
               <p className="text-[11px] text-muted-foreground mt-1">Applicants get emailed here — leave blank if this generic listing shouldn't send email notifications.</p>
             </div>
+            <div className="flex items-center justify-between gap-3 bg-muted rounded-lg px-3 py-2.5">
+              <div>
+                <p className="text-sm font-medium">Accept applications via ADMA Digital</p>
+                <p className="text-xs text-muted-foreground">Off hides the in-app application form — visitors are pointed to the Original Posting Link instead.</p>
+              </div>
+              <Switch
+                checked={jobForm.accept_submissions}
+                onCheckedChange={v => setJobForm(f => ({ ...f, accept_submissions: v }))}
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Status</label>
@@ -440,6 +453,16 @@ export default function MarketplaceListings() {
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Interest Notification Email (optional)</label>
               <Input type="email" value={tenderForm.contact_email} onChange={e => setTenderForm(f => ({ ...f, contact_email: e.target.value }))} placeholder="e.g. procurement@company.com" />
               <p className="text-[11px] text-muted-foreground mt-1">Expressions of interest get emailed here — leave blank if this generic listing shouldn't send email notifications.</p>
+            </div>
+            <div className="flex items-center justify-between gap-3 bg-muted rounded-lg px-3 py-2.5">
+              <div>
+                <p className="text-sm font-medium">Accept expressions of interest via ADMA Digital</p>
+                <p className="text-xs text-muted-foreground">Off hides the in-app interest form — visitors are pointed to the Original Posting Link instead.</p>
+              </div>
+              <Switch
+                checked={tenderForm.accept_submissions}
+                onCheckedChange={v => setTenderForm(f => ({ ...f, accept_submissions: v }))}
+              />
             </div>
             <div>
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Tender Document (PDF, optional)</label>
@@ -545,6 +568,16 @@ export default function MarketplaceListings() {
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Interest Notification Email (optional)</label>
               <Input type="email" value={collabForm.contact_email} onChange={e => setCollabForm(f => ({ ...f, contact_email: e.target.value }))} placeholder="e.g. partnerships@company.com" />
               <p className="text-[11px] text-muted-foreground mt-1">Expressions of interest get emailed here — leave blank if this generic listing shouldn't send email notifications.</p>
+            </div>
+            <div className="flex items-center justify-between gap-3 bg-muted rounded-lg px-3 py-2.5">
+              <div>
+                <p className="text-sm font-medium">Accept expressions of interest via ADMA Digital</p>
+                <p className="text-xs text-muted-foreground">Off hides the in-app interest form — visitors are pointed to the Original Posting Link instead.</p>
+              </div>
+              <Switch
+                checked={collabForm.accept_submissions}
+                onCheckedChange={v => setCollabForm(f => ({ ...f, accept_submissions: v }))}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

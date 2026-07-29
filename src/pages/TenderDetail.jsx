@@ -79,6 +79,7 @@ export default function TenderDetail() {
   }
 
   const isClosed = (tender.status || 'Open') !== 'Open';
+  const acceptsSubmissions = tender.accept_submissions !== false;
 
   return (
     <div className="pb-24 max-w-2xl mx-auto">
@@ -148,6 +149,15 @@ export default function TenderDetail() {
         {isClosed ? (
           <div className="bg-muted/50 border border-border rounded-2xl p-4 text-center text-sm text-muted-foreground">
             This tender is no longer accepting expressions of interest.
+          </div>
+        ) : !acceptsSubmissions ? (
+          <div className="bg-card border border-border rounded-2xl p-4 text-center">
+            <p className="text-sm font-medium mb-1">Expressions of interest are handled externally.</p>
+            <p className="text-xs text-muted-foreground">
+              {tender.source_url
+                ? 'Use the "View Original Posting" link above to submit.'
+                : `Contact ${tender.company_name} directly.`}
+            </p>
           </div>
         ) : (
           <div className="bg-card border border-border rounded-2xl p-4">

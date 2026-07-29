@@ -10,9 +10,10 @@ import {
   Building2, Download, UploadCloud,
 } from 'lucide-react';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
+import { Switch } from '@/components/ui/switch';
 
 const CATEGORIES = EVENT_CONFIG.exhibitorCategories;
-const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '', contact_email: '' };
+const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true };
 
 export default function ExhibitorTenders() {
   const { user } = useAuth();
@@ -69,7 +70,10 @@ export default function ExhibitorTenders() {
   const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(EMPTY_TENDER); };
   const openCreate = () => { setForm(EMPTY_TENDER); setEditingId(null); setFormOpen(true); };
   const openEdit = (t) => {
-    setForm({ title: t.title || '', category: t.category || CATEGORIES[0], description: t.description || '', closing_date: t.closing_date || '', contact_email: t.contact_email || '' });
+    setForm({
+      title: t.title || '', category: t.category || CATEGORIES[0], description: t.description || '', closing_date: t.closing_date || '',
+      contact_email: t.contact_email || '', source_url: t.source_url || '', accept_submissions: t.accept_submissions !== false,
+    });
     setEditingId(t.id);
     setFormOpen(true);
   };
@@ -189,6 +193,25 @@ export default function ExhibitorTenders() {
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
             />
             <p className="text-[11px] text-muted-foreground mt-1">Leave blank to use your registered booth email, or set a different address just for interest in this tender.</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">External Submission Link (optional)</label>
+            <input
+              type="url" value={form.source_url}
+              onChange={e => setForm(f => ({ ...f, source_url: e.target.value }))}
+              placeholder="https://…"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3 bg-muted/50 rounded-lg px-3 py-2.5">
+            <div>
+              <p className="text-sm font-medium">Accept expressions of interest via ADMA Digital</p>
+              <p className="text-xs text-muted-foreground">Off hides the in-app interest form — visitors are pointed to your external link instead.</p>
+            </div>
+            <Switch
+              checked={form.accept_submissions}
+              onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
+            />
           </div>
           <div className="flex gap-2 pt-1">
             <button

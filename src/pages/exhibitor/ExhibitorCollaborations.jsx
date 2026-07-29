@@ -6,11 +6,12 @@ import { standTierAtLeast } from '@/lib/standTiers';
 import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
+import { Switch } from '@/components/ui/switch';
 import {
   Handshake, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone, Building2, Hourglass,
 } from 'lucide-react';
 
-const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '', contact_email: '' };
+const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true };
 
 export default function ExhibitorCollaborations() {
   const { user } = useAuth();
@@ -66,7 +67,10 @@ export default function ExhibitorCollaborations() {
   const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(EMPTY_COLLAB); };
   const openCreate = () => { setForm(EMPTY_COLLAB); setEditingId(null); setFormOpen(true); };
   const openEdit = (c) => {
-    setForm({ title: c.title || '', type: c.type || COLLABORATION_TYPES[0], description: c.description || '', closing_date: c.closing_date || '', contact_email: c.contact_email || '' });
+    setForm({
+      title: c.title || '', type: c.type || COLLABORATION_TYPES[0], description: c.description || '', closing_date: c.closing_date || '',
+      contact_email: c.contact_email || '', source_url: c.source_url || '', accept_submissions: c.accept_submissions !== false,
+    });
     setEditingId(c.id);
     setFormOpen(true);
   };
@@ -178,6 +182,25 @@ export default function ExhibitorCollaborations() {
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
             />
             <p className="text-[11px] text-muted-foreground mt-1">Leave blank to use your registered booth email, or set a different address just for interest in this collaboration.</p>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">External Submission Link (optional)</label>
+            <input
+              type="url" value={form.source_url}
+              onChange={e => setForm(f => ({ ...f, source_url: e.target.value }))}
+              placeholder="https://…"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3 bg-muted/50 rounded-lg px-3 py-2.5">
+            <div>
+              <p className="text-sm font-medium">Accept expressions of interest via ADMA Digital</p>
+              <p className="text-xs text-muted-foreground">Off hides the in-app interest form — visitors are pointed to your external link instead.</p>
+            </div>
+            <Switch
+              checked={form.accept_submissions}
+              onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
+            />
           </div>
           <div className="flex gap-2 pt-1">
             <button
