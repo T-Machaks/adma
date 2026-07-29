@@ -1,18 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Exhibitor, MeetingRequest, EngagementEvent, AdSlot } from '@/api/entities';
+import {
+  Exhibitor, MeetingRequest, EngagementEvent, AdSlot,
+  JobListing, TenderListing, Collaboration, JobApplication, VirtualEnquiry,
+} from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import {
   Eye, Calendar, Megaphone, TrendingUp,
   MousePointerClick, Star, BarChart2, QrCode, UserCheck,
   Download, Lock, Users, X, ArrowRight, BookOpen, Play,
+  Briefcase, Send,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
 import { getStandTier, standTierAtLeast } from '@/lib/standTiers';
+import { LISTING_TYPE_LABEL, countEventsByListing, countSubmissionsByField, downloadListingsOverviewCSV } from '@/lib/marketplaceAnalytics';
 
 const TYPE_LABEL = {
   profile_view:   'Booth Visit',
@@ -127,6 +132,12 @@ export default function ExhibitorAnalytics() {
     queryFn: () => AdSlot.listActive(),
   });
 
+  const { data: allJobs = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list() });
+  const { data: allTenders = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list() });
+  const { data: allCollabs = [] } = useQuery({ queryKey: ['collaborations'], queryFn: () => Collaboration.list() });
+  const { data: allApplications = [] } = useQuery({ queryKey: ['job-applications-all'], queryFn: () => JobApplication.list() });
+  const { data: allEnquiries = [] } = useQuery({ queryKey: ['virtual-enquiries-all'], queryFn: () => VirtualEnquiry.list() });
+
   if (!myBooth) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-16 text-center">
@@ -211,6 +222,23 @@ export default function ExhibitorAnalytics() {
   const isPremiumPkg = myBooth?.package === 'Premium';
   const myAd = activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null;
   const carouselAdClicks = events.filter(e => e.type === 'ad_click' && e.source === 'home_carousel').length;
+
+  // Marketplace listings performance — my own job/tender/collaboration postings.
+  // `events` is already scoped to this booth (filterByExhibitor above), and listing_view
+  // events carry exhibitor_id whenever the listing itself has one, so this booth's own
+  // listing views/clicks are already in there — no extra engagement query needed.
+  const myJobs = allJobs.filter(j => j.exhibitor_id === myBooth.id);
+  const myTenders = allTenders.filter(t => t.exhibitor_id === myBooth.id);
+  const myCollabs = allCollabs.filter(c => c.exhibitor_id === myBooth.id);
+  const { views: myListingViews } = countEventsByListing(events);
+  const myJobApplicationCounts = countSubmissionsByField(allApplications, 'job_id');
+  const myTenderEnquiryCounts = countSubmissionsByField(allEnquiries, 'tender_id');
+  const myCollabEnquiryCounts = countSubmissionsByField(allEnquiries, 'collaboration_id');
+  const myListings = [
+    ...myJobs.map(j => ({ ...j, _type: 'job', _submissions: myJobApplicationCounts[j.id] || 0 })),
+    ...myTenders.map(t => ({ ...t, _type: 'tender', _submissions: myTenderEnquiryCounts[t.id] || 0 })),
+    ...myCollabs.map(c => ({ ...c, _type: 'collaboration', _submissions: myCollabEnquiryCounts[c.id] || 0 })),
+  ].map(l => ({ ...l, _views: myListingViews[l.id] || 0 }));
 
   const kpis = [
     { label: 'Booth Views',      value: profileViews,             icon: Eye,               color: 'text-blue-500',    bg: 'bg-blue-50 dark:bg-blue-950/30' },
@@ -483,6 +511,56 @@ export default function ExhibitorAnalytics() {
           </div>
         )}
       </div>
+
+      {/* Marketplace listings performance */}
+      {myListings.length > 0 && (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-amber" />
+              <div>
+                <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Marketplace Listings</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Views & submissions across your jobs, tenders and collaborations</p>
+              </div>
+            </div>
+            <button
+              onClick={() => downloadListingsOverviewCSV(
+                `${myBooth.name.replace(/\s+/g, '_')}_marketplace_analytics_${new Date().toISOString().slice(0, 10)}.csv`,
+                myListings.map(l => ({ title: l.title, listingType: l._type, company_name: l.company_name, status: l.status, views: l._views, clicks: 0, submissions: l._submissions }))
+              )}
+              className="flex items-center gap-1.5 text-xs border border-border text-foreground/70 font-semibold px-3 py-2 rounded-lg hover:bg-muted active:scale-95 transition-all duration-150"
+            >
+              <Download className="w-3.5 h-3.5" /> Export CSV
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="text-left px-5 py-3 font-semibold text-muted-foreground">Listing</th>
+                  <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Type</th>
+                  <th className="text-right px-3 py-3 font-semibold text-muted-foreground">Views</th>
+                  <th className="text-right px-5 py-3 font-semibold text-muted-foreground">Submissions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myListings.map(l => (
+                  <tr key={l.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                    <td className="px-5 py-3 font-medium truncate max-w-[220px]">{l.title}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{LISTING_TYPE_LABEL[l._type]}</td>
+                    <td className="px-3 py-3 text-right font-bold tabular-nums">
+                      <Eye className="w-3 h-3 inline mr-1 -mt-0.5 text-muted-foreground" />{l._views}
+                    </td>
+                    <td className="px-5 py-3 text-right font-bold tabular-nums">
+                      <Send className="w-3 h-3 inline mr-1 -mt-0.5 text-muted-foreground" />{l._submissions}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Meeting requests breakdown */}
       {myMeetings.length > 0 && (

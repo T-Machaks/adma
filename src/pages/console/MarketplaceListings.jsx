@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { JobListing, TenderListing, Collaboration } from '@/api/entities';
+import { JobListing, TenderListing, Collaboration, JobApplication, VirtualEnquiry, EngagementEvent } from '@/api/entities';
 import {
   Briefcase, FileText, Handshake, Plus, Edit2, Trash2, MapPin, Clock, ExternalLink, Download, UploadCloud,
+  Eye, Send, FileDown,
 } from 'lucide-react';
+import { countEventsByListing, countSubmissionsByField, downloadListingReport } from '@/lib/marketplaceAnalytics';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -44,10 +46,36 @@ export default function MarketplaceListings() {
   const { data: allJobs = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list('-created_date') });
   const { data: allTenders = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list('-created_date') });
   const { data: allCollabs = [] } = useQuery({ queryKey: ['collaborations'], queryFn: () => Collaboration.list('-created_date') });
+  const { data: allApplications = [] } = useQuery({ queryKey: ['job-applications-all'], queryFn: () => JobApplication.list() });
+  const { data: allEnquiries = [] } = useQuery({ queryKey: ['virtual-enquiries-all'], queryFn: () => VirtualEnquiry.list() });
+  const { data: allEngagements = [] } = useQuery({ queryKey: ['engagements-all'], queryFn: () => EngagementEvent.list() });
 
   const jobs = allJobs.filter(j => !j.exhibitor_id);
   const tenders = allTenders.filter(t => !t.exhibitor_id);
   const collabs = allCollabs.filter(c => !c.exhibitor_id);
+
+  // Per-listing analytics — views/clicks from engagement events, submissions from
+  // applications (jobs) or enquiries (tenders/collabs), keyed by listing id.
+  const { views: listingViews, clicks: listingClicks } = countEventsByListing(allEngagements);
+  const jobApplicationCounts = countSubmissionsByField(allApplications, 'job_id');
+  const tenderEnquiryCounts = countSubmissionsByField(allEnquiries, 'tender_id');
+  const collabEnquiryCounts = countSubmissionsByField(allEnquiries, 'collaboration_id');
+
+  const reportJob = (j) => downloadListingReport(j, 'job', {
+    views: listingViews[j.id] || 0,
+    clicks: listingClicks[j.id] || 0,
+    submissions: allApplications.filter(a => a.job_id === j.id),
+  });
+  const reportTender = (t) => downloadListingReport(t, 'tender', {
+    views: listingViews[t.id] || 0,
+    clicks: listingClicks[t.id] || 0,
+    submissions: allEnquiries.filter(e => e.tender_id === t.id),
+  });
+  const reportCollab = (c) => downloadListingReport(c, 'collaboration', {
+    views: listingViews[c.id] || 0,
+    clicks: listingClicks[c.id] || 0,
+    submissions: allEnquiries.filter(e => e.collaboration_id === c.id),
+  });
 
   // Job dialog state
   const [jobDialog, setJobDialog] = useState(false);
@@ -202,8 +230,13 @@ export default function MarketplaceListings() {
                       </a>
                     )}
                   </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {listingViews[j.id] || 0} views</span>
+                    <span className="flex items-center gap-1"><Send className="w-3 h-3" /> {jobApplicationCounts[j.id] || 0} applications</span>
+                  </div>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" title="Download analytics report" onClick={() => reportJob(j)}><FileDown className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openEditJob(j)}><Edit2 className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => setDeleteJobId(j.id)}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                 </div>
@@ -249,8 +282,13 @@ export default function MarketplaceListings() {
                       </a>
                     )}
                   </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {listingViews[t.id] || 0} views</span>
+                    <span className="flex items-center gap-1"><Send className="w-3 h-3" /> {tenderEnquiryCounts[t.id] || 0} expressions of interest</span>
+                  </div>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" title="Download analytics report" onClick={() => reportTender(t)}><FileDown className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openEditTender(t)}><Edit2 className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => setDeleteTenderId(t.id)}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                 </div>
@@ -289,8 +327,13 @@ export default function MarketplaceListings() {
                       </a>
                     )}
                   </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {listingViews[c.id] || 0} views</span>
+                    <span className="flex items-center gap-1"><Send className="w-3 h-3" /> {collabEnquiryCounts[c.id] || 0} expressions of interest</span>
+                  </div>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" title="Download analytics report" onClick={() => reportCollab(c)}><FileDown className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openEditCollab(c)}><Edit2 className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => setDeleteCollabId(c.id)}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                 </div>

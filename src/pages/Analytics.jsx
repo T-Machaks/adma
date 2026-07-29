@@ -1,8 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
-import { Registration, MeetingRequest, Exhibitor, EngagementEvent } from '@/api/entities';
+import {
+  Registration, MeetingRequest, Exhibitor, EngagementEvent,
+  JobListing, TenderListing, Collaboration, JobApplication, VirtualEnquiry,
+} from '@/api/entities';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
-import { Users, Calendar, QrCode, Eye, MousePointerClick, BookOpen, CheckSquare, CalendarCheck } from 'lucide-react';
+import {
+  Users, Calendar, QrCode, Eye, MousePointerClick, BookOpen, CheckSquare, CalendarCheck,
+  Briefcase, FileText, Handshake, Send,
+} from 'lucide-react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { LISTING_TYPE_LABEL, countEventsByListing, countSubmissionsByField } from '@/lib/marketplaceAnalytics';
 
 const CATEGORY_COLORS = ['#f59e0b', '#16a34a', '#92400e', '#3b82f6', '#8b5cf6', '#0d9488', '#ec4899', '#f97316', '#64748b'];
 
@@ -29,6 +36,11 @@ export default function Analytics() {
   const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => MeetingRequest.list() });
   const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors'], queryFn: () => Exhibitor.list() });
   const { data: engagements = [] } = useQuery({ queryKey: ['engagements-all'], queryFn: () => EngagementEvent.list() });
+  const { data: jobListings = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list() });
+  const { data: tenderListings = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list() });
+  const { data: collabListings = [] } = useQuery({ queryKey: ['collaborations'], queryFn: () => Collaboration.list() });
+  const { data: jobApplications = [] } = useQuery({ queryKey: ['job-applications-all'], queryFn: () => JobApplication.list() });
+  const { data: virtualEnquiries = [] } = useQuery({ queryKey: ['virtual-enquiries-all'], queryFn: () => VirtualEnquiry.list() });
 
   const totalReg = registrations.length;
   const checkedIn = registrations.filter(r => r.status === 'Checked In' || r.checked_in).length;
@@ -86,6 +98,23 @@ export default function Analytics() {
 
   const guideVideoPlays = engagements.filter(e => e.source === 'magazine' && e.type === 'video_play').length;
   const guideVideoCompletes = engagements.filter(e => e.source === 'magazine' && e.type === 'video_complete').length;
+
+  // Marketplace (jobs/tenders/collaborations) analytics — combines listings from both
+  // exhibitor-posted and organizer-posted (generic) sources into one ranked table.
+  const { views: listingViews } = countEventsByListing(engagements);
+  const jobApplicationCounts = countSubmissionsByField(jobApplications, 'job_id');
+  const tenderEnquiryCounts = countSubmissionsByField(virtualEnquiries, 'tender_id');
+  const collabEnquiryCounts = countSubmissionsByField(virtualEnquiries, 'collaboration_id');
+
+  const allListings = [
+    ...jobListings.map(j => ({ ...j, _type: 'job', _submissions: jobApplicationCounts[j.id] || 0 })),
+    ...tenderListings.map(t => ({ ...t, _type: 'tender', _submissions: tenderEnquiryCounts[t.id] || 0 })),
+    ...collabListings.map(c => ({ ...c, _type: 'collaboration', _submissions: collabEnquiryCounts[c.id] || 0 })),
+  ].map(l => ({ ...l, _views: listingViews[l.id] || 0 }));
+
+  const marketplaceViews = engagements.filter(e => e.type === 'listing_view').length;
+  const marketplaceSubmissions = jobApplications.length + virtualEnquiries.filter(e => e.tender_id || e.collaboration_id).length;
+  const topListings = [...allListings].sort((a, b) => b._views - a._views).slice(0, 8);
 
   const quickMetrics = [
     { label: 'Check-in rate', value: pct(checkedIn, totalReg) },
@@ -196,6 +225,57 @@ export default function Analytics() {
         ) : (
           <div className="h-[100px] flex items-center justify-center text-muted-foreground text-sm">
             No exhibitor profile views recorded yet.
+          </div>
+        )}
+      </div>
+
+      {/* Marketplace analytics */}
+      <div className="bg-card border border-border rounded-xl p-4 mb-4">
+        <p className="font-heading text-sm font-bold uppercase tracking-wide mb-3">Marketplace — Jobs, Tenders & Collaborations</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          {[
+            { label: 'Job Listings', value: jobListings.length, icon: Briefcase, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+            { label: 'Tender Listings', value: tenderListings.length, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+            { label: 'Collaborations', value: collabListings.length, icon: Handshake, color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-900/20' },
+            { label: 'Total Views', value: marketplaceViews, icon: Eye, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          ].map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className={`${bg} rounded-lg p-3`}>
+              <div className={`${color} mb-1`}><Icon className="w-4 h-4" /></div>
+              <p className="font-heading text-xl font-bold">{value.toLocaleString()}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          <Send className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
+          {marketplaceSubmissions} total applications / expressions of interest across all listings
+        </p>
+        {topListings.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No marketplace listings yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 font-semibold text-muted-foreground">Listing</th>
+                  <th className="text-left py-2 font-semibold text-muted-foreground">Type</th>
+                  <th className="text-left py-2 font-semibold text-muted-foreground">Company</th>
+                  <th className="text-right py-2 font-semibold text-muted-foreground">Views</th>
+                  <th className="text-right py-2 font-semibold text-muted-foreground">Submissions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topListings.map(l => (
+                  <tr key={l.id} className="border-b border-border last:border-0">
+                    <td className="py-2 pr-2 font-medium truncate max-w-[200px]">{l.title}</td>
+                    <td className="py-2 pr-2 text-muted-foreground">{LISTING_TYPE_LABEL[l._type]}</td>
+                    <td className="py-2 pr-2 text-muted-foreground truncate max-w-[160px]">{l.company_name}</td>
+                    <td className="py-2 text-right font-bold tabular-nums">{l._views}</td>
+                    <td className="py-2 text-right font-bold tabular-nums">{l._submissions}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { JobListing, JobApplication } from '@/api/entities';
 import { notifyJobApplication } from '@/api/notify';
+import { trackListing } from '@/lib/tracking';
 import { useAuth } from '@/lib/AuthContext';
 import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
@@ -35,6 +36,10 @@ export default function JobDetail() {
       setForm(f => ({ ...f, name: user.full_name || f.name, email: user.email || f.email }));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (job?.id) trackListing(job, 'job', 'listing_view', 'jobs');
+  }, [job?.id]);
 
   const applyMutation = useMutation({
     mutationFn: async (data) => {
@@ -126,6 +131,7 @@ export default function JobDetail() {
             href={job.source_url}
             target="_blank"
             rel="noreferrer"
+            onClick={() => trackListing(job, 'job', 'listing_click', 'jobs')}
             className="flex items-center justify-center gap-2 border border-border text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-muted active:scale-95 transition-all"
           >
             View Original Posting <ExternalLink className="w-4 h-4" />

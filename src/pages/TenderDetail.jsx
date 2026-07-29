@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TenderListing, VirtualEnquiry } from '@/api/entities';
 import { notifyEnquiry } from '@/api/notify';
+import { trackListing } from '@/lib/tracking';
 import { useAuth } from '@/lib/AuthContext';
 import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
@@ -34,6 +35,10 @@ export default function TenderDetail() {
       setForm(f => ({ ...f, name: user.full_name || f.name, email: user.email || f.email, company: user.company || f.company }));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (tender?.id) trackListing(tender, 'tender', 'listing_view', 'tenders');
+  }, [tender?.id]);
 
   const interestMutation = useMutation({
     mutationFn: (data) => VirtualEnquiry.create(data),
@@ -113,6 +118,7 @@ export default function TenderDetail() {
             href={tender.source_url}
             target="_blank"
             rel="noreferrer"
+            onClick={() => trackListing(tender, 'tender', 'listing_click', 'tenders')}
             className="flex items-center justify-center gap-2 border border-border text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-muted active:scale-95 transition-all"
           >
             View Original Posting <ExternalLink className="w-4 h-4" />

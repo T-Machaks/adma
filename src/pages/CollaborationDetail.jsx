@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Collaboration, VirtualEnquiry } from '@/api/entities';
 import { notifyEnquiry } from '@/api/notify';
+import { trackListing } from '@/lib/tracking';
 import { useAuth } from '@/lib/AuthContext';
 import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
@@ -34,6 +35,10 @@ export default function CollaborationDetail() {
       setForm(f => ({ ...f, name: user.full_name || f.name, email: user.email || f.email, company: user.company || f.company }));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (collab?.id) trackListing(collab, 'collaboration', 'listing_view', 'collaborations');
+  }, [collab?.id]);
 
   const interestMutation = useMutation({
     mutationFn: (data) => VirtualEnquiry.create(data),
@@ -114,6 +119,7 @@ export default function CollaborationDetail() {
             href={collab.source_url}
             target="_blank"
             rel="noreferrer"
+            onClick={() => trackListing(collab, 'collaboration', 'listing_click', 'collaborations')}
             className="flex items-center justify-center gap-2 border border-border text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-muted active:scale-95 transition-all"
           >
             View Original Posting <ExternalLink className="w-4 h-4" />
