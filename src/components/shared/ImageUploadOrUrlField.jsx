@@ -9,6 +9,9 @@ const PREVIEW_ASPECT = {
   logo: 'aspect-square max-w-[140px]',
   banner: 'aspect-video max-w-[280px]',
   cutout: 'aspect-[3/4] max-w-[180px]',
+  // Not a real aspect ratio claim — flexible images keep whatever shape they came in,
+  // this box is just a reasonable preview frame (object-contain, so nothing gets cropped).
+  flexible: 'aspect-[4/3] max-w-[240px]',
 };
 
 // Checkered backdrop (instead of solid white) so PNG transparency is actually visible in
@@ -112,7 +115,9 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
         </div>
       )}
       <p className="text-[10px] text-muted-foreground mt-1">
-        Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. Uploaded files are auto-cropped to fit — pasted URLs are used as-is.
+        Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. {preset === 'flexible'
+          ? 'Uploaded files keep their original shape, just resized down if oversized — pasted URLs are used as-is.'
+          : 'Uploaded files are auto-cropped to fit — pasted URLs are used as-is.'}
       </p>
       {error && <p className="text-[10px] text-red-500 mt-1">{error}</p>}
     </div>

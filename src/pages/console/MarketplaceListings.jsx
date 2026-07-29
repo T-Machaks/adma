@@ -396,7 +396,7 @@ export default function MarketplaceListings() {
                 onChange={v => setJobForm(f => ({ ...f, display_image_url: v }))}
                 ownerId={editJobId || 'generic-job'}
                 purpose="job"
-                preset="banner"
+                preset="flexible"
               />
             )}
             <VideoUploadOrUrlField
@@ -511,7 +511,7 @@ export default function MarketplaceListings() {
                 onChange={v => setTenderForm(f => ({ ...f, display_image_url: v }))}
                 ownerId={editTenderId || 'generic-tender'}
                 purpose="tender"
-                preset="banner"
+                preset="flexible"
               />
             )}
             <VideoUploadOrUrlField
@@ -609,7 +609,7 @@ export default function MarketplaceListings() {
                 onChange={v => setCollabForm(f => ({ ...f, display_image_url: v }))}
                 ownerId={editCollabId || 'generic-collab'}
                 purpose="collab"
-                preset="banner"
+                preset="flexible"
               />
             )}
             <VideoUploadOrUrlField

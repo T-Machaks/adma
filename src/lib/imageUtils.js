@@ -26,20 +26,28 @@ export function resizeImageToBlob(file, maxDim = 1200, quality = 0.75) {
 export const IMAGE_PRESETS = {
   // Square logo, transparency-preserving — used for exhibitor logos and ad slot logos.
   logo:   { width: 500,  height: 500,  mode: 'cover',   format: 'png',  quality: 1 },
-  // 16:9 photo banner — ad slot full-bleed background, job/tender/collab display images.
+  // 16:9 photo banner — ad slot full-bleed background where every slide in the carousel
+  // needs to be the same shape.
   banner: { width: 1200, height: 675,  mode: 'cover',   format: 'jpeg', quality: 0.85 },
   // Tall product cutout — fit-within (no crop), transparent padding, preserves alpha.
   cutout: { width: 900,  height: 1200, mode: 'contain', format: 'png',  quality: 1 },
+  // No forced canvas/crop at all — keeps whatever aspect ratio the source photo has, just
+  // caps the longest side so nothing huge lands in S3. Used for classifieds-style listing
+  // tiles (jobs/tenders/collaborations), where varying image shapes is the point, not a
+  // defect — forcing every one into 16:9 defeated the whole "tiles of different sizes" look.
+  flexible: { maxDim: 1600, format: 'jpeg', quality: 0.85 },
 };
 
 export const IMAGE_PRESET_LABELS = {
   logo:   '500×500px square · PNG (transparent background supported)',
   banner: '1200×675px (16:9) · JPG',
   cutout: 'Fits within 900×1200px · PNG (transparent background supported)',
+  flexible: 'Any shape or size · JPG (capped to 1600px on the longest side)',
 };
 
 export function standardizeImage(file, presetKey = 'banner') {
   const preset = IMAGE_PRESETS[presetKey] || IMAGE_PRESETS.banner;
+  if (preset.maxDim) return resizeImageToBlob(file, preset.maxDim, preset.quality);
   return new Promise((resolve, reject) => {
     const objUrl = URL.createObjectURL(file);
     const img = new window.Image();
