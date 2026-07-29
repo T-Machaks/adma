@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { JobListing, JobApplication } from '@/api/entities';
+import { notifyJobApplication } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
 import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
-  ArrowLeft, Briefcase, MapPin, Clock, Mail, Send, CheckCircle, Lock, LogIn, UserPlus, FileUp,
+  ArrowLeft, Briefcase, MapPin, Clock, Mail, Send, CheckCircle, Lock, LogIn, UserPlus, FileUp, ExternalLink,
 } from 'lucide-react';
 
 function fmtDate(iso) {
@@ -51,7 +52,10 @@ export default function JobDetail() {
       }
       return JobApplication.create({ ...data, cv_url });
     },
-    onSuccess: () => setSubmitted(true),
+    onSuccess: (_, variables) => {
+      notifyJobApplication(variables);
+      setSubmitted(true);
+    },
   });
 
   function handleApply(e) {
@@ -115,6 +119,17 @@ export default function JobDetail() {
             <span className="inline-block mt-2 text-[11px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{job.category}</span>
           )}
         </div>
+
+        {job.source_url && (
+          <a
+            href={job.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 border border-border text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-muted active:scale-95 transition-all"
+          >
+            View Original Posting <ExternalLink className="w-4 h-4" />
+          </a>
+        )}
 
         {job.description && (
           <div className="bg-card border border-border rounded-2xl p-4">

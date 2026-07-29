@@ -6,7 +6,7 @@ import { notifyEnquiry } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
 import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
-  ArrowLeft, Clock, Send, CheckCircle, Lock, LogIn, UserPlus,
+  ArrowLeft, Clock, Send, CheckCircle, Lock, LogIn, UserPlus, ExternalLink,
 } from 'lucide-react';
 
 function fmtDate(iso) {
@@ -107,6 +107,17 @@ export default function CollaborationDetail() {
             {collab.closing_date && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Closes {fmtDate(collab.closing_date)}</span>}
           </div>
         </div>
+
+        {collab.source_url && (
+          <a
+            href={collab.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 border border-border text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-muted active:scale-95 transition-all"
+          >
+            View Original Posting <ExternalLink className="w-4 h-4" />
+          </a>
+        )}
 
         {collab.description && (
           <div className="bg-card border border-border rounded-2xl p-4">

@@ -10,7 +10,7 @@ import {
   Handshake, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone, Building2, Hourglass,
 } from 'lucide-react';
 
-const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '' };
+const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '', contact_email: '' };
 
 export default function ExhibitorCollaborations() {
   const { user } = useAuth();
@@ -66,7 +66,7 @@ export default function ExhibitorCollaborations() {
   const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(EMPTY_COLLAB); };
   const openCreate = () => { setForm(EMPTY_COLLAB); setEditingId(null); setFormOpen(true); };
   const openEdit = (c) => {
-    setForm({ title: c.title || '', type: c.type || COLLABORATION_TYPES[0], description: c.description || '', closing_date: c.closing_date || '' });
+    setForm({ title: c.title || '', type: c.type || COLLABORATION_TYPES[0], description: c.description || '', closing_date: c.closing_date || '', contact_email: c.contact_email || '' });
     setEditingId(c.id);
     setFormOpen(true);
   };
@@ -168,6 +168,16 @@ export default function ExhibitorCollaborations() {
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
             />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Interest Notification Email (optional)</label>
+            <input
+              type="email" value={form.contact_email}
+              onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
+              placeholder={`Defaults to your registered email${myBooth.contact_email ? ` (${myBooth.contact_email})` : ''}`}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">Leave blank to use your registered booth email, or set a different address just for interest in this collaboration.</p>
           </div>
           <div className="flex gap-2 pt-1">
             <button

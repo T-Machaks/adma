@@ -22,3 +22,7 @@ export function notifyEnquiry(enquiry) {
 export function notifyEnquiryReply(enquiry, reply, exhibitorName) {
   post('enquiry-reply', { enquiry, reply, exhibitorName });
 }
+
+export function notifyJobApplication(application) {
+  post('job-application', { application });
+}

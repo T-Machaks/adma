@@ -11,7 +11,7 @@ import {
   Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
 } from 'lucide-react';
 
-const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '' };
+const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '' };
 
 export default function ExhibitorJobs() {
   const { user } = useAuth();
@@ -69,7 +69,7 @@ export default function ExhibitorJobs() {
     setForm({
       title: job.title || '', category: job.category || JOB_CATEGORIES[0], location: job.location || '',
       type: job.type || JOB_TYPES[0], description: job.description || '', requirements: job.requirements || '',
-      closing_date: job.closing_date || '',
+      closing_date: job.closing_date || '', contact_email: job.contact_email || '',
     });
     setEditingId(job.id);
     setFormOpen(true);
@@ -194,6 +194,16 @@ export default function ExhibitorJobs() {
               onChange={e => setForm(f => ({ ...f, requirements: e.target.value }))}
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
             />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Application Notification Email (optional)</label>
+            <input
+              type="email" value={form.contact_email}
+              onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
+              placeholder={`Defaults to your registered email${myBooth.contact_email ? ` (${myBooth.contact_email})` : ''}`}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">Leave blank to use your registered booth email, or set a different address just for applications to this role.</p>
           </div>
           <div className="flex gap-2 pt-1">
             <button

@@ -12,7 +12,7 @@ import {
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 
 const CATEGORIES = EVENT_CONFIG.exhibitorCategories;
-const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '' };
+const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '', contact_email: '' };
 
 export default function ExhibitorTenders() {
   const { user } = useAuth();
@@ -69,7 +69,7 @@ export default function ExhibitorTenders() {
   const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(EMPTY_TENDER); };
   const openCreate = () => { setForm(EMPTY_TENDER); setEditingId(null); setFormOpen(true); };
   const openEdit = (t) => {
-    setForm({ title: t.title || '', category: t.category || CATEGORIES[0], description: t.description || '', closing_date: t.closing_date || '' });
+    setForm({ title: t.title || '', category: t.category || CATEGORIES[0], description: t.description || '', closing_date: t.closing_date || '', contact_email: t.contact_email || '' });
     setEditingId(t.id);
     setFormOpen(true);
   };
@@ -179,6 +179,16 @@ export default function ExhibitorTenders() {
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
             />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium block mb-1">Interest Notification Email (optional)</label>
+            <input
+              type="email" value={form.contact_email}
+              onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
+              placeholder={`Defaults to your registered email${myBooth.contact_email ? ` (${myBooth.contact_email})` : ''}`}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">Leave blank to use your registered booth email, or set a different address just for interest in this tender.</p>
           </div>
           <div className="flex gap-2 pt-1">
             <button

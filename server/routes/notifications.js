@@ -309,9 +309,25 @@ r.post('/enquiry', async (req, res) => {
   if (!enquiry?.email) return;
 
   try {
-    // Fetch exhibitor to get contact_email
+    // A contact email set directly on the listing (tender/collaboration) takes
+    // priority over the exhibitor's registered booth email — organizer-posted generic
+    // listings have no exhibitor record at all, and an exhibitor may want a different
+    // inbox for one specific listing than their general booth contact.
     let exhibitorEmail = null;
-    if (enquiry.exhibitor_id) {
+    if (enquiry.tender_id) {
+      const result = await ddb.send(new GetCommand({
+        TableName: 'adma_tender_listings',
+        Key: { id: enquiry.tender_id },
+      })).catch(() => null);
+      exhibitorEmail = result?.Item?.contact_email || null;
+    } else if (enquiry.collaboration_id) {
+      const result = await ddb.send(new GetCommand({
+        TableName: 'adma_collaborations',
+        Key: { id: enquiry.collaboration_id },
+      })).catch(() => null);
+      exhibitorEmail = result?.Item?.contact_email || null;
+    }
+    if (!exhibitorEmail && enquiry.exhibitor_id) {
       const result = await ddb.send(new GetCommand({
         TableName: 'adma_exhibitors',
         Key: { id: enquiry.exhibitor_id },
@@ -342,6 +358,80 @@ r.post('/enquiry', async (req, res) => {
     }
   } catch (e) {
     console.error('[notify] enquiry error:', e.message);
+  }
+});
+
+// ── Job application submitted ────────────────────────────────────────────────
+function jobApplicationSenderHtml(a) {
+  return header() + `
+    <h2 style="margin:0 0 6px;color:#111;font-size:18px;">Application Received ✓</h2>
+    <p style="margin:0 0 20px;color:#555;font-size:14px;">Hi <strong>${a.name}</strong>, your application for <strong>${a.job_title}</strong> at <strong>${a.exhibitor_name}</strong> has been received.</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+      ${row('Role', a.job_title)}
+      ${row('Company', a.exhibitor_name)}
+      ${a.message ? row('Cover Message', `<span style="white-space:pre-wrap;">${a.message}</span>`) : ''}
+    </table>
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <p style="margin:0;color:#78350f;font-size:13px;">The employer will review your application and reach out directly if they'd like to proceed.</p>
+    </div>
+    <a href="${APP_URL}/jobs" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:13px;padding:10px 24px;border-radius:8px;text-decoration:none;">Browse More Jobs →</a>
+  ` + footer();
+}
+
+function jobApplicationRecipientHtml(a) {
+  return header() + `
+    <h2 style="margin:0 0 6px;color:#111;font-size:18px;">New Job Application</h2>
+    <p style="margin:0 0 20px;color:#555;font-size:14px;">You have received a new application for <strong>${a.job_title}</strong>.</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+      ${row('Applicant', a.name)}
+      ${a.email ? row('Email', `<a href="mailto:${a.email}" style="color:#f59e0b;">${a.email}</a>`) : ''}
+      ${a.phone ? row('Phone', a.phone) : ''}
+      ${a.cv_url ? row('CV', `<a href="${a.cv_url}" style="color:#f59e0b;">Download CV</a>`) : ''}
+      ${a.message ? row('Cover Message', `<span style="white-space:pre-wrap;">${a.message}</span>`) : ''}
+    </table>
+    <p style="color:#555;font-size:13px;">Reply directly to the applicant at their email address above.</p>
+  ` + footer();
+}
+
+r.post('/job-application', async (req, res) => {
+  res.json({ ok: true });
+  const { application } = req.body;
+  if (!application?.email) return;
+
+  try {
+    // Prefer the job listing's own contact email over the exhibitor's registered one —
+    // same override precedence as /enquiry.
+    let recipientEmail = null;
+    if (application.job_id) {
+      const result = await ddb.send(new GetCommand({
+        TableName: 'adma_job_listings',
+        Key: { id: application.job_id },
+      })).catch(() => null);
+      recipientEmail = result?.Item?.contact_email || null;
+    }
+    if (!recipientEmail && application.exhibitor_id) {
+      const result = await ddb.send(new GetCommand({
+        TableName: 'adma_exhibitors',
+        Key: { id: application.exhibitor_id },
+      })).catch(() => null);
+      recipientEmail = result?.Item?.contact_email || null;
+    }
+
+    await emailSilent(
+      application.email,
+      `Application received — ${application.exhibitor_name}`,
+      jobApplicationSenderHtml(application)
+    );
+
+    if (recipientEmail) {
+      await emailSilent(
+        recipientEmail,
+        `New job application from ${application.name} — ADMA Digital`,
+        jobApplicationRecipientHtml(application)
+      );
+    }
+  } catch (e) {
+    console.error('[notify] job-application error:', e.message);
   }
 });
 
