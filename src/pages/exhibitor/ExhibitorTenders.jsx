@@ -6,9 +6,10 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import {
-  FileText, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, Clock, Mail, Phone,
+  FileText, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone,
   Building2, Download, UploadCloud,
 } from 'lucide-react';
+import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 
 const CATEGORIES = EVENT_CONFIG.exhibitorCategories;
 const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '' };
@@ -115,12 +116,10 @@ export default function ExhibitorTenders() {
         <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
           You're currently on the <strong>Basic</strong> package. Upgrade to Enhanced or above to post tenders to attendees.
         </p>
-        <a
-          href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
+        <UpgradeEnquiryButton
+          targetPackage="Enhanced"
           className="inline-flex items-center gap-1.5 text-sm bg-amber text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150"
-        >
-          Enquire to Upgrade <ArrowRight className="w-4 h-4" />
-        </a>
+        />
       </div>
     );
   }

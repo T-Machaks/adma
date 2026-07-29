@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { JobListing, TenderListing } from '@/api/entities';
+import { JobListing, TenderListing, Collaboration } from '@/api/entities';
 import {
-  Briefcase, FileText, Plus, Edit2, Trash2, MapPin, Clock, ExternalLink, Download, UploadCloud,
+  Briefcase, FileText, Handshake, Plus, Edit2, Trash2, MapPin, Clock, ExternalLink, Download, UploadCloud,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
+import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 
 const TENDER_CATEGORIES = EVENT_CONFIG.exhibitorCategories;
@@ -28,15 +29,21 @@ const EMPTY_TENDER = {
   title: '', company_name: '', category: TENDER_CATEGORIES[0], description: '', closing_date: '',
   source_url: '', status: 'Open', display_format: 'text', display_image_url: '', document_url: '',
 };
+const EMPTY_COLLAB = {
+  title: '', company_name: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '',
+  source_url: '', status: 'Open', display_format: 'text', display_image_url: '',
+};
 
 export default function MarketplaceListings() {
   const qc = useQueryClient();
 
   const { data: allJobs = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list('-created_date') });
   const { data: allTenders = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list('-created_date') });
+  const { data: allCollabs = [] } = useQuery({ queryKey: ['collaborations'], queryFn: () => Collaboration.list('-created_date') });
 
   const jobs = allJobs.filter(j => !j.exhibitor_id);
   const tenders = allTenders.filter(t => !t.exhibitor_id);
+  const collabs = allCollabs.filter(c => !c.exhibitor_id);
 
   // Job dialog state
   const [jobDialog, setJobDialog] = useState(false);
@@ -50,6 +57,12 @@ export default function MarketplaceListings() {
   const [tenderForm, setTenderForm] = useState(EMPTY_TENDER);
   const [deleteTenderId, setDeleteTenderId] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  // Collaboration dialog state
+  const [collabDialog, setCollabDialog] = useState(false);
+  const [editCollabId, setEditCollabId] = useState(null);
+  const [collabForm, setCollabForm] = useState(EMPTY_COLLAB);
+  const [deleteCollabId, setDeleteCollabId] = useState(null);
 
   const saveJob = useMutation({
     mutationFn: (data) => editJobId ? JobListing.update(editJobId, data) : JobListing.create(data),
@@ -67,6 +80,15 @@ export default function MarketplaceListings() {
   const deleteTender = useMutation({
     mutationFn: (id) => TenderListing.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tender-listings'] }); setDeleteTenderId(null); },
+  });
+
+  const saveCollab = useMutation({
+    mutationFn: (data) => editCollabId ? Collaboration.update(editCollabId, data) : Collaboration.create(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['collaborations'] }); setCollabDialog(false); },
+  });
+  const deleteCollab = useMutation({
+    mutationFn: (id) => Collaboration.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['collaborations'] }); setDeleteCollabId(null); },
   });
 
   const openCreateJob = () => { setEditJobId(null); setJobForm(EMPTY_JOB); setJobDialog(true); };
@@ -103,6 +125,22 @@ export default function MarketplaceListings() {
     saveTender.mutate(tenderForm);
   };
 
+  const openCreateCollab = () => { setEditCollabId(null); setCollabForm(EMPTY_COLLAB); setCollabDialog(true); };
+  const openEditCollab = (c) => {
+    setEditCollabId(c.id);
+    setCollabForm({
+      title: c.title || '', company_name: c.company_name || '', type: c.type || COLLABORATION_TYPES[0],
+      description: c.description || '', closing_date: c.closing_date || '', source_url: c.source_url || '',
+      status: c.status || 'Open', display_format: c.display_format || 'text', display_image_url: c.display_image_url || '',
+    });
+    setCollabDialog(true);
+  };
+  const handleCollabSubmit = (e) => {
+    e.preventDefault();
+    if (!collabForm.title.trim() || !collabForm.company_name.trim()) return;
+    saveCollab.mutate(collabForm);
+  };
+
   const handleDocUpload = async (file) => {
     if (!file || !editTenderId) return;
     setUploadingDoc(true);
@@ -121,9 +159,9 @@ export default function MarketplaceListings() {
       <div>
         <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Marketplace Listings</h1>
         <p className="text-muted-foreground text-sm mt-0.5 max-w-2xl">
-          Post job openings and tenders sourced from public platforms that aren't tied to a specific exhibitor's booth.
-          Listings posted by exhibitors themselves are managed from their own portal — this page is for generic,
-          organizer-posted content only.
+          Post job openings, tenders and collaboration opportunities sourced from public platforms that aren't tied to a
+          specific exhibitor's booth. Listings posted by exhibitors themselves are managed from their own portal — this
+          page is for generic, organizer-posted content only.
         </p>
       </div>
 
@@ -208,6 +246,46 @@ export default function MarketplaceListings() {
                 <div className="flex gap-1.5 flex-shrink-0">
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openEditTender(t)}><Edit2 className="w-3.5 h-3.5" /></Button>
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => setDeleteTenderId(t.id)}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Collaborations section */}
+      <div>
+        <div className="flex items-start justify-between mb-3">
+          <h2 className="font-heading text-lg font-bold flex items-center gap-2"><Handshake className="w-5 h-5 text-amber" /> Collaborations</h2>
+          <Button onClick={openCreateCollab} className="flex items-center gap-2"><Plus className="w-4 h-4" /> New Collaboration</Button>
+        </div>
+        {collabs.length === 0 ? (
+          <div className="border border-dashed border-border rounded-2xl p-8 text-center">
+            <p className="text-sm text-muted-foreground">No generic collaboration listings yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {collabs.map(c => (
+              <div key={c.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-sm">{c.title}</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.status === 'Open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{c.status || 'Open'}</span>
+                  </div>
+                  <p className="text-xs text-amber font-medium mt-0.5">{c.company_name}</p>
+                  <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                    {c.type && <span className="bg-muted px-2 py-0.5 rounded font-medium">{c.type}</span>}
+                    {c.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {c.closing_date}</span>}
+                    {c.source_url && (
+                      <a href={c.source_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-amber">
+                        <ExternalLink className="w-3 h-3" /> Source
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => openEditCollab(c)}><Edit2 className="w-3.5 h-3.5" /></Button>
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => setDeleteCollabId(c.id)}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                 </div>
               </div>
             ))}
@@ -399,6 +477,81 @@ export default function MarketplaceListings() {
         </DialogContent>
       </Dialog>
 
+      {/* Collaboration dialog */}
+      <Dialog open={collabDialog} onOpenChange={setCollabDialog}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editCollabId ? 'Edit Collaboration' : 'New Collaboration'}</DialogTitle></DialogHeader>
+          <form onSubmit={handleCollabSubmit} className="space-y-4 pt-1">
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Title *</label>
+              <Input value={collabForm.title} onChange={e => setCollabForm(f => ({ ...f, title: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company / Organization *</label>
+              <Input value={collabForm.company_name} onChange={e => setCollabForm(f => ({ ...f, company_name: e.target.value }))} placeholder="e.g. Zimbabwe Farmers Union" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Type</label>
+                <Select value={collabForm.type} onValueChange={v => setCollabForm(f => ({ ...f, type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{COLLABORATION_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Closing Date</label>
+                <Input type="date" value={collabForm.closing_date} onChange={e => setCollabForm(f => ({ ...f, closing_date: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Description</label>
+              <Textarea rows={4} value={collabForm.description} onChange={e => setCollabForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Original Posting Link (optional)</label>
+              <Input value={collabForm.source_url} onChange={e => setCollabForm(f => ({ ...f, source_url: e.target.value }))} placeholder="https://…" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Status</label>
+                <Select value={collabForm.status} onValueChange={v => setCollabForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Open">Open</SelectItem>
+                    <SelectItem value="Closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Display Format</label>
+                <Select value={collabForm.display_format} onValueChange={v => setCollabForm(f => ({ ...f, display_format: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text (standard row)</SelectItem>
+                    <SelectItem value="image_tile">Image Tile</SelectItem>
+                    <SelectItem value="featured_banner">Featured Banner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {(collabForm.display_format === 'image_tile' || collabForm.display_format === 'featured_banner') && (
+              <ImageUploadOrUrlField
+                label="Listing Image"
+                value={collabForm.display_image_url}
+                onChange={v => setCollabForm(f => ({ ...f, display_image_url: v }))}
+                ownerId={editCollabId || 'generic-collab'}
+                purpose="collab"
+                preset="banner"
+              />
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCollabDialog(false)}>Cancel</Button>
+              <Button type="submit" disabled={saveCollab.isPending}>{saveCollab.isPending ? 'Saving…' : editCollabId ? 'Save Changes' : 'Create Collaboration'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete confirms */}
       <Dialog open={!!deleteJobId} onOpenChange={open => !open && setDeleteJobId(null)}>
         <DialogContent className="sm:max-w-sm">
@@ -417,6 +570,16 @@ export default function MarketplaceListings() {
           <DialogFooter className="mt-2">
             <Button variant="outline" onClick={() => setDeleteTenderId(null)}>Cancel</Button>
             <Button variant="destructive" disabled={deleteTender.isPending} onClick={() => deleteTender.mutate(deleteTenderId)}>{deleteTender.isPending ? 'Deleting…' : 'Delete'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!deleteCollabId} onOpenChange={open => !open && setDeleteCollabId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader><DialogTitle>Delete Collaboration</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">This collaboration listing will be permanently deleted.</p>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setDeleteCollabId(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={deleteCollab.isPending} onClick={() => deleteCollab.mutate(deleteCollabId)}>{deleteCollab.isPending ? 'Deleting…' : 'Delete'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

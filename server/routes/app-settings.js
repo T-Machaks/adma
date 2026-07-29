@@ -11,6 +11,7 @@ const DEFAULTS = {
   ccSalesAuctionUrl: '',
   paidFeatureRequestEmail: '',
   newApplicationNotifyEmail: '',
+  packageUpgradeEnquiryEmail: '',
   marketingVideoUrl: '',
   eventDatesLabel: '01 Aug 2026 – 30 May 2027',
   // Exhibition Guide is physical-show content (booth maps, stand numbers) — hidden

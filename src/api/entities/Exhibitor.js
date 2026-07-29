@@ -42,4 +42,9 @@ export const Exhibitor = {
       body: { exhibitor_id: exhibitorId, email, send_email: sendEmail },
     });
   },
+  // Emails the organiser's configured upgrade-enquiry address and sends the exhibitor
+  // a confirmation copy at their own registered contact email.
+  async requestUpgradeEnquiry(data = {}) {
+    return apiFetch('/api/exhibitors/upgrade-enquiry', { method: 'POST', body: data });
+  },
 };

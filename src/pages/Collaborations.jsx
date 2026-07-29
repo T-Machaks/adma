@@ -38,7 +38,7 @@ export default function Collaborations() {
   return (
     <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-4xl mx-auto">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Partner Collaborations</h1>
-      <p className="text-sm text-muted-foreground mb-4">Outgrower schemes, contract farming and joint venture opportunities posted by exhibitors</p>
+      <p className="text-sm text-muted-foreground mb-4">Outgrower schemes, contract farming and joint venture opportunities from exhibitors and other partners</p>
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

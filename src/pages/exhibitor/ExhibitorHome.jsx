@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
+import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
@@ -509,12 +510,12 @@ export default function ExhibitorHome() {
                 ))}
               </ul>
             </div>
-            <a
-              href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
+            <UpgradeEnquiryButton
+              targetPackage={PACKAGE_NEXT[standTier]}
               className="flex items-center gap-1.5 flex-shrink-0 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 whitespace-nowrap"
             >
               Enquire <ArrowRight className="w-3.5 h-3.5" />
-            </a>
+            </UpgradeEnquiryButton>
           </div>
         </div>
       )}
@@ -938,12 +939,12 @@ export default function ExhibitorHome() {
                     Premium package exhibitors get a dedicated ad slot in the attendee home screen carousel.
                   </p>
                 </div>
-                <a
-                  href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
+                <UpgradeEnquiryButton
+                  targetPackage="Premium"
                   className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2 rounded-lg hover:bg-amber/90 active:scale-95 transition-all duration-150"
                 >
                   Upgrade to Premium <ArrowRight className="w-3.5 h-3.5" />
-                </a>
+                </UpgradeEnquiryButton>
               </div>
               <div className="relative w-full h-24 bg-gradient-to-r from-slate-700 to-slate-900 rounded-xl overflow-hidden">
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%)', backgroundSize: '12px 12px' }} />

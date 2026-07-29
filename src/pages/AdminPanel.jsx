@@ -434,6 +434,30 @@ export default function AdminPanel() {
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Mail className="w-3 h-3" /> Package upgrade enquiry email
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={settingValue('packageUpgradeEnquiryEmail')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, packageUpgradeEnquiryEmail: ev.target.value }))}
+                placeholder="sales@agrishow.co.zw"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'packageUpgradeEnquiryEmail' || !('packageUpgradeEnquiryEmail' in settingsDraft)}
+                onClick={() => saveSetting('packageUpgradeEnquiryEmail')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'packageUpgradeEnquiryEmail' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Receives an email whenever an exhibitor clicks "Enquire to Upgrade" on their booth package. The exhibitor also gets an automatic confirmation at their own registered contact email.</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <Link2 className="w-3 h-3" /> Landing page marketing video
             </label>
             <div className="flex gap-2">

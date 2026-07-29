@@ -10,6 +10,7 @@ export function AppSettingsProvider({ children }) {
     ccSalesAuctionUrl: '',
     paidFeatureRequestEmail: '',
     newApplicationNotifyEmail: '',
+    packageUpgradeEnquiryEmail: '',
     marketingVideoUrl: '',
     eventDatesLabel: '01 Aug 2026 – 30 May 2027',
     showExhibitionGuide: false,

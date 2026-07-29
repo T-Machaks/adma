@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Exhibitor, MeetingRequest, EngagementEvent, AdSlot } from '@/api/entities';
-import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAuth } from '@/lib/AuthContext';
+import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import {
   Eye, Calendar, Megaphone, TrendingUp,
   MousePointerClick, Star, BarChart2, QrCode, UserCheck,
@@ -148,12 +148,10 @@ export default function ExhibitorAnalytics() {
         <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
           You're currently on the <strong>Basic</strong> package. Upgrade to Enhanced or above to unlock booth analytics, live chat with attendees, and your full profile.
         </p>
-        <a
-          href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
+        <UpgradeEnquiryButton
+          targetPackage="Enhanced"
           className="inline-flex items-center gap-1.5 text-sm bg-amber text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150"
-        >
-          Enquire to Upgrade <ArrowRight className="w-4 h-4" />
-        </a>
+        />
       </div>
     );
   }
@@ -658,13 +656,9 @@ export default function ExhibitorAnalytics() {
                 </div>
               ))}
             </div>
-            <a
-              href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Package%20Upgrade%20Enquiry`}
+            <UpgradeEnquiryButton
               className="flex items-center justify-center gap-2 w-full bg-amber text-white font-semibold text-sm py-2.5 rounded-lg hover:bg-amber/90 active:scale-95 transition-all duration-150"
-              onClick={() => setUpgradeOpen(false)}
-            >
-              Enquire to Upgrade <ArrowRight className="w-4 h-4" />
-            </a>
+            />
           </div>
         </DialogContent>
       </Dialog>

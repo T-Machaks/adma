@@ -6,8 +6,9 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
+import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import {
-  Briefcase, Plus, X, Lock, ArrowRight, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
+  Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
 } from 'lucide-react';
 
 const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '' };
@@ -105,12 +106,10 @@ export default function ExhibitorJobs() {
         <p className="text-muted-foreground text-sm mb-6 max-w-md mx-auto">
           You're currently on the <strong>Basic</strong> package. Upgrade to Enhanced or above to post job openings to attendees.
         </p>
-        <a
-          href={`mailto:${EVENT_CONFIG.contactEmail}?subject=Booth%20Upgrade%20Enquiry`}
+        <UpgradeEnquiryButton
+          targetPackage="Enhanced"
           className="inline-flex items-center gap-1.5 text-sm bg-amber text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150"
-        >
-          Enquire to Upgrade <ArrowRight className="w-4 h-4" />
-        </a>
+        />
       </div>
     );
   }

@@ -4,6 +4,9 @@ import { crudRouter } from '../lib/crudRouter.js';
 import { nextMay30ISO } from '../lib/subscription.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
 import { revokeAllSessionsForExhibitor } from '../lib/session.js';
+import { requireAuth } from '../lib/authMiddleware.js';
+import { getMyExhibitorId } from '../lib/ownership.js';
+import { sendOtpEmail } from '../lib/mailer.js';
 
 // Mirrors the same email/company matching ExhibitorHome.jsx uses client-side to
 // resolve "my booth" — whichever login path put them there (regular /login or the
@@ -43,6 +46,54 @@ export default crudRouter('adma_exhibitors', {
         }
       }
       next();
+    });
+
+    // POST /api/exhibitors/upgrade-enquiry — exhibitor asks about upgrading their
+    // package/tier. exhibitor_id is always resolved from the session, never trusted
+    // from the client, so one exhibitor can't file an enquiry "as" another.
+    r.post('/upgrade-enquiry', requireAuth, async (req, res) => {
+      try {
+        const exhibitorId = await getMyExhibitorId(req);
+        if (!exhibitorId) return res.status(400).json({ error: 'No booth linked to your account.' });
+
+        const exhibitorResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
+        const exhibitor = exhibitorResult.Item;
+        if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
+
+        const settingsResult = await ddb.send(new GetCommand({ TableName: 'adma_app_settings', Key: { pk: 'singleton' } }));
+        const notifyEmail = settingsResult.Item?.packageUpgradeEnquiryEmail;
+        if (!notifyEmail) return res.status(400).json({ error: 'No upgrade enquiry email configured in Organiser Portal.' });
+
+        const targetPackage = req.body.target_package;
+
+        await sendOtpEmail(notifyEmail, null, {
+          subject: `ADMA Digital — Package upgrade enquiry: ${exhibitor.name}`,
+          html: `
+            <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+              <h2 style="margin:0 0 8px;color:#111">Package upgrade enquiry</h2>
+              <p style="color:#555"><strong>${exhibitor.name}</strong> (currently ${exhibitor.package || 'Basic'}) is interested in upgrading${targetPackage ? ` to <strong>${targetPackage}</strong>` : ''}.</p>
+              <p style="color:#555"><strong>Contact:</strong> ${exhibitor.contact_email || 'no contact email on file'}</p>
+              <p style="color:#555">Follow up with them directly to arrange the upgrade.</p>
+            </div>
+          `,
+        });
+
+        if (exhibitor.contact_email) {
+          await sendOtpEmail(exhibitor.contact_email, null, {
+            subject: 'ADMA Digital — We received your upgrade enquiry',
+            html: `
+              <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+                <h2 style="margin:0 0 8px;color:#111">Thanks for your interest!</h2>
+                <p style="color:#555">We've received your enquiry about upgrading <strong>${exhibitor.name}</strong>'s package${targetPackage ? ` to <strong>${targetPackage}</strong>` : ''}. The ADMA team will be in touch shortly.</p>
+              </div>
+            `,
+          }).catch(() => { /* non-fatal — the organiser copy above is the one that matters */ });
+        }
+
+        res.json({ ok: true });
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
     });
 
     // GET /api/exhibitors/login-list — every exhibitor, for the Exhibitor Portal login
