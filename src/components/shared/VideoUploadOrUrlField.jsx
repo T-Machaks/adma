@@ -12,6 +12,11 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
+  // `value` truthiness switches this component from "editing" to "preview" mode — without
+  // this flag, typing even one character would flip to preview mode immediately, unmounting
+  // the url input mid-keystroke and silently dropping the rest of what's typed. Keeping the
+  // input mounted while it's focused, regardless of value, is what lets typing work at all.
+  const [urlFocused, setUrlFocused] = useState(false);
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -48,7 +53,7 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
   return (
     <div>
       {label && <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">{label}</label>}
-      {value ? (
+      {value && !urlFocused ? (
         <div className="space-y-2">
           <div className="relative w-full max-w-[320px] aspect-video rounded-lg overflow-hidden border border-border bg-black">
             {previewBroken ? (
@@ -56,7 +61,7 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
                 Couldn't load this video
               </div>
             ) : isEmbedVideoUrl(value) ? (
-              <iframe key={value} src={value} className="absolute inset-0 w-full h-full" allow="autoplay; encrypted-media" title="Video ad preview" />
+              <iframe key={value} src={toEmbedUrl(value)} className="absolute inset-0 w-full h-full" allow="autoplay; encrypted-media" title="Video ad preview" />
             ) : (
               <video key={value} src={value} controls muted playsInline className="absolute inset-0 w-full h-full object-contain" onError={() => setPreviewBroken(true)} />
             )}
@@ -89,7 +94,12 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
               type="url"
               placeholder="or paste a YouTube/Vimeo link…"
               value={value || ''}
-              onChange={e => onChange(toEmbedUrl(e.target.value))}
+              onChange={e => onChange(e.target.value)}
+              onFocus={() => setUrlFocused(true)}
+              // Normalise to embed form once they're done — not load-bearing for
+              // correctness (the preview and public renderer both normalise again at
+              // display time), just tidies up what actually gets saved.
+              onBlur={e => { setUrlFocused(false); if (e.target.value.trim()) onChange(toEmbedUrl(e.target.value.trim())); }}
               className="w-full pl-8 pr-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-amber"
             />
           </div>

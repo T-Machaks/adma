@@ -5,7 +5,9 @@ import { isEmbedVideoUrl, toEmbedUrl } from '@/lib/videoUtils';
 // pulled out so listing detail pages don't each re-implement it.
 export default function EmbeddedVideo({ url, title }) {
   if (!url) return null;
-  const embed = isEmbedVideoUrl(url) ? url : toEmbedUrl(url);
+  // toEmbedUrl is a no-op on an already-embed URL, so it's always safe to call —
+  // don't assume a youtube.com/vimeo.com URL is already in /embed/ form.
+  const embed = isEmbedVideoUrl(url) ? toEmbedUrl(url) : url;
   return (
     <div className="aspect-video rounded-2xl overflow-hidden bg-black shadow-sm">
       {isEmbedVideoUrl(embed) ? (
