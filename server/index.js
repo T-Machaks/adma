@@ -64,6 +64,14 @@ app.use(helmet({
   // otherwise silently block loading exhibitor images/video from S3 and the YouTube/
   // Vimeo embeds, since those origins don't send a matching CORP header.
   crossOriginEmbedderPolicy: false,
+  // Helmet defaults to `no-referrer`, which strips the referrer on every cross-origin
+  // request — including the ones YouTube's embedded player itself makes to validate
+  // the embedding domain. Without it, YouTube fails the embed with "Error 153: Video
+  // player configuration error" (confirmed via a real failed request carrying
+  // error=embedder.identity.missing.referrer). strict-origin-when-cross-origin is the
+  // browser's own native default when no header is sent at all — still only leaks the
+  // origin (not full path/query) to other sites, just not "nothing at all".
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
