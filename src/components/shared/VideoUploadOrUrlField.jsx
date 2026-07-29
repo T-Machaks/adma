@@ -8,7 +8,7 @@ const MAX_VIDEO_MB = 50;
 // Reusable video input: upload an MP4 file directly (presigned-PUT to S3 via
 // /api/upload/video-ad-url) or paste a YouTube/Vimeo link. `ownerId` namespaces the S3
 // key (e.g. ad slot id); `purpose` is a short tag used only for key organisation.
-export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label }) {
+export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label, helperText }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
@@ -96,7 +96,7 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
         </div>
       )}
       <p className="text-[10px] text-muted-foreground mt-1">
-        MP4 file (max {MAX_VIDEO_MB}MB) or a YouTube/Vimeo link — plays automatically, muted, in the video ad rotation.
+        {helperText ?? `MP4 file (max ${MAX_VIDEO_MB}MB) or a YouTube/Vimeo link — plays automatically, muted, in the video ad rotation.`}
       </p>
       {error && <p className="text-[10px] text-red-500 mt-1">{error}</p>}
     </div>

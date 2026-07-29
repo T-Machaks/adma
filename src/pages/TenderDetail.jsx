@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TenderListing, VirtualEnquiry } from '@/api/entities';
 import { notifyEnquiry } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
+import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
   ArrowLeft, FileText, Clock, Download, Send, CheckCircle, Lock, LogIn, UserPlus,
 } from 'lucide-react';
@@ -112,6 +113,8 @@ export default function TenderDetail() {
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{tender.description}</p>
           </div>
         )}
+
+        {tender.video_url && <EmbeddedVideo url={tender.video_url} title={tender.title} />}
 
         {tender.document_url && (
           <a

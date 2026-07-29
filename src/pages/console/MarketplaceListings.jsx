@@ -17,21 +17,22 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
+import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 
 const TENDER_CATEGORIES = EVENT_CONFIG.exhibitorCategories;
 
 const EMPTY_JOB = {
   title: '', company_name: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0],
   description: '', requirements: '', closing_date: '', source_url: '', status: 'Open',
-  display_format: 'text', display_image_url: '',
+  display_format: 'text', display_image_url: '', video_url: '',
 };
 const EMPTY_TENDER = {
   title: '', company_name: '', category: TENDER_CATEGORIES[0], description: '', closing_date: '',
-  source_url: '', status: 'Open', display_format: 'text', display_image_url: '', document_url: '',
+  source_url: '', status: 'Open', display_format: 'text', display_image_url: '', document_url: '', video_url: '',
 };
 const EMPTY_COLLAB = {
   title: '', company_name: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '',
-  source_url: '', status: 'Open', display_format: 'text', display_image_url: '',
+  source_url: '', status: 'Open', display_format: 'text', display_image_url: '', video_url: '',
 };
 
 export default function MarketplaceListings() {
@@ -99,6 +100,7 @@ export default function MarketplaceListings() {
       location: j.location || '', type: j.type || JOB_TYPES[0], description: j.description || '',
       requirements: j.requirements || '', closing_date: j.closing_date || '', source_url: j.source_url || '',
       status: j.status || 'Open', display_format: j.display_format || 'text', display_image_url: j.display_image_url || '',
+      video_url: j.video_url || '',
     });
     setJobDialog(true);
   };
@@ -115,7 +117,7 @@ export default function MarketplaceListings() {
       title: t.title || '', company_name: t.company_name || '', category: t.category || TENDER_CATEGORIES[0],
       description: t.description || '', closing_date: t.closing_date || '', source_url: t.source_url || '',
       status: t.status || 'Open', display_format: t.display_format || 'text', display_image_url: t.display_image_url || '',
-      document_url: t.document_url || '',
+      document_url: t.document_url || '', video_url: t.video_url || '',
     });
     setTenderDialog(true);
   };
@@ -132,6 +134,7 @@ export default function MarketplaceListings() {
       title: c.title || '', company_name: c.company_name || '', type: c.type || COLLABORATION_TYPES[0],
       description: c.description || '', closing_date: c.closing_date || '', source_url: c.source_url || '',
       status: c.status || 'Open', display_format: c.display_format || 'text', display_image_url: c.display_image_url || '',
+      video_url: c.video_url || '',
     });
     setCollabDialog(true);
   };
@@ -377,6 +380,14 @@ export default function MarketplaceListings() {
                 preset="banner"
               />
             )}
+            <VideoUploadOrUrlField
+              label="Listing Video (optional)"
+              value={jobForm.video_url}
+              onChange={v => setJobForm(f => ({ ...f, video_url: v }))}
+              ownerId={editJobId || 'generic-job'}
+              purpose="job-listing"
+              helperText="MP4 file (max 50MB) or a YouTube/Vimeo link — shown on the listing's detail page."
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setJobDialog(false)}>Cancel</Button>
               <Button type="submit" disabled={saveJob.isPending}>{saveJob.isPending ? 'Saving…' : editJobId ? 'Save Changes' : 'Create Listing'}</Button>
@@ -469,6 +480,14 @@ export default function MarketplaceListings() {
                 preset="banner"
               />
             )}
+            <VideoUploadOrUrlField
+              label="Listing Video (optional)"
+              value={tenderForm.video_url}
+              onChange={v => setTenderForm(f => ({ ...f, video_url: v }))}
+              ownerId={editTenderId || 'generic-tender'}
+              purpose="tender-listing"
+              helperText="MP4 file (max 50MB) or a YouTube/Vimeo link — shown on the listing's detail page."
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTenderDialog(false)}>Cancel</Button>
               <Button type="submit" disabled={saveTender.isPending}>{saveTender.isPending ? 'Saving…' : editTenderId ? 'Save Changes' : 'Create Tender'}</Button>
@@ -544,6 +563,14 @@ export default function MarketplaceListings() {
                 preset="banner"
               />
             )}
+            <VideoUploadOrUrlField
+              label="Listing Video (optional)"
+              value={collabForm.video_url}
+              onChange={v => setCollabForm(f => ({ ...f, video_url: v }))}
+              ownerId={editCollabId || 'generic-collab'}
+              purpose="collaboration-listing"
+              helperText="MP4 file (max 50MB) or a YouTube/Vimeo link — shown on the listing's detail page."
+            />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCollabDialog(false)}>Cancel</Button>
               <Button type="submit" disabled={saveCollab.isPending}>{saveCollab.isPending ? 'Saving…' : editCollabId ? 'Save Changes' : 'Create Collaboration'}</Button>

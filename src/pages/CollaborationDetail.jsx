@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Collaboration, VirtualEnquiry } from '@/api/entities';
 import { notifyEnquiry } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
+import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
   ArrowLeft, Clock, Send, CheckCircle, Lock, LogIn, UserPlus,
 } from 'lucide-react';
@@ -113,6 +114,8 @@ export default function CollaborationDetail() {
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{collab.description}</p>
           </div>
         )}
+
+        {collab.video_url && <EmbeddedVideo url={collab.video_url} title={collab.title} />}
 
         {isClosed ? (
           <div className="bg-muted/50 border border-border rounded-2xl p-4 text-center text-sm text-muted-foreground">

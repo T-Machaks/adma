@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { JobListing, JobApplication } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
+import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
   ArrowLeft, Briefcase, MapPin, Clock, Mail, Send, CheckCircle, Lock, LogIn, UserPlus, FileUp,
 } from 'lucide-react';
@@ -128,6 +129,8 @@ export default function JobDetail() {
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">{job.requirements}</p>
           </div>
         )}
+
+        {job.video_url && <EmbeddedVideo url={job.video_url} title={job.title} />}
 
         {isClosed ? (
           <div className="bg-muted/50 border border-border rounded-2xl p-4 text-center text-sm text-muted-foreground">
