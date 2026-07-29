@@ -25,7 +25,7 @@ export async function createSession(user) {
       token,
       user_id: user.id,
       role: user.role,
-      exhibitor_id: user.exhibitor_id, // set only for the synthetic exhibitor-login session
+      exhibitor_id: user.exhibitor_id, // undefined for ordinary logins; only ever set by callers that already know it
       email: user.email,
       company: user.company || '',
       created_at: new Date(now).toISOString(),
@@ -74,10 +74,9 @@ export async function revokeAllSessionsForUser(userId) {
   await Promise.all((result.Items || []).map(s => revokeSession(s.token)));
 }
 
-// Kills every live session tied to an exhibitor, however they got logged in — the
-// exhibitor-login flow always stamps exhibitor_id on the session (linked-user or
-// synthetic), but a linked user who happened to log in via the regular /login form
-// instead only has user_id, no exhibitor_id — so both are checked.
+// Kills every live session tied to an exhibitor. Sessions are keyed by user_id in the
+// normal case (regular /login), but exhibitor_id is checked too in case anything ever
+// stamps it directly — so both are covered.
 export async function revokeAllSessionsForExhibitor(exhibitorId, linkedUserId) {
   const result = await ddb.send(new ScanCommand({
     TableName: TABLE,

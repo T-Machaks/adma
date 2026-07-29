@@ -196,7 +196,7 @@ router.put('/:id/approve', requireRole('organizer', 'superadmin'), async (req, r
             <p style="color:#555">Your exhibitor application for <strong>${app.company}</strong> has been approved${
               isVirtual ? ` for a virtual presence on ADMA Digital at the <strong>${pkg}</strong> package` : ` at the <strong>${tier}</strong> tier`
             }.</p>
-            <p style="color:#555">You can now log in to the Exhibitor Portal at <a href="https://admadigital.co.zw/exhibitor-login">admadigital.co.zw</a> using your registered email and password.</p>
+            <p style="color:#555">You can now log in to the Exhibitor Portal at <a href="https://admadigital.co.zw/login">admadigital.co.zw</a> using your registered email and password.</p>
           </div>
         `,
       });

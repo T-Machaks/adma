@@ -59,7 +59,7 @@ export default function ExhibitorHome() {
   const myBooth = exhibitors.find(
     e => e.contact_email?.toLowerCase() === user?.email?.toLowerCase()
       || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
-  ) ?? exhibitors[0];
+  );
 
   // Fetches the exhibitor's own ad slot regardless of active/review state — unlike the
   // attendee-facing carousel/footer (which only ever read AdSlot.listActive()), the

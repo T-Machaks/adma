@@ -59,7 +59,7 @@ export default function ExhibitorListings() {
   const myBooth = exhibitors.find(
     e => e.contact_email?.toLowerCase() === user?.email?.toLowerCase()
       || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
-  ) ?? exhibitors[0];
+  );
 
   const { data: jobs = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list('-created_date'), enabled: !!myBooth });
   const { data: tenders = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list('-created_date'), enabled: !!myBooth });
@@ -71,7 +71,14 @@ export default function ExhibitorListings() {
   const myCollabs = collabs.filter(c => c.exhibitor_id === myBooth?.id);
   const myAd = myBooth ? (adSlots.find(a => a.exhibitor_id === myBooth.id) ?? null) : null;
 
-  if (!myBooth) return null;
+  if (!myBooth) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-16 text-center">
+        <LayoutList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <p className="text-muted-foreground text-sm">No booth linked to your account.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">

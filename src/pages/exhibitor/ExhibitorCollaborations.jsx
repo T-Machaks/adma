@@ -29,7 +29,7 @@ export default function ExhibitorCollaborations() {
   const myBooth = exhibitors.find(
     e => e.contact_email?.toLowerCase() === user?.email?.toLowerCase()
       || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
-  ) ?? exhibitors[0];
+  );
 
   const { data: allCollabs = [] } = useQuery({
     queryKey: ['collaborations'],

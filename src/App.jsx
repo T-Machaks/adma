@@ -68,7 +68,6 @@ import SessionsManager from '@/pages/console/SessionsManager';
 import AuctionsManager from '@/pages/console/AuctionsManager';
 import EnquiriesPanel from '@/pages/console/EnquiriesPanel';
 import ExhibitorApply from '@/pages/ExhibitorApply';
-import ExhibitorLogin from '@/pages/ExhibitorLogin';
 import ConsoleLogin from '@/pages/ConsoleLogin';
 
 // Exhibitor portal pages
@@ -128,7 +127,10 @@ const AuthenticatedApp = () => {
       <Route path="/signup"           element={<Signup />} />
       <Route path="/console/login"    element={<ConsoleLogin />} />
       <Route path="/exhibitor-apply"   element={<ExhibitorApply />} />
-      <Route path="/exhibitor-login"   element={<ExhibitorLogin />} />
+      {/* Retired: the exhibitor-picker demo login. Real exhibitors log in at /login
+          with an email the organiser has set for them (Admin Panel → Exhibitor Portal
+          Logins) — this redirect just keeps any old bookmarks/emails working. */}
+      <Route path="/exhibitor-login"   element={<Navigate to="/login" replace />} />
       <Route path="/forgot-password"  element={<ForgotPassword />} />
       <Route path="/reset-password"   element={<ResetPassword />} />
       <Route path="/privacy"          element={<PrivacyPolicy />} />

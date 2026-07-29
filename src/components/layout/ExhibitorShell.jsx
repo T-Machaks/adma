@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-d
 import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList } from 'lucide-react';
 import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
-import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const exhibitorNav = [
   { path: '/exhibitor',           label: 'My Booth',   icon: Store,     exact: true },
@@ -21,12 +20,12 @@ const exhibitorNav = [
 export default function ExhibitorShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoadingAuth } = useAuth();
+  const { user, isLoadingAuth, logout } = useAuth();
   const isHome = location.pathname === '/exhibitor';
 
   if (isLoadingAuth) return null;
   if (!user || user.role !== 'exhibitor') {
-    return <Navigate to="/exhibitor-login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   const isActive = (path, exact) =>
@@ -69,7 +68,7 @@ export default function ExhibitorShell() {
             <div className="w-px h-5 bg-white/20 mx-1 hidden lg:block flex-shrink-0" />
 
             <button
-              onClick={() => { localStorage.removeItem(EVENT_CONFIG.storageUserKey); navigate('/exhibitor-login'); }}
+              onClick={() => { logout(); navigate('/login'); }}
               className="flex items-center gap-1 p-2 lg:px-2 lg:py-1.5 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-150 touch-manipulation flex-shrink-0"
               title="Log out"
             >

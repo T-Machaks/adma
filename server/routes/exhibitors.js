@@ -1,4 +1,4 @@
-import { ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { nextMay30ISO } from '../lib/subscription.js';
@@ -9,8 +9,7 @@ import { getMyExhibitorId } from '../lib/ownership.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 
 // Mirrors the same email/company matching ExhibitorHome.jsx uses client-side to
-// resolve "my booth" — whichever login path put them there (regular /login or the
-// exhibitor-login picker), the session always carries email/company the same way.
+// resolve "my booth" from the session's email/company.
 function ownsBooth(req, exhibitor) {
   if (!req.user) return false;
   if (req.user.role === 'organizer' || req.user.role === 'superadmin') return true;
@@ -96,24 +95,5 @@ export default crudRouter('adma_exhibitors', {
       }
     });
 
-    // GET /api/exhibitors/login-list — every exhibitor, for the Exhibitor Portal login
-    // picker. Includes exhibitors with no linked user_id yet (most of the seeded
-    // physical-show directory) since the superadmin override lets them be accessed
-    // before real per-exhibitor credentials exist.
-    r.get('/login-list', async (req, res) => {
-      try {
-        const result = await ddb.send(new ScanCommand({
-          TableName: 'adma_exhibitors',
-          ProjectionExpression: 'id, company_name, #n, logo_url, user_id, tier, portal_locked',
-          ExpressionAttributeNames: { '#n': 'name' },
-        }));
-        const items = (result.Items || [])
-          .map(e => ({ ...e, company_name: e.company_name || e.name }))
-          .sort((a, b) => (a.company_name || '').localeCompare(b.company_name || ''));
-        res.json(items);
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
-    });
   },
 });
