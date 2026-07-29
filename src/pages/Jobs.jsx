@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { JobListing } from '@/api/entities';
-import { Search, Briefcase, MapPin, Clock, ChevronRight } from 'lucide-react';
+import { Search, Briefcase, MapPin, Clock } from 'lucide-react';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
+import ListingCard from '@/components/shared/ListingCard';
 
 const CATEGORIES = ['All', ...JOB_CATEGORIES];
 const TYPES = ['All', ...JOB_TYPES];
@@ -36,11 +36,14 @@ export default function Jobs() {
     return matchSearch && matchCategory && matchType;
   });
 
-  const featured = filtered.filter(j => j.display_format === 'featured_banner');
-  const regular = filtered.filter(j => j.display_format !== 'featured_banner');
+  // Featured listings sort first so they land at the top of the masonry columns —
+  // everything else keeps the query's -created_date order.
+  const sorted = [...filtered].sort((a, b) =>
+    (b.display_format === 'featured_banner' ? 1 : 0) - (a.display_format === 'featured_banner' ? 1 : 0)
+  );
 
   return (
-    <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-4xl mx-auto">
+    <div className="pb-24 px-4 pt-5 max-w-2xl lg:max-w-6xl mx-auto">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Jobs Board</h1>
       <p className="text-sm text-muted-foreground mb-4">Roles posted by exhibitors and other agri-sector employers</p>
 
@@ -84,57 +87,22 @@ export default function Jobs() {
         </div>
       )}
 
-      {featured.length > 0 && (
-        <div className="space-y-3 mb-4">
-          {featured.map(j => (
-            <Link
-              key={j.id}
-              to={`/jobs/${j.id}`}
-              className="block rounded-2xl overflow-hidden border border-amber/40 shadow-sm hover:shadow-md transition-shadow"
-            >
-              {j.display_image_url && (
-                <div className="h-32 w-full bg-muted">
-                  <img src={j.display_image_url} alt="" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="p-4 bg-card">
-                <span className="text-[9px] font-bold uppercase tracking-wide text-amber bg-amber/10 px-2 py-0.5 rounded-full">Featured</span>
-                <p className="font-heading font-bold text-base mt-1.5">{j.title}</p>
-                <p className="text-xs text-amber font-medium mt-0.5">{j.company_name}</p>
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  {j.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {j.location}</span>}
-                  {j.type && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {j.type}</span>}
-                  {j.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {fmtDate(j.closing_date)}</span>}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {regular.map(j => (
-          <Link
+      <div className="columns-1 sm:columns-2 lg:columns-3 gap-3">
+        {sorted.map(j => (
+          <ListingCard
             key={j.id}
             to={`/jobs/${j.id}`}
-            className="block bg-card border border-border rounded-xl p-4 hover:bg-muted transition-colors"
-          >
-            <div className="flex items-start justify-between gap-3">
-              {j.display_format === 'image_tile' && j.display_image_url && (
-                <img src={j.display_image_url} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">{j.title}</p>
-                <p className="text-xs text-amber font-medium mt-0.5">{j.company_name}</p>
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  {j.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {j.location}</span>}
-                  {j.type && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {j.type}</span>}
-                  {j.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {fmtDate(j.closing_date)}</span>}
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />
-            </div>
-          </Link>
+            title={j.title}
+            companyName={j.company_name}
+            imageUrl={j.display_image_url}
+            displayFormat={j.display_format}
+            icon={Briefcase}
+            meta={<>
+              {j.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {j.location}</span>}
+              {j.type && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {j.type}</span>}
+              {j.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {fmtDate(j.closing_date)}</span>}
+            </>}
+          />
         ))}
       </div>
     </div>
