@@ -11,7 +11,7 @@ import {
   Handshake, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone, Building2, Hourglass,
 } from 'lucide-react';
 
-const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true };
+const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
 
 export default function ExhibitorCollaborations() {
   const { user } = useAuth();
@@ -38,6 +38,8 @@ export default function ExhibitorCollaborations() {
   });
 
   const myCollabs = allCollabs.filter(c => c.exhibitor_id === myBooth?.id);
+  const editingCollab = myCollabs.find(c => c.id === editingId);
+  const editingCollabPending = (editingCollab?.status || 'Pending') === 'Pending';
 
   const { data: allEnquiries = [] } = useQuery({
     queryKey: ['virtual-enquiries'],
@@ -70,6 +72,7 @@ export default function ExhibitorCollaborations() {
     setForm({
       title: c.title || '', type: c.type || COLLABORATION_TYPES[0], description: c.description || '', closing_date: c.closing_date || '',
       contact_email: c.contact_email || '', source_url: c.source_url || '', accept_submissions: c.accept_submissions !== false,
+      display_format: c.display_format || 'text', display_image_url: c.display_image_url || '',
     });
     setEditingId(c.id);
     setFormOpen(true);
@@ -202,6 +205,30 @@ export default function ExhibitorCollaborations() {
               onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
             />
           </div>
+          {editingId && !editingCollabPending && (
+            <div className="space-y-2 bg-muted/50 rounded-lg px-3 py-2.5">
+              <label className="text-xs text-muted-foreground font-medium block">Listing Display Format</label>
+              <select
+                value={form.display_format}
+                onChange={e => setForm(f => ({ ...f, display_format: e.target.value }))}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              >
+                <option value="text">Text (standard row)</option>
+                <option value="image_tile">Image Tile</option>
+                <option value="featured_banner">Featured Banner (pinned to top)</option>
+              </select>
+              {(form.display_format === 'image_tile' || form.display_format === 'featured_banner') && (
+                <ImageUploadOrUrlField
+                  label="Listing Image"
+                  value={form.display_image_url}
+                  onChange={v => setForm(f => ({ ...f, display_image_url: v }))}
+                  ownerId={editingId}
+                  purpose="collab"
+                  preset="flexible"
+                />
+              )}
+            </div>
+          )}
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
@@ -273,30 +300,6 @@ export default function ExhibitorCollaborations() {
                     </div>
                   )}
 
-                  {!isPending && (
-                    <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Listing Display Format</label>
-                      <select
-                        value={c.display_format || 'text'}
-                        onChange={e => updateMutation.mutate({ id: c.id, data: { display_format: e.target.value } })}
-                        className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background"
-                      >
-                        <option value="text">Text (standard row)</option>
-                        <option value="image_tile">Image Tile</option>
-                        <option value="featured_banner">Featured Banner (pinned to top)</option>
-                      </select>
-                      {(c.display_format === 'image_tile' || c.display_format === 'featured_banner') && (
-                        <ImageUploadOrUrlField
-                          label="Listing Image"
-                          value={c.display_image_url}
-                          onChange={v => updateMutation.mutate({ id: c.id, data: { display_image_url: v } })}
-                          ownerId={c.id}
-                          purpose="collab"
-                          preset="flexible"
-                        />
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {isExpanded && (

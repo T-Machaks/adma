@@ -13,7 +13,7 @@ import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
 
 const CATEGORIES = EVENT_CONFIG.exhibitorCategories;
-const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true };
+const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
 
 export default function ExhibitorTenders() {
   const { user } = useAuth();
@@ -41,6 +41,7 @@ export default function ExhibitorTenders() {
   });
 
   const myTenders = allTenders.filter(t => t.exhibitor_id === myBooth?.id);
+  const editingTender = myTenders.find(t => t.id === editingId);
 
   const { data: allEnquiries = [] } = useQuery({
     queryKey: ['virtual-enquiries'],
@@ -73,6 +74,7 @@ export default function ExhibitorTenders() {
     setForm({
       title: t.title || '', category: t.category || CATEGORIES[0], description: t.description || '', closing_date: t.closing_date || '',
       contact_email: t.contact_email || '', source_url: t.source_url || '', accept_submissions: t.accept_submissions !== false,
+      display_format: t.display_format || 'text', display_image_url: t.display_image_url || '',
     });
     setEditingId(t.id);
     setFormOpen(true);
@@ -213,6 +215,30 @@ export default function ExhibitorTenders() {
               onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
             />
           </div>
+          {editingId && editingTender?.interactive_status === 'active' && (
+            <div className="space-y-2 bg-muted/50 rounded-lg px-3 py-2.5">
+              <label className="text-xs text-muted-foreground font-medium block">Listing Display Format</label>
+              <select
+                value={form.display_format}
+                onChange={e => setForm(f => ({ ...f, display_format: e.target.value }))}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              >
+                <option value="text">Text (standard row)</option>
+                <option value="image_tile">Image Tile</option>
+                <option value="featured_banner">Featured Banner (pinned to top)</option>
+              </select>
+              {(form.display_format === 'image_tile' || form.display_format === 'featured_banner') && (
+                <ImageUploadOrUrlField
+                  label="Listing Image"
+                  value={form.display_image_url}
+                  onChange={v => setForm(f => ({ ...f, display_image_url: v }))}
+                  ownerId={editingId}
+                  purpose="tender"
+                  preset="flexible"
+                />
+              )}
+            </div>
+          )}
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
@@ -304,30 +330,6 @@ export default function ExhibitorTenders() {
                     </button>
                   </div>
 
-                  {t.interactive_status === 'active' && (
-                    <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Listing Display Format</label>
-                      <select
-                        value={t.display_format || 'text'}
-                        onChange={e => updateMutation.mutate({ id: t.id, data: { display_format: e.target.value } })}
-                        className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background"
-                      >
-                        <option value="text">Text (standard row)</option>
-                        <option value="image_tile">Image Tile</option>
-                        <option value="featured_banner">Featured Banner (pinned to top)</option>
-                      </select>
-                      {(t.display_format === 'image_tile' || t.display_format === 'featured_banner') && (
-                        <ImageUploadOrUrlField
-                          label="Listing Image"
-                          value={t.display_image_url}
-                          onChange={v => updateMutation.mutate({ id: t.id, data: { display_image_url: v } })}
-                          ownerId={t.id}
-                          purpose="tender"
-                          preset="flexible"
-                        />
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {isExpanded && (

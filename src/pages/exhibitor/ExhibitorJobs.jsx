@@ -12,7 +12,7 @@ import {
   Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
 } from 'lucide-react';
 
-const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true };
+const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
 
 export default function ExhibitorJobs() {
   const { user } = useAuth();
@@ -39,6 +39,7 @@ export default function ExhibitorJobs() {
   });
 
   const myJobs = allJobs.filter(j => j.exhibitor_id === myBooth?.id);
+  const editingJob = myJobs.find(j => j.id === editingId);
 
   const { data: applications = [] } = useQuery({
     queryKey: ['job-applications', expandedJob],
@@ -72,6 +73,7 @@ export default function ExhibitorJobs() {
       type: job.type || JOB_TYPES[0], description: job.description || '', requirements: job.requirements || '',
       closing_date: job.closing_date || '', contact_email: job.contact_email || '', source_url: job.source_url || '',
       accept_submissions: job.accept_submissions !== false,
+      display_format: job.display_format || 'text', display_image_url: job.display_image_url || '',
     });
     setEditingId(job.id);
     setFormOpen(true);
@@ -226,6 +228,30 @@ export default function ExhibitorJobs() {
               onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
             />
           </div>
+          {editingId && editingJob?.interactive_status === 'active' && (
+            <div className="space-y-2 bg-muted/50 rounded-lg px-3 py-2.5">
+              <label className="text-xs text-muted-foreground font-medium block">Listing Display Format</label>
+              <select
+                value={form.display_format}
+                onChange={e => setForm(f => ({ ...f, display_format: e.target.value }))}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              >
+                <option value="text">Text (standard row)</option>
+                <option value="image_tile">Image Tile</option>
+                <option value="featured_banner">Featured Banner (pinned to top)</option>
+              </select>
+              {(form.display_format === 'image_tile' || form.display_format === 'featured_banner') && (
+                <ImageUploadOrUrlField
+                  label="Listing Image"
+                  value={form.display_image_url}
+                  onChange={v => setForm(f => ({ ...f, display_image_url: v }))}
+                  ownerId={editingId}
+                  purpose="job"
+                  preset="flexible"
+                />
+              )}
+            </div>
+          )}
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
@@ -309,30 +335,6 @@ export default function ExhibitorJobs() {
                     )}
                   </div>
 
-                  {job.interactive_status === 'active' && (
-                    <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Listing Display Format</label>
-                      <select
-                        value={job.display_format || 'text'}
-                        onChange={e => updateMutation.mutate({ id: job.id, data: { display_format: e.target.value } })}
-                        className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background"
-                      >
-                        <option value="text">Text (standard row)</option>
-                        <option value="image_tile">Image Tile</option>
-                        <option value="featured_banner">Featured Banner (pinned to top)</option>
-                      </select>
-                      {(job.display_format === 'image_tile' || job.display_format === 'featured_banner') && (
-                        <ImageUploadOrUrlField
-                          label="Listing Image"
-                          value={job.display_image_url}
-                          onChange={v => updateMutation.mutate({ id: job.id, data: { display_image_url: v } })}
-                          ownerId={job.id}
-                          purpose="job"
-                          preset="flexible"
-                        />
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {isExpanded && (
