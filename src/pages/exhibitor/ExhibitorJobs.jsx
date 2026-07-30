@@ -39,7 +39,6 @@ export default function ExhibitorJobs() {
   });
 
   const myJobs = allJobs.filter(j => j.exhibitor_id === myBooth?.id);
-  const editingJob = myJobs.find(j => j.id === editingId);
 
   const { data: applications = [] } = useQuery({
     queryKey: ['job-applications', expandedJob],
@@ -228,30 +227,28 @@ export default function ExhibitorJobs() {
               onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
             />
           </div>
-          {editingId && editingJob?.interactive_status === 'active' && (
-            <div className="space-y-2 bg-muted/50 rounded-lg px-3 py-2.5">
-              <label className="text-xs text-muted-foreground font-medium block">Listing Display Format</label>
-              <select
-                value={form.display_format}
-                onChange={e => setForm(f => ({ ...f, display_format: e.target.value }))}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-              >
-                <option value="text">Text (standard row)</option>
-                <option value="image_tile">Image Tile</option>
-                <option value="featured_banner">Featured Banner (pinned to top)</option>
-              </select>
-              {(form.display_format === 'image_tile' || form.display_format === 'featured_banner') && (
-                <ImageUploadOrUrlField
-                  label="Listing Image"
-                  value={form.display_image_url}
-                  onChange={v => setForm(f => ({ ...f, display_image_url: v }))}
-                  ownerId={editingId}
-                  purpose="job"
-                  preset="flexible"
-                />
-              )}
-            </div>
-          )}
+          <div className="space-y-2 bg-muted/50 rounded-lg px-3 py-2.5">
+            <label className="text-xs text-muted-foreground font-medium block">Listing Display Format</label>
+            <select
+              value={form.display_format}
+              onChange={e => setForm(f => ({ ...f, display_format: e.target.value }))}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            >
+              <option value="text">Text (standard row)</option>
+              <option value="image_tile">Image Tile</option>
+              <option value="featured_banner">Featured Banner (pinned to top)</option>
+            </select>
+            {(form.display_format === 'image_tile' || form.display_format === 'featured_banner') && (
+              <ImageUploadOrUrlField
+                label="Listing Image"
+                value={form.display_image_url}
+                onChange={v => setForm(f => ({ ...f, display_image_url: v }))}
+                ownerId={editingId || 'new-job'}
+                purpose="job"
+                preset="flexible"
+              />
+            )}
+          </div>
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
