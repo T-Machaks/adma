@@ -21,7 +21,4 @@ export const Collaboration = {
   async filter(query = {}) {
     return apiFetch(`${BASE}?filter=${encodeURIComponent(JSON.stringify(query))}`);
   },
-  async requestPayment(id) {
-    return apiFetch(`${BASE}/${id}/request-payment`, { method: 'POST' });
-  },
 };

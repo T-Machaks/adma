@@ -5,7 +5,7 @@ import { ZoomIn, ZoomOut, RotateCcw, Navigation2, Calendar, Phone, Globe, Mail, 
 import { Exhibitor, SitePlanSpots } from '@/api/entities';
 import TierBadge from '@/components/ui/TierBadge';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
-import { isSubscriptionExpired } from '@/lib/subscription';
+import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 
 const PACKAGE_COLORS = {
@@ -73,7 +73,7 @@ export default function SitePlan() {
   const spots = spotData?.spots || [];
 
   const spotExhibitorMap = useMemo(() => {
-    const visible = exhibitors.filter(e => !isSubscriptionExpired(e));
+    const visible = exhibitors.filter(e => !isSubscriptionExpired(e) && !isPackageBillingExpired(e));
     const map = new Map();
     for (const spot of spots) {
       map.set(spot.title, matchExhibitors(spot.title, visible));

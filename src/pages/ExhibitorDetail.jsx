@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { track } from '@/lib/tracking';
 import TierBadge from '@/components/ui/TierBadge';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
-import { isSubscriptionExpired } from '@/lib/subscription';
+import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import BoothChat from '@/components/exhibitor/BoothChat';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 import {
@@ -115,7 +115,7 @@ export default function ExhibitorDetail() {
   const isPremiumStand = standTier === 'Premium';
   const limits = getPackageLimits(ex);
 
-  const expired = isSubscriptionExpired(ex);
+  const expired = isSubscriptionExpired(ex) || isPackageBillingExpired(ex);
   const locked = !!ex.portal_locked;
   const isSelfOrOrganiser = user?.role === 'organizer' || user?.role === 'superadmin'
     || (user?.email && ex.contact_email && user.email.toLowerCase() === ex.contact_email.toLowerCase());

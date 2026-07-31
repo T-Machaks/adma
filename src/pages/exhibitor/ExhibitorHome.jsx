@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Exhibitor, MeetingRequest, AdSlot } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { notifyMeeting } from '@/api/notify';
@@ -16,7 +17,7 @@ import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
-import { isSubscriptionExpired } from '@/lib/subscription';
+import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { toEmbedUrl } from '@/lib/videoUtils';
 
 const STATUS_STYLES = {
@@ -70,6 +71,7 @@ export default function ExhibitorHome() {
   const isEnhancedPlus = myBooth ? standTierAtLeast(myBooth, 'Enhanced') : false;
   const limits = myBooth ? getPackageLimits(myBooth) : { descChars: 250, galleryMax: 0 };
   const expired = myBooth ? isSubscriptionExpired(myBooth) : false;
+  const packageBillingExpired = myBooth ? isPackageBillingExpired(myBooth) : false;
 
   const myMeetings = meetings.filter(m => {
     if (!myBooth) return true;
@@ -280,6 +282,27 @@ export default function ExhibitorHome() {
           >
             Renew Now <ArrowRight className="w-3.5 h-3.5" />
           </a>
+        </div>
+      )}
+
+      {/* Package billing expired banner */}
+      {packageBillingExpired && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-2xl px-5 py-4">
+          <div className="w-10 h-10 bg-red-100 dark:bg-red-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Lock className="w-5 h-5 text-red-600" />
+          </div>
+          <div className="flex-1">
+            <p className="font-heading font-bold text-sm text-red-700 dark:text-red-400">Package Billing Expired</p>
+            <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-0.5">
+              Your {myBooth.package || 'Basic'} package billing expired on {new Date(myBooth.package_expires_at).toLocaleDateString()}. Your booth is now hidden from the public directory and site plan — renew to restore visibility.
+            </p>
+          </div>
+          <Link
+            to="/exhibitor/rate-card"
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs bg-red-600 text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-red-700 active:scale-95 transition-all duration-150 whitespace-nowrap"
+          >
+            View Rate Card <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
       )}
 

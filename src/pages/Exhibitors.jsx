@@ -7,7 +7,7 @@ import TierBadge from '@/components/ui/TierBadge';
 import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
-import { isSubscriptionExpired } from '@/lib/subscription';
+import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { getPackageLimits } from '@/lib/standTiers';
 
 const CATEGORIES = ['All', ...EVENT_CONFIG.exhibitorCategories];
@@ -28,7 +28,7 @@ export default function Exhibitors() {
   });
 
   const filtered = exhibitors.filter(ex => {
-    if (isSubscriptionExpired(ex)) return false;
+    if (isSubscriptionExpired(ex) || isPackageBillingExpired(ex)) return false;
     const matchSearch = !search || ex.name.toLowerCase().includes(search.toLowerCase()) || ex.booth?.toLowerCase().includes(search.toLowerCase());
     const matchCat = category === 'All' || ex.category === category;
     const matchPkg = pkg === 'All' || (ex.package || 'Basic') === pkg;

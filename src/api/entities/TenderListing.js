@@ -27,7 +27,4 @@ export const TenderListing = {
       body: { exhibitorId, oldDocumentUrl },
     });
   },
-  async requestPayment(id) {
-    return apiFetch(`${BASE}/${id}/request-payment`, { method: 'POST' });
-  },
 };

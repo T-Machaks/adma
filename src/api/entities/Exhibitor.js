@@ -47,4 +47,10 @@ export const Exhibitor = {
   async requestUpgradeEnquiry(data = {}) {
     return apiFetch('/api/exhibitors/upgrade-enquiry', { method: 'POST', body: data });
   },
+  // Requests activation of the account-level Marketplace Add-on (Section C of the rate
+  // card) — sets marketplace_addon_status to 'requested' and emails the organiser's
+  // billing address. Actual activation happens separately, organiser-only.
+  async requestMarketplaceAddon(tier, period) {
+    return apiFetch('/api/exhibitors/marketplace-addon/request', { method: 'POST', body: { tier, period } });
+  },
 };

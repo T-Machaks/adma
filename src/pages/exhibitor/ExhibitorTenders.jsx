@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, TenderListing, VirtualEnquiry } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
+import { isMarketplaceAddonActive } from '@/lib/rateCard';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import {
   FileText, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone,
-  Building2, Download, UploadCloud,
+  Building2, Download, UploadCloud, ArrowRight,
 } from 'lucide-react';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
@@ -60,10 +62,6 @@ export default function ExhibitorTenders() {
   });
   const deleteMutation = useMutation({
     mutationFn: (id) => TenderListing.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tender-listings'] }),
-  });
-  const requestPaymentMutation = useMutation({
-    mutationFn: (id) => TenderListing.requestPayment(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tender-listings'] }),
   });
 
@@ -129,6 +127,8 @@ export default function ExhibitorTenders() {
     );
   }
 
+  const marketplaceActive = isMarketplaceAddonActive(myBooth);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -138,15 +138,35 @@ export default function ExhibitorTenders() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Procurement opportunities you've posted to attendees</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 flex-shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" /> Post a Tender
-        </button>
+        {marketplaceActive && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" /> Post a Tender
+          </button>
+        )}
       </div>
 
-      {formOpen && (
+      {!marketplaceActive && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber/10 border border-amber/20 rounded-2xl px-5 py-4">
+          <div className="w-10 h-10 bg-amber/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Lock className="w-5 h-5 text-amber" />
+          </div>
+          <div className="flex-1">
+            <p className="font-heading font-bold text-sm">Marketplace Add-on required</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Activate the Marketplace Add-on to post tenders — see pricing on the Rate Card.</p>
+          </div>
+          <Link
+            to="/exhibitor/rate-card"
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 whitespace-nowrap"
+          >
+            View Rate Card <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
+      {formOpen && marketplaceActive && (
         <form onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold">{editingId ? 'Edit Tender' : 'New Tender'}</p>
@@ -299,19 +319,7 @@ export default function ExhibitorTenders() {
                         <UploadCloud className="w-3.5 h-3.5" /> {uploadingDoc === t.id ? 'Uploading…' : 'Upload Document (PDF)'}
                         <input type="file" accept="application/pdf" className="hidden" onChange={e => handleDocUpload(t, e.target.files?.[0])} disabled={uploadingDoc === t.id} />
                       </label>
-                    ) : t.interactive_status === 'requested' ? (
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
-                        Document attachment — awaiting activation
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => requestPaymentMutation.mutate(t.id)}
-                        disabled={requestPaymentMutation.isPending}
-                        className="flex items-center gap-1.5 text-xs border border-amber/40 text-amber px-3 py-1.5 rounded-lg font-medium hover:bg-amber/10 transition-colors disabled:opacity-60"
-                      >
-                        <UploadCloud className="w-3.5 h-3.5" /> Enable Premium Features (Paid)
-                      </button>
-                    )}
+                    ) : null}
                     <div className="flex gap-1.5">
                       {['Open', 'Closed', 'Awarded'].filter(s => s !== (t.status || 'Open')).map(s => (
                         <button key={s} onClick={() => toggleStatus(t, s)} className="text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors">

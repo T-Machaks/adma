@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { JobListing, TenderListing, Collaboration, AdSlot } from '@/api/entities';
-import { CheckCircle, Clock, Briefcase, FileText, Handshake, Loader2, XCircle, Megaphone } from 'lucide-react';
+import { Exhibitor, AdSlot, RateCard } from '@/api/entities';
+import { CheckCircle, Clock, ShoppingBag, Loader2, XCircle, Megaphone } from 'lucide-react';
 
 function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline, busy }) {
   return (
@@ -35,43 +35,38 @@ function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline,
   );
 }
 
+// Adds a billing period's total months (period.months, already net of any free months —
+// the free months are a discount on price, not on how long the period covers) to now.
+function computeExpiryISO(periodKey, billingPeriods) {
+  const months = billingPeriods?.[periodKey]?.months ?? 1;
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString();
+}
+
 export default function PaidListingRequests() {
   const qc = useQueryClient();
 
-  const { data: jobs = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list('-created_date') });
-  const { data: tenders = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list('-created_date') });
-  const { data: collabs = [] } = useQuery({ queryKey: ['collaborations'], queryFn: () => Collaboration.list('-created_date') });
+  const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors-all'], queryFn: () => Exhibitor.list('-created_date') });
   const { data: adSlots = [] } = useQuery({ queryKey: ['adslots'], queryFn: () => AdSlot.list('-created_date') });
+  const { data: rateCard } = useQuery({ queryKey: ['rate-card'], queryFn: () => RateCard.get() });
 
-  const pendingJobs = jobs.filter(j => j.interactive_status === 'requested');
-  const pendingTenders = tenders.filter(t => t.interactive_status === 'requested');
-  const pendingCollabs = collabs.filter(c => (c.status || 'Pending') === 'Pending');
+  const pendingAddons = exhibitors.filter(e => e.marketplace_addon_status === 'requested');
   const pendingAdSlots = adSlots.filter(a => a.review_status === 'requested');
 
-  const activateJob = useMutation({
-    mutationFn: (id) => JobListing.update(id, { interactive_status: 'active' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['job-listings'] }),
+  const activateAddon = useMutation({
+    mutationFn: (ex) => Exhibitor.update(ex.id, {
+      marketplace_addon_status: 'active',
+      marketplace_addon_billed_at: new Date().toISOString(),
+      marketplace_addon_expires_at: computeExpiryISO(ex.marketplace_addon_period, rateCard?.billingPeriods),
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
-  const declineJob = useMutation({
-    mutationFn: (id) => JobListing.update(id, { interactive_status: 'declined' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['job-listings'] }),
+  const declineAddon = useMutation({
+    mutationFn: (id) => Exhibitor.update(id, { marketplace_addon_status: 'none' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
-  const activateTender = useMutation({
-    mutationFn: (id) => TenderListing.update(id, { interactive_status: 'active' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tender-listings'] }),
-  });
-  const declineTender = useMutation({
-    mutationFn: (id) => TenderListing.update(id, { interactive_status: 'declined' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tender-listings'] }),
-  });
-  const activateCollab = useMutation({
-    mutationFn: (id) => Collaboration.update(id, { status: 'Open' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['collaborations'] }),
-  });
-  const declineCollab = useMutation({
-    mutationFn: (id) => Collaboration.update(id, { status: 'Closed' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['collaborations'] }),
-  });
+
   const activateAdSlot = useMutation({
     mutationFn: (slot) => AdSlot.update(slot.id, slot.pending_changes
       ? { ...slot.pending_changes, pending_changes: null, review_status: null }
@@ -89,7 +84,7 @@ export default function PaidListingRequests() {
     },
   });
 
-  const totalPending = pendingJobs.length + pendingTenders.length + pendingCollabs.length + pendingAdSlots.length;
+  const totalPending = pendingAddons.length + pendingAdSlots.length;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -98,7 +93,7 @@ export default function PaidListingRequests() {
           <Clock className="w-6 h-6 text-amber" />
           Paid Listing Requests
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">Activate paid interactive features and Partner Collaboration listings once payment has been confirmed.</p>
+        <p className="text-muted-foreground text-sm mt-1">Activate ad slots and the Marketplace Add-on once payment has been confirmed.</p>
       </div>
 
       {totalPending === 0 ? (
@@ -128,58 +123,20 @@ export default function PaidListingRequests() {
             </div>
           )}
 
-          {pendingCollabs.length > 0 && (
+          {pendingAddons.length > 0 && (
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Partner Collaborations</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Marketplace Add-on Requests</p>
               <div className="space-y-2">
-                {pendingCollabs.map(c => (
+                {pendingAddons.map(ex => (
                   <RequestCard
-                    key={c.id}
-                    icon={Handshake}
-                    title={c.title}
-                    subtitle={c.company_name}
-                    meta={c.type}
-                    busy={activateCollab.isPending || declineCollab.isPending}
-                    onActivate={() => activateCollab.mutate(c.id)}
-                    onDecline={() => declineCollab.mutate(c.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {pendingJobs.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Job Listings — CV Applications</p>
-              <div className="space-y-2">
-                {pendingJobs.map(j => (
-                  <RequestCard
-                    key={j.id}
-                    icon={Briefcase}
-                    title={j.title}
-                    subtitle={j.company_name}
-                    busy={activateJob.isPending || declineJob.isPending}
-                    onActivate={() => activateJob.mutate(j.id)}
-                    onDecline={() => declineJob.mutate(j.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {pendingTenders.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Tender Listings — Document Attachment</p>
-              <div className="space-y-2">
-                {pendingTenders.map(t => (
-                  <RequestCard
-                    key={t.id}
-                    icon={FileText}
-                    title={t.title}
-                    subtitle={t.company_name}
-                    busy={activateTender.isPending || declineTender.isPending}
-                    onActivate={() => activateTender.mutate(t.id)}
-                    onDecline={() => declineTender.mutate(t.id)}
+                    key={ex.id}
+                    icon={ShoppingBag}
+                    title={ex.name}
+                    subtitle={`${ex.marketplace_addon_tier === 'interactive' ? 'Interactive' : 'Text Only'} — unlocks Jobs, Tenders & Collaborations`}
+                    meta={`Billing: ${ex.marketplace_addon_period || 'monthly'}`}
+                    busy={activateAddon.isPending || declineAddon.isPending}
+                    onActivate={() => activateAddon.mutate(ex)}
+                    onDecline={() => declineAddon.mutate(ex.id)}
                   />
                 ))}
               </div>

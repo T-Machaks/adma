@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, Collaboration, VirtualEnquiry } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { standTierAtLeast } from '@/lib/standTiers';
+import { isMarketplaceAddonActive } from '@/lib/rateCard';
 import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
 import {
-  Handshake, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone, Building2, Hourglass,
+  Handshake, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone, Building2, ArrowRight,
 } from 'lucide-react';
 
 const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
@@ -50,11 +52,7 @@ export default function ExhibitorCollaborations() {
   const interests = allEnquiries.filter(e => e.collaboration_id === expandedId);
 
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const created = await Collaboration.create(data);
-      await Collaboration.requestPayment(created.id);
-      return created;
-    },
+    mutationFn: (data) => Collaboration.create(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['collaborations'] }); closeForm(); },
   });
   const updateMutation = useMutation({
@@ -115,6 +113,8 @@ export default function ExhibitorCollaborations() {
     );
   }
 
+  const marketplaceActive = isMarketplaceAddonActive(myBooth);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -122,22 +122,37 @@ export default function ExhibitorCollaborations() {
           <h1 className="font-heading text-xl font-bold uppercase tracking-wide flex items-center gap-2">
             <Handshake className="w-5 h-5 text-amber" /> Partner Collaborations
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Outgrower schemes, contract farming & joint venture opportunities — paid listing</p>
+          <p className="text-muted-foreground text-sm mt-1">Outgrower schemes, contract farming & joint venture opportunities</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 flex-shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" /> Post a Collaboration
-        </button>
+        {marketplaceActive && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" /> Post a Collaboration
+          </button>
+        )}
       </div>
 
-      <div className="flex items-start gap-2.5 bg-amber/10 border border-amber/20 rounded-xl px-4 py-3 text-xs text-muted-foreground">
-        <Hourglass className="w-4 h-4 text-amber flex-shrink-0 mt-0.5" />
-        <p>This is a paid listing slot. A new posting requests activation from the organiser — it won't appear publicly until payment is confirmed and the listing is activated.</p>
-      </div>
+      {!marketplaceActive && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber/10 border border-amber/20 rounded-2xl px-5 py-4">
+          <div className="w-10 h-10 bg-amber/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Lock className="w-5 h-5 text-amber" />
+          </div>
+          <div className="flex-1">
+            <p className="font-heading font-bold text-sm">Marketplace Add-on required</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Activate the Marketplace Add-on to post collaboration opportunities — see pricing on the Rate Card.</p>
+          </div>
+          <Link
+            to="/exhibitor/rate-card"
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 whitespace-nowrap"
+          >
+            View Rate Card <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
 
-      {formOpen && (
+      {formOpen && marketplaceActive && (
         <form onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold">{editingId ? 'Edit Collaboration' : 'New Collaboration'}</p>
@@ -235,7 +250,7 @@ export default function ExhibitorCollaborations() {
               disabled={createMutation.isPending || updateMutation.isPending}
               className="px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60"
             >
-              {editingId ? 'Save Changes' : (createMutation.isPending ? 'Requesting…' : 'Post & Request Activation')}
+              {editingId ? 'Save Changes' : (createMutation.isPending ? 'Posting…' : 'Post Collaboration')}
             </button>
             <button type="button" onClick={closeForm} className="px-4 py-2 text-sm font-semibold border border-border rounded-lg hover:bg-muted active:scale-95 transition-all">
               Cancel

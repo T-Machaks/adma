@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, Exhibitor } from '@/api/entities';
-import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle } from 'lucide-react';
+import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
@@ -24,6 +24,7 @@ const MODULES = [
   { id: 'meetings', label: 'Meetings', icon: User, path: '/meetings' },
   { id: 'magazine', label: 'Digital Magazine', icon: Star, path: '/magazine' },
   { id: 'schedule', label: 'Event Schedule', icon: Star, path: '/schedule' },
+  { id: 'rate-card', label: 'Rate Card', icon: DollarSign, path: '/console/rate-card' },
 ];
 
 export default function AdminPanel() {

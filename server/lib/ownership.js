@@ -1,4 +1,4 @@
-import { ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from './dynamo.js';
 
 // Organizer/superadmin/marketing_partner see everything — console pages like
@@ -24,4 +24,19 @@ export async function getMyExhibitorId(req) {
     (e.name && company && e.name.toLowerCase() === company)
   );
   return (req._myExhibitorId = match?.id ?? null);
+}
+
+// Rate card Section C gate — posting a Job/Tender/Collaboration at all now requires an
+// active, unexpired account-level Marketplace Add-on (Text Only or Interactive). Used
+// server-side in each listing type's POST/PUT pre-hook so this is real enforcement, not
+// just a hidden button — never trust a client claim that the add-on is active.
+export async function getMarketplaceAddonState(exhibitorId) {
+  if (!exhibitorId) return { active: false, tier: null };
+  const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
+  const ex = result.Item;
+  if (!ex || ex.marketplace_addon_status !== 'active') return { active: false, tier: null };
+  if (ex.marketplace_addon_expires_at && new Date() > new Date(ex.marketplace_addon_expires_at)) {
+    return { active: false, tier: null };
+  }
+  return { active: true, tier: ex.marketplace_addon_tier || null };
 }

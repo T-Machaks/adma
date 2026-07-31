@@ -1,15 +1,17 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, JobListing, JobApplication } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
+import { isMarketplaceAddonActive } from '@/lib/rateCard';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
 import {
-  Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp,
+  Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp, ArrowRight,
 } from 'lucide-react';
 
 const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
@@ -56,10 +58,6 @@ export default function ExhibitorJobs() {
   });
   const deleteMutation = useMutation({
     mutationFn: (id) => JobListing.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['job-listings'] }),
-  });
-  const requestPaymentMutation = useMutation({
-    mutationFn: (id) => JobListing.requestPayment(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['job-listings'] }),
   });
 
@@ -117,6 +115,8 @@ export default function ExhibitorJobs() {
     );
   }
 
+  const marketplaceActive = isMarketplaceAddonActive(myBooth);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -126,15 +126,35 @@ export default function ExhibitorJobs() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Roles you've posted to the {EVENT_CONFIG.eventName} jobs board</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 flex-shrink-0"
-        >
-          <Plus className="w-3.5 h-3.5" /> Post a Job
-        </button>
+        {marketplaceActive && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" /> Post a Job
+          </button>
+        )}
       </div>
 
-      {formOpen && (
+      {!marketplaceActive && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber/10 border border-amber/20 rounded-2xl px-5 py-4">
+          <div className="w-10 h-10 bg-amber/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Lock className="w-5 h-5 text-amber" />
+          </div>
+          <div className="flex-1">
+            <p className="font-heading font-bold text-sm">Marketplace Add-on required</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Activate the Marketplace Add-on to post job openings — see pricing on the Rate Card.</p>
+          </div>
+          <Link
+            to="/exhibitor/rate-card"
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs bg-amber text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150 whitespace-nowrap"
+          >
+            View Rate Card <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      )}
+
+      {formOpen && marketplaceActive && (
         <form onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold">{editingId ? 'Edit Job' : 'New Job Posting'}</p>
@@ -313,22 +333,10 @@ export default function ExhibitorJobs() {
                     >
                       <Users className="w-3.5 h-3.5" /> {isExpanded ? 'Hide' : 'View'} Applicants
                     </button>
-                    {job.interactive_status === 'active' ? (
+                    {job.interactive_status === 'active' && (
                       <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 ml-auto">
-                        <FileUp className="w-3 h-3" /> Premium features active
+                        <FileUp className="w-3 h-3" /> CV upload enabled
                       </span>
-                    ) : job.interactive_status === 'requested' ? (
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 ml-auto">
-                        Awaiting activation
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => requestPaymentMutation.mutate(job.id)}
-                        disabled={requestPaymentMutation.isPending}
-                        className="flex items-center gap-1.5 text-xs border border-amber/40 text-amber px-3 py-1.5 rounded-lg font-medium hover:bg-amber/10 transition-colors ml-auto disabled:opacity-60"
-                      >
-                        <FileUp className="w-3.5 h-3.5" /> Enable Premium Features (Paid)
-                      </button>
                     )}
                   </div>
 

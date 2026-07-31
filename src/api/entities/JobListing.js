@@ -21,9 +21,6 @@ export const JobListing = {
   async filter(query = {}) {
     return apiFetch(`${BASE}?filter=${encodeURIComponent(JSON.stringify(query))}`);
   },
-  async requestPayment(id) {
-    return apiFetch(`${BASE}/${id}/request-payment`, { method: 'POST' });
-  },
   async getCvUploadUrl(jobId) {
     return apiFetch('/api/upload/job-cv-url', { method: 'POST', body: { jobId } });
   },

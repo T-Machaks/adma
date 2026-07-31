@@ -63,6 +63,7 @@ import EventContentManager from '@/pages/console/EventContentManager';
 import MarketplaceListings from '@/pages/console/MarketplaceListings';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
 import PaidListingRequests from '@/pages/console/PaidListingRequests';
+import RateCardManager from '@/pages/console/RateCardManager';
 import Registrations from '@/pages/console/Registrations';
 import SessionsManager from '@/pages/console/SessionsManager';
 import AuctionsManager from '@/pages/console/AuctionsManager';
@@ -82,6 +83,7 @@ import ExhibitorJobs from '@/pages/exhibitor/ExhibitorJobs';
 import ExhibitorTenders from '@/pages/exhibitor/ExhibitorTenders';
 import ExhibitorCollaborations from '@/pages/exhibitor/ExhibitorCollaborations';
 import ExhibitorListings from '@/pages/exhibitor/ExhibitorListings';
+import ExhibitorRateCard from '@/pages/exhibitor/ExhibitorRateCard';
 
 // Layout wrappers (give each shell access to Outlet)
 const AttendeeLayout = () => (
@@ -157,6 +159,7 @@ const AuthenticatedApp = () => {
             <Route path="/console/check-in"              element={<CheckIn />} />
             <Route path="/console/exhibitor-applications" element={<ExhibitorApplications />} />
             <Route path="/console/paid-listing-requests"  element={<PaidListingRequests />} />
+            <Route path="/console/rate-card"              element={<RateCardManager />} />
             <Route path="/console/enquiries"              element={<EnquiriesPanel />} />
           </Route>
         </Route>
@@ -175,6 +178,7 @@ const AuthenticatedApp = () => {
         <Route path="/exhibitor/tenders"   element={<ExhibitorTenders />} />
         <Route path="/exhibitor/collaborations" element={<ExhibitorCollaborations />} />
         <Route path="/exhibitor/listings"  element={<ExhibitorListings />} />
+        <Route path="/exhibitor/rate-card" element={<ExhibitorRateCard />} />
       </Route>
 
       {/* ── Attendee PWA ── */}
