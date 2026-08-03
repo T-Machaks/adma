@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart2, MessageSquare, Shield,
   LogOut, Users, Menu, X, ChevronLeft, UserCog, ScanLine, Megaphone, ClipboardList, Inbox, Video, Gavel, Clock, LayoutGrid,
-  CalendarClock, Store,
+  CalendarClock, Store, DollarSign,
 } from 'lucide-react';
 import { useState } from 'react';
 import EventLogo from './EventLogo.jsx';
@@ -22,6 +22,7 @@ const consoleNav = [
   { path: '/console/marketplace-listings', label: 'Marketplace Listings', icon: Store,           roles: ['organizer', 'superadmin'] },
   { path: '/console/exhibitor-applications', label: 'Exhibitor Applications', icon: ClipboardList, roles: ['organizer', 'superadmin'] },
   { path: '/console/paid-listing-requests',  label: 'Paid Listing Requests',  icon: Clock,         roles: ['organizer', 'superadmin'] },
+  { path: '/console/rate-card',              label: 'Rate Card',              icon: DollarSign,    roles: ['organizer', 'superadmin'] },
   { path: '/console/enquiries',              label: 'Enquiries',              icon: Inbox,         roles: ['organizer', 'superadmin'] },
   { path: '/console/users',          label: 'Users & Roles',    icon: UserCog,                      roles: ['organizer', 'superadmin'] },
   { path: '/console/admin',          label: 'Admin & Security', icon: Shield,                       roles: ['organizer', 'superadmin'] },

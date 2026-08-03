@@ -13,8 +13,8 @@ const DEFAULTS = {
   billingPeriods: {
     monthly:   { months: 1,  freeMonths: 0, label: 'Monthly' },
     quarterly: { months: 3,  freeMonths: 0, label: 'Quarterly' },
-    biannual:  { months: 6,  freeMonths: 1, label: 'Bi-Annual' },
-    annual:    { months: 12, freeMonths: 2, label: 'Annual' },
+    biannual:  { months: 6,  freeMonths: 1, label: 'Bi-Annually' },
+    annual:    { months: 12, freeMonths: 2, label: 'Annually' },
   },
   sections: [
     {
