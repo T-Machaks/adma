@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ZoomIn, ZoomOut, RotateCcw, Navigation2, Calendar, Phone, Globe, Mail, X, MapPin, Info, Download } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Calendar, Phone, Globe, Mail, X, MapPin, Info, Download } from 'lucide-react';
 import { Exhibitor, SitePlanSpots } from '@/api/entities';
 import TierBadge from '@/components/ui/TierBadge';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -16,10 +16,6 @@ const PACKAGE_COLORS = {
 
 const IMG_W = 2202;
 const IMG_H = 1306;
-
-// ART Farm, Pomona, Harare
-const VENUE_LAT = -17.8087;
-const VENUE_LNG = 31.0510;
 
 function norm(s) {
   return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -51,7 +47,6 @@ export default function SitePlan() {
   const [zoom, setZoom] = useState(1);
   const [selectedTitle, setSelectedTitle] = useState(null);
   const [selectedExhibitorId, setSelectedExhibitorId] = useState(null);
-  const [locating, setLocating] = useState(false);
   const { settings } = useAppSettings();
   const imgSrc = settings.sitePlanImageUrl || '/site-plan-2026.png';
   const isCustomPlan = !!settings.sitePlanImageUrl;
@@ -84,30 +79,6 @@ export default function SitePlan() {
   const selectSpot = (title) => {
     setSelectedExhibitorId(null);
     setSelectedTitle(prev => (prev === title ? null : title));
-  };
-
-  const handleGetDirections = () => {
-    const dest = `${VENUE_LAT},${VENUE_LNG}`;
-    setLocating(true);
-    if (!navigator.geolocation) {
-      setLocating(false);
-      window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setLocating(false);
-        window.open(
-          `https://www.google.com/maps/dir/${coords.latitude},${coords.longitude}/${dest}`,
-          '_blank'
-        );
-      },
-      () => {
-        setLocating(false);
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}`, '_blank');
-      },
-      { timeout: 6000 }
-    );
   };
 
   const selSpot = selectedTitle ? spots.find(s => s.title === selectedTitle) : null;
@@ -277,14 +248,6 @@ export default function SitePlan() {
                   )}
 
                   <div className="border-t border-border px-4 py-3 flex flex-wrap gap-2">
-                    <button
-                      onClick={handleGetDirections}
-                      disabled={locating}
-                      className="flex items-center gap-1.5 text-xs bg-steel text-white px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-60 active:scale-95 transition-all"
-                    >
-                      <Navigation2 className="w-3.5 h-3.5" />
-                      {locating ? 'Locating…' : 'Get Directions'}
-                    </button>
                     <Link
                       to="/meetings"
                       state={{ exhibitor: selExhibitor }}
@@ -344,19 +307,9 @@ export default function SitePlan() {
                     <p className="font-semibold text-sm">{selSpot.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">Not yet listed as a digital exhibitor profile.</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleGetDirections}
-                      disabled={locating}
-                      className="flex items-center gap-1 text-xs bg-steel text-white px-2.5 py-1.5 rounded-lg font-medium hover:opacity-90 disabled:opacity-60 transition-all"
-                    >
-                      <Navigation2 className="w-3 h-3" />
-                      {locating ? '…' : 'Directions'}
-                    </button>
-                    <button onClick={() => selectSpot(selectedTitle)} className="text-muted-foreground hover:text-foreground transition-colors">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <button onClick={() => selectSpot(selectedTitle)} className="text-muted-foreground hover:text-foreground transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
