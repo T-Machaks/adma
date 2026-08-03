@@ -8,13 +8,6 @@ import {
   DollarSign, CheckCircle, Send, Loader2, Briefcase, ShoppingBag, BookOpen, Layout,
 } from 'lucide-react';
 
-const SECTION_ICON = {
-  landing_page: Layout,
-  virtual_exhibition: Briefcase,
-  marketplace: ShoppingBag,
-  magazine: BookOpen,
-};
-
 export default function ExhibitorRateCard() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -52,9 +45,17 @@ export default function ExhibitorRateCard() {
   const addonRequested = myBooth.marketplace_addon_status === 'requested';
   const currentPackage = myBooth.package || 'Basic';
 
-  const sectionById = Object.fromEntries(rateCard.sections.map(s => [s.id, s]));
-  const packageSection = sectionById.virtual_exhibition;
-  const marketplaceSection = sectionById.marketplace;
+  const packageSection = rateCard.sections.find(s => s.id === 'virtual_exhibition');
+  const marketplaceSection = rateCard.sections.find(s => s.id === 'marketplace');
+
+  const renderPriceCard = (item, extraClass = '') => (
+    <div key={item.key} className={`rounded-xl border p-4 ${extraClass || 'border-border'}`}>
+      <p className="font-heading font-bold text-sm">{item.label}</p>
+      <p className="font-heading text-2xl font-bold mt-2">${computePrice(item.monthlyRate, period, rateCard.billingPeriods)}</p>
+      <p className="text-[11px] text-muted-foreground">per {rateCard.billingPeriods[period]?.label.toLowerCase()}</p>
+      {item.desc && <p className="text-[11px] text-muted-foreground mt-1.5 italic">{item.desc}</p>}
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -85,6 +86,19 @@ export default function ExhibitorRateCard() {
         })}
       </div>
 
+      {/* Section A: Landing Page — informational pricing only */}
+      {rateCard.sections.filter(s => s.id === 'landing_page').map(section => (
+        <div key={section.id} className="bg-card border border-border rounded-2xl p-5">
+          <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
+            <Layout className="w-4 h-4 text-amber" /> {section.label}
+          </h2>
+          <p className="text-xs text-muted-foreground mb-3">Organiser-assigned, limited inventory — contact the organiser to book a slot.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {section.items.map(item => renderPriceCard(item))}
+          </div>
+        </div>
+      ))}
+
       {/* Section B: Virtual Exhibition Packages */}
       <div className="bg-card border border-border rounded-2xl p-5">
         <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
@@ -101,6 +115,7 @@ export default function ExhibitorRateCard() {
                 </div>
                 <p className="font-heading text-2xl font-bold mt-2">${computePrice(item.monthlyRate, period, rateCard.billingPeriods)}</p>
                 <p className="text-[11px] text-muted-foreground">per {rateCard.billingPeriods[period]?.label.toLowerCase()}</p>
+                {item.desc && <p className="text-[11px] text-muted-foreground mt-1.5 italic">{item.desc}</p>}
               </div>
             );
           })}
@@ -123,12 +138,9 @@ export default function ExhibitorRateCard() {
         {marketplaceSection?.note && <p className="text-xs text-muted-foreground mb-3">{marketplaceSection.note} (Auctions coming soon.)</p>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {marketplaceSection?.items.map(item => (
-            <div key={item.key} className={`rounded-xl border p-4 ${myBooth.marketplace_addon_tier === item.key && (addonActive || addonRequested) ? 'border-amber bg-amber/5' : 'border-border'}`}>
-              <p className="font-heading font-bold text-sm">{item.label}</p>
-              <p className="font-heading text-2xl font-bold mt-2">${computePrice(item.monthlyRate, period, rateCard.billingPeriods)}</p>
-              <p className="text-[11px] text-muted-foreground">per {rateCard.billingPeriods[period]?.label.toLowerCase()}</p>
-            </div>
+          {marketplaceSection?.items.map(item => renderPriceCard(
+            item,
+            myBooth.marketplace_addon_tier === item.key && (addonActive || addonRequested) ? 'border-amber bg-amber/5' : undefined
           ))}
         </div>
 
@@ -177,29 +189,18 @@ export default function ExhibitorRateCard() {
         )}
       </div>
 
-      {/* Sections A & D: informational pricing only */}
-      {['landing_page', 'magazine'].map(id => {
-        const section = sectionById[id];
-        if (!section) return null;
-        const Icon = SECTION_ICON[id] ?? Layout;
-        return (
-          <div key={id} className="bg-card border border-border rounded-2xl p-5">
-            <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
-              <Icon className="w-4 h-4 text-amber" /> {section.label}
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">Organiser-assigned, limited inventory — contact the organiser to book a slot.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {section.items.map(item => (
-                <div key={item.key} className="rounded-xl border border-border p-4">
-                  <p className="font-heading font-bold text-sm">{item.label}</p>
-                  <p className="font-heading text-2xl font-bold mt-2">${computePrice(item.monthlyRate, period, rateCard.billingPeriods)}</p>
-                  <p className="text-[11px] text-muted-foreground">per {rateCard.billingPeriods[period]?.label.toLowerCase()}</p>
-                </div>
-              ))}
-            </div>
+      {/* Section D: Digital Magazine — informational pricing only */}
+      {rateCard.sections.filter(s => s.id === 'magazine').map(section => (
+        <div key={section.id} className="bg-card border border-border rounded-2xl p-5">
+          <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-amber" /> {section.label}
+          </h2>
+          <p className="text-xs text-muted-foreground mb-3">Organiser-assigned, limited inventory — contact the organiser to book a slot.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {section.items.map(item => renderPriceCard(item))}
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }

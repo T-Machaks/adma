@@ -38,6 +38,17 @@ export default function RateCardManager() {
     markDirty();
   };
 
+  const setItemDesc = (sectionId, itemKey, value) => {
+    setDraft(d => ({
+      ...d,
+      sections: d.sections.map(s => s.id !== sectionId ? s : {
+        ...s,
+        items: s.items.map(i => i.key !== itemKey ? i : { ...i, desc: value }),
+      }),
+    }));
+    markDirty();
+  };
+
   const setPeriodField = (periodKey, field, value) => {
     setDraft(d => ({
       ...d,
@@ -100,18 +111,26 @@ export default function RateCardManager() {
           {section.note && <p className="text-xs text-muted-foreground mt-1 mb-3">{section.note}</p>}
           <div className="space-y-2 mt-3">
             {section.items.map(item => (
-              <div key={item.key} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-muted/30">
-                <p className="text-sm font-medium flex-1">{item.label}</p>
-                <div className="relative w-28">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                  <Input
-                    type="number" min="0" step="1"
-                    value={item.monthlyRate}
-                    onChange={e => setItemRate(section.id, item.key, e.target.value)}
-                    className="h-9 pl-7 text-sm"
-                  />
+              <div key={item.key} className="px-3 py-2.5 rounded-lg border border-border bg-muted/30 space-y-2">
+                <div className="flex items-center gap-3">
+                  <p className="text-sm font-medium flex-1">{item.label}</p>
+                  <div className="relative w-28">
+                    <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input
+                      type="number" min="0" step="1"
+                      value={item.monthlyRate}
+                      onChange={e => setItemRate(section.id, item.key, e.target.value)}
+                      className="h-9 pl-7 text-sm"
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground w-16">/ month</span>
                 </div>
-                <span className="text-xs text-muted-foreground w-16">/ month</span>
+                <Input
+                  placeholder="Optional description shown to exhibitors (e.g. what this tier also includes)"
+                  value={item.desc || ''}
+                  onChange={e => setItemDesc(section.id, item.key, e.target.value)}
+                  className="h-8 text-xs"
+                />
               </div>
             ))}
           </div>

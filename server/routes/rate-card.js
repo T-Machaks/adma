@@ -45,8 +45,8 @@ const DEFAULTS = {
       id: 'magazine', label: 'Section D: Digital Magazine',
       items: [
         { key: 'image',    label: 'Static Display Ad', monthlyRate: 15 },
-        { key: 'video',    label: 'Video',              monthlyRate: 50 },
-        { key: 'carousel', label: 'Product Carousel',   monthlyRate: 30 },
+        { key: 'carousel', label: 'Product Carousel',   monthlyRate: 30, desc: 'Also includes a Static Display Ad' },
+        { key: 'video',    label: 'Video',              monthlyRate: 50, desc: 'Includes Static Display Ad and Product Carousel' },
       ],
     },
   ],
