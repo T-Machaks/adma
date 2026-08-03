@@ -13,12 +13,12 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const quickActions = [
   { label: 'Exhibitors', path: '/exhibitors', icon: Users, color: 'bg-gradient-to-br from-blue-500 to-blue-700', shadow: 'shadow-blue-500/30' },
-  { label: 'Site Plan', path: '/site-plan', icon: Map, color: 'bg-gradient-to-br from-emerald-500 to-emerald-700', shadow: 'shadow-emerald-500/30' },
+  { label: 'Digital Magazine', path: '/magazine', icon: BookOpen, color: 'bg-gradient-to-br from-indigo-500 to-indigo-700', shadow: 'shadow-indigo-500/30' },
   { label: 'Live Sessions', path: '/sessions', icon: Video, color: 'bg-gradient-to-br from-red-500 to-red-700', shadow: 'shadow-red-500/30' },
   { label: 'Meetings', path: '/meetings', icon: Calendar, color: 'bg-gradient-to-br from-violet-500 to-violet-700', shadow: 'shadow-violet-500/30' },
   { label: 'Schedule', path: '/schedule', icon: Clock, color: 'bg-gradient-to-br from-rose-500 to-rose-700', shadow: 'shadow-rose-500/30' },
   { label: 'Register', path: '/register', icon: UserCheck, color: 'bg-gradient-to-br from-amber-400 to-amber-600', shadow: 'shadow-amber-500/30' },
-  { label: 'Publications', path: '/magazine', icon: BookOpen, color: 'bg-gradient-to-br from-indigo-500 to-indigo-700', shadow: 'shadow-indigo-500/30' },
+  { label: 'Site Plan', path: '/site-plan', icon: Map, color: 'bg-gradient-to-br from-emerald-500 to-emerald-700', shadow: 'shadow-emerald-500/30' },
   { label: 'QR Resources', path: '/qr-resources', icon: QrCode, color: 'bg-gradient-to-br from-slate-500 to-slate-700', shadow: 'shadow-slate-500/30' },
 ];
 
