@@ -9,7 +9,7 @@ const KEYFRAMES = `
   @keyframes adFadeIn   { from { opacity: 0; transform: translateX(6px) } to { opacity: 1; transform: translateX(0) } }
 `;
 
-const INTERVAL = 4500;
+const DEFAULT_DURATION_MS = 4500;
 
 export default function AdBannerCarousel() {
   const [current, setCurrent] = useState(0);
@@ -26,11 +26,13 @@ export default function AdBannerCarousel() {
 
   useEffect(() => { setCurrent(0); }, [slots.length]);
 
+  const intervalMs = (slots[current]?.duration_seconds || DEFAULT_DURATION_MS / 1000) * 1000;
+
   useEffect(() => {
     if (paused || slots.length === 0) return;
-    const t = setTimeout(() => setCurrent(c => (c + 1) % slots.length), INTERVAL);
+    const t = setTimeout(() => setCurrent(c => (c + 1) % slots.length), intervalMs);
     return () => clearTimeout(t);
-  }, [current, paused, slots.length]);
+  }, [current, paused, slots.length, intervalMs]);
 
   if (slots.length === 0) return null;
 
@@ -184,7 +186,7 @@ export default function AdBannerCarousel() {
           className="h-full rounded-full"
           style={paused
             ? { width: '0%', background: accent }
-            : { background: accent, animation: `adProgress ${INTERVAL}ms linear forwards` }
+            : { background: accent, animation: `adProgress ${intervalMs}ms linear forwards` }
           }
         />
       </div>

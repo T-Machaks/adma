@@ -86,7 +86,7 @@ const GRADIENT_OPTIONS = [
 const EMPTY_SLOT = {
   company: '', headline: '', sub: '', label: 'Platinum Exhibitor',
   logo_url: '', image_url: '', image_type: 'bg', url: '', bg: 'from-slate-700 to-slate-900',
-  exhibitor_id: '', exhibitor_name: '', placement: 'carousel',
+  exhibitor_id: '', exhibitor_name: '', placement: 'carousel', duration_seconds: 4.5,
 };
 
 const EMPTY_POST = {
@@ -801,6 +801,7 @@ export default function MarketingHub() {
                 <tr className="border-b border-border bg-muted/40 text-xs">
                   <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Company</th>
                   <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden sm:table-cell">Headline</th>
+                  <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Duration</th>
                   <th className="text-left px-3 py-3 font-semibold text-muted-foreground hidden md:table-cell">Clicks</th>
                   <th className="text-left px-3 py-3 font-semibold text-muted-foreground">Status</th>
                   <th className="px-3 py-3" />
@@ -824,6 +825,9 @@ export default function MarketingHub() {
                     </td>
                     <td className="px-3 py-3 text-muted-foreground text-xs hidden sm:table-cell max-w-[200px] truncate">
                       {slot.headline}
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground text-xs hidden lg:table-cell">
+                      {slot.duration_seconds || 4.5}s
                     </td>
                     <td className="px-3 py-3 hidden md:table-cell">
                       <span className="font-bold text-emerald-600">{clicksByExhibitor[slot.company] || 0}</span>
@@ -1288,6 +1292,15 @@ export default function MarketingHub() {
                       </Select>
                     </div>
                   )}
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Display Duration (seconds)</label>
+                    <Input
+                      type="number" min="1" step="0.5"
+                      value={slotForm.duration_seconds ?? 4.5}
+                      onChange={e => setSlotForm(f => ({ ...f, duration_seconds: e.target.value === '' ? '' : Number(e.target.value) }))}
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">How long this slide shows before the carousel advances to the next one.</p>
+                  </div>
                 </div>
               )}
               <div className="col-span-2">
