@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Exhibitor, VirtualEnquiry } from '@/api/entities';
+import { Exhibitor, VirtualEnquiry, AttendeeNote } from '@/api/entities';
 import { notifyEnquiry } from '@/api/notify';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -14,7 +14,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext
 import {
   ArrowLeft, Globe, Mail, Phone, Calendar, MapPin,
   Video, Send, CheckCircle, FileText, ExternalLink, ImagePlus, Lock, LogIn, UserPlus,
-  Images, MessageCircle, Award, HelpCircle, Sparkles,
+  Images, MessageCircle, Award, HelpCircle, Sparkles, Star,
 } from 'lucide-react';
 
 export default function ExhibitorDetail() {
@@ -29,6 +29,20 @@ export default function ExhibitorDetail() {
   });
 
   const { user, isAuthenticated } = useAuth();
+
+  const { data: notes = [] } = useQuery({
+    queryKey: ['attendee-notes', user?.email],
+    queryFn: () => AttendeeNote.filter({ user_email: user.email }),
+    enabled: !!user?.email,
+  });
+  const favNote = notes.find(n => n.type === 'Exhibitor' && n.ref_id === id);
+  const favMutation = useMutation({
+    mutationFn: () => favNote
+      ? AttendeeNote.delete(favNote.id)
+      : AttendeeNote.create({ user_email: user.email, type: 'Exhibitor', ref_id: id, ref_name: ex?.name, note: '', is_favorite: true }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendee-notes', user?.email] }),
+  });
+
   const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
@@ -148,13 +162,24 @@ export default function ExhibitorDetail() {
   return (
     <div className="pb-24 max-w-2xl lg:max-w-4xl mx-auto">
       {/* Back nav */}
-      <div className="px-4 pt-4">
+      <div className="px-4 pt-4 flex items-center justify-between gap-3">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to directory
         </button>
+        {isAuthenticated && (
+          <button
+            onClick={() => favMutation.mutate()}
+            disabled={favMutation.isPending}
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
+              favNote ? 'border-amber bg-amber/10 text-amber' : 'border-border text-muted-foreground hover:border-amber/40'
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${favNote ? 'fill-amber' : ''}`} /> {favNote ? 'Saved' : 'Save'}
+          </button>
+        )}
       </div>
 
       {/* Gallery — every stand tier gets this, capped to the package's image limit */}

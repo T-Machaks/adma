@@ -320,11 +320,18 @@ export default function AttendeeDashboard() {
   );
 }
 
+const NOTE_TYPE_PATH = { Exhibitor: '/exhibitors', Lot: '/lots' };
+
 function NoteCard({ note, onDelete, onToggleFav, onNote }) {
+  const linkTo = NOTE_TYPE_PATH[note.type] ? `${NOTE_TYPE_PATH[note.type]}/${note.ref_id}` : null;
   return (
     <div className="bg-card border border-border rounded-xl p-3 flex items-start gap-3">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{note.ref_name}</p>
+        {linkTo ? (
+          <Link to={linkTo} className="text-sm font-semibold truncate hover:text-amber hover:underline transition-colors block">{note.ref_name}</Link>
+        ) : (
+          <p className="text-sm font-semibold truncate">{note.ref_name}</p>
+        )}
         <p className="text-xs text-muted-foreground">{note.type}</p>
         {note.note && <p className="text-xs text-foreground/70 mt-1 line-clamp-2 italic">"{note.note}"</p>}
       </div>

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Exhibitor } from '@/api/entities';
-import { Search, Calendar, Globe, Phone, Mail, Filter, ChevronRight, Download } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Exhibitor, AttendeeNote } from '@/api/entities';
+import { Search, Calendar, Globe, Phone, Mail, Filter, ChevronRight, Download, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import TierBadge from '@/components/ui/TierBadge';
 import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { getPackageLimits } from '@/lib/standTiers';
@@ -21,10 +22,27 @@ export default function Exhibitors() {
   const [section, setSection] = useState('All');
   const [expanded, setExpanded] = useState(null);
   const { settings } = useAppSettings();
+  const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: exhibitors = [], isLoading } = useQuery({
     queryKey: ['exhibitors'],
     queryFn: () => Exhibitor.list('-created_date'),
+  });
+
+  const { data: notes = [] } = useQuery({
+    queryKey: ['attendee-notes', user?.email],
+    queryFn: () => AttendeeNote.filter({ user_email: user.email }),
+    enabled: !!user?.email,
+  });
+  const favByExhibitorId = Object.fromEntries(
+    notes.filter(n => n.type === 'Exhibitor').map(n => [n.ref_id, n])
+  );
+  const toggleFavMutation = useMutation({
+    mutationFn: (ex) => favByExhibitorId[ex.id]
+      ? AttendeeNote.delete(favByExhibitorId[ex.id].id)
+      : AttendeeNote.create({ user_email: user.email, type: 'Exhibitor', ref_id: ex.id, ref_name: ex.name, note: '', is_favorite: true }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendee-notes', user?.email] }),
   });
 
   const filtered = exhibitors.filter(ex => {
@@ -138,11 +156,23 @@ export default function Exhibitors() {
                     </Link>
                     <p className="text-xs text-muted-foreground mt-0.5">Booth <span className="font-bold text-foreground">{ex.booth}</span> · {ex.section || 'General'}</p>
                   </div>
-                  {ex.portal_locked ? (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 flex-shrink-0">Unavailable</span>
-                  ) : (
-                    <TierBadge package={ex.package} />
-                  )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {ex.portal_locked ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400">Unavailable</span>
+                    ) : (
+                      <TierBadge package={ex.package} />
+                    )}
+                    {isAuthenticated && (
+                      <button
+                        onClick={() => toggleFavMutation.mutate(ex)}
+                        disabled={toggleFavMutation.isPending}
+                        className="p-1 rounded-lg hover:bg-amber/10 transition-colors"
+                        title={favByExhibitorId[ex.id] ? 'Remove from saved' : 'Save exhibitor'}
+                      >
+                        <Star className={`w-4 h-4 ${favByExhibitorId[ex.id] ? 'fill-amber text-amber' : 'text-muted-foreground'}`} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {ex.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{ex.description.slice(0, getPackageLimits(ex).descChars)}</p>}
                 <div className="flex gap-1.5 mt-2 flex-wrap">
