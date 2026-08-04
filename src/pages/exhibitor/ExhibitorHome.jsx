@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Exhibitor, MeetingRequest, AdSlot, Payment } from '@/api/entities';
+import { Exhibitor, MeetingRequest, AdSlot } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { notifyMeeting } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
@@ -9,17 +9,15 @@ import {
   Store, Calendar, CheckCircle, XCircle, Clock,
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
-  Images, MessageCircle, Award, Plus, Video, CreditCard,
+  Images, MessageCircle, Award, Plus, Video,
 } from 'lucide-react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
-import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
+import AdSlotCard from '@/components/exhibitor/AdSlotCard';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
-import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { toEmbedUrl } from '@/lib/videoUtils';
-import { BILLING_PERIOD_ORDER } from '@/lib/rateCard';
 
 const STATUS_STYLES = {
   Pending:   { cls: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -63,10 +61,18 @@ export default function ExhibitorHome() {
       || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
   );
 
-  // Fetches the exhibitor's own ad slot regardless of active/review state — unlike the
+  // Fetches the exhibitor's own ad slots regardless of active/review state — unlike the
   // attendee-facing carousel/footer (which only ever read AdSlot.listActive()), the
-  // exhibitor needs to see a slot that's still pending its first review or paused.
-  const myAd = myBooth ? (allAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null) : null;
+  // exhibitor needs to see a slot that's still pending its first review or paused. One
+  // ad slot per placement type is allowed, so this is looked up per placement rather
+  // than a single find() (which used to silently mask the other two placements).
+  const myAds = myBooth
+    ? {
+        carousel: allAdSlots.find(a => a.exhibitor_id === myBooth.id && a.placement === 'carousel') ?? null,
+        'video-carousel': allAdSlots.find(a => a.exhibitor_id === myBooth.id && a.placement === 'video-carousel') ?? null,
+        'footer-strip': allAdSlots.find(a => a.exhibitor_id === myBooth.id && a.placement === 'footer-strip') ?? null,
+      }
+    : { carousel: null, 'video-carousel': null, 'footer-strip': null };
   const isPremiumPkg = myBooth?.package === 'Premium';
   const standTier = myBooth ? getStandTier(myBooth) : 'Basic';
   const isEnhancedPlus = myBooth ? standTierAtLeast(myBooth, 'Enhanced') : false;
@@ -202,54 +208,6 @@ export default function ExhibitorHome() {
     await Exhibitor.update(myBooth.id, { booth_image_url: null });
     qc.invalidateQueries({ queryKey: ['exhibitors-all'] });
   };
-
-  // Ad Banner self-service — creating a new slot or editing an existing one both go
-  // through organiser review: new slots are created inactive, edits are held in
-  // `pending_changes` on the live record until the organiser approves.
-  const [adEditOpen, setAdEditOpen] = useState(false);
-  const [adForm, setAdForm] = useState({});
-  const [adPayPeriod, setAdPayPeriod] = useState('monthly');
-
-  const openAdEdit = () => {
-    const base = myAd ? { ...myAd, ...(myAd.pending_changes || {}) } : {};
-    setAdForm({
-      company: base.company || myBooth.name || '',
-      headline: base.headline || '',
-      sub: base.sub || '',
-      label: base.label || 'Platinum Exhibitor',
-      logo_url: base.logo_url || '',
-      image_url: base.image_url || '',
-      image_type: base.image_type || 'bg',
-      url: base.url || myBooth.website || '',
-      bg: base.bg || 'from-slate-700 to-slate-900',
-    });
-    setAdEditOpen(true);
-  };
-
-  // Saving no longer requests organiser review directly — that now only happens once
-  // payment is confirmed (payForAdMutation below), via the server's completePayment
-  // dispatcher calling the same markAdSlotRequested() helper this used to call inline.
-  const saveAdRequest = useMutation({
-    mutationFn: async (formValues) => {
-      if (myAd) return AdSlot.update(myAd.id, { pending_changes: formValues });
-      return AdSlot.create({
-        ...formValues,
-        exhibitor_id: myBooth.id,
-        exhibitor_name: myBooth.name,
-        placement: 'carousel',
-        active: false,
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['adslots'] });
-      setAdEditOpen(false);
-    },
-  });
-
-  const payForAdMutation = useMutation({
-    mutationFn: () => Payment.initiate({ type: 'adslot_request', ad_slot_id: myAd.id, period: adPayPeriod }),
-    onSuccess: ({ redirectUrl }) => { window.location.href = redirectUrl; },
-  });
 
   if (!myBooth) {
     return (
@@ -814,175 +772,34 @@ export default function ExhibitorHome() {
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
           <Megaphone className="w-5 h-5 text-amber" />
           <div>
-            <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Ad Banner</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">How your ad appears in the attendee home carousel</p>
+            <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Ad Banners</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Landing-page placements — pay for these on the Rate Card page</p>
           </div>
         </div>
         <div className="p-5">
           {isPremiumPkg ? (
-            <div className="space-y-3">
-              {myAd && myAd.active !== false && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Live</p>
-                  <AdBannerPreview ad={myAd} />
-                </div>
-              )}
-              {myAd?.pending_changes && (
-                <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wide mb-1.5 ${myAd.review_status === 'requested' ? 'text-amber' : 'text-muted-foreground'}`}>
-                    {myAd.review_status === 'requested' ? 'Pending Review' : 'Edit Saved — Payment Required'}
-                  </p>
-                  <AdBannerPreview ad={{ ...myAd, ...myAd.pending_changes }} />
-                </div>
-              )}
-              {myAd && myAd.active === false && !myAd.pending_changes && (
-                <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wide mb-1.5 ${myAd.review_status === 'requested' ? 'text-amber' : 'text-muted-foreground'}`}>
-                    {myAd.review_status === 'requested' ? 'Awaiting First Review' : 'Saved — Payment Required'}
-                  </p>
-                  <AdBannerPreview ad={myAd} />
-                </div>
-              )}
-              {!myAd && !adEditOpen && (
-                <div className="flex flex-col items-center justify-center gap-1 py-4 text-center">
-                  <Megaphone className="w-8 h-8 text-muted-foreground" />
-                  <p className="text-sm font-medium">No ad configured yet</p>
-                  <p className="text-xs text-muted-foreground max-w-xs">
-                    Create your carousel ad — the organiser will review it before it goes live.
-                  </p>
-                </div>
-              )}
-
-              {!adEditOpen ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-muted-foreground flex-1">
-                      {myAd?.review_status === 'requested'
-                        ? 'Your changes are awaiting organiser review.'
-                        : myAd && (myAd.pending_changes || myAd.active === false)
-                          ? 'Saved — pay to submit it for organiser review.'
-                          : myAd
-                            ? <>This banner rotates in the attendee home screen carousel. Click performance is tracked in{' '}
-                                <a href="/exhibitor/analytics" className="text-amber font-medium hover:underline">Analytics</a>.</>
-                            : ''}
-                    </p>
-                    <button
-                      onClick={openAdEdit}
-                      disabled={myAd?.review_status === 'requested'}
-                      className="flex-shrink-0 flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-amber/90 disabled:opacity-50 transition-colors"
-                    >
-                      <Edit className="w-3.5 h-3.5" /> {myAd ? 'Edit Ad' : 'Create Ad'}
-                    </button>
-                  </div>
-                  {myAd && myAd.review_status !== 'requested' && (myAd.pending_changes || myAd.active === false) && (
-                    <div className="flex flex-wrap items-center gap-2 bg-amber/10 border border-amber/20 rounded-xl p-3">
-                      <CreditCard className="w-4 h-4 text-amber flex-shrink-0" />
-                      <p className="text-xs flex-1 min-w-[140px]">Pay to submit this ad for organiser review.</p>
-                      <select
-                        value={adPayPeriod}
-                        onChange={e => setAdPayPeriod(e.target.value)}
-                        className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background"
-                      >
-                        {BILLING_PERIOD_ORDER.map(key => <option key={key} value={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</option>)}
-                      </select>
-                      <button
-                        onClick={() => payForAdMutation.mutate()}
-                        disabled={payForAdMutation.isPending}
-                        className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60"
-                      >
-                        {payForAdMutation.isPending ? 'Redirecting…' : 'Pay & Submit for Review'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="border-t border-border pt-3 space-y-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1">Company Name</label>
-                    <input
-                      type="text"
-                      value={adForm.company || ''}
-                      onChange={e => setAdForm(f => ({ ...f, company: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1">Headline <span className="text-muted-foreground/70">(optional)</span></label>
-                    <input
-                      type="text"
-                      value={adForm.headline || ''}
-                      placeholder="World-Class Farm Equipment"
-                      onChange={e => setAdForm(f => ({ ...f, headline: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1">Subtext <span className="text-muted-foreground/70">(optional)</span></label>
-                    <input
-                      type="text"
-                      value={adForm.sub || ''}
-                      placeholder="Visit our booth"
-                      onChange={e => setAdForm(f => ({ ...f, sub: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-                    />
-                  </div>
-                  <ImageUploadOrUrlField
-                    label="Logo"
-                    value={adForm.logo_url}
-                    onChange={v => setAdForm(f => ({ ...f, logo_url: v }))}
-                    ownerId={myBooth.id}
-                    purpose="adslot"
-                    preset="logo"
-                  />
-                  <ImageUploadOrUrlField
-                    label="Background/Cutout Image (optional)"
-                    value={adForm.image_url}
-                    onChange={v => setAdForm(f => ({ ...f, image_url: v }))}
-                    ownerId={myBooth.id}
-                    purpose="adslot"
-                    preset={adForm.image_type === 'cutout' ? 'cutout' : 'banner'}
-                  />
-                  {adForm.image_url && (
-                    <div>
-                      <label className="text-xs text-muted-foreground font-medium block mb-1">Image Style</label>
-                      <select
-                        value={adForm.image_type || 'bg'}
-                        onChange={e => setAdForm(f => ({ ...f, image_type: e.target.value }))}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-                      >
-                        <option value="bg">Full background photo</option>
-                        <option value="cutout">Cutout on gradient</option>
-                      </select>
-                    </div>
-                  )}
-                  <div>
-                    <label className="text-xs text-muted-foreground font-medium block mb-1">Destination URL</label>
-                    <input
-                      type="url"
-                      value={adForm.url || ''}
-                      placeholder="https://company.com"
-                      onChange={e => setAdForm(f => ({ ...f, url: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
-                    />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Save your ad, then pay to submit it for organiser review — it won't go live until approved.</p>
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      onClick={() => saveAdRequest.mutate(adForm)}
-                      disabled={saveAdRequest.isPending || !adForm.company}
-                      className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 touch-manipulation"
-                    >
-                      {saveAdRequest.isPending ? 'Saving…' : 'Save Ad'}
-                    </button>
-                    <button
-                      onClick={() => setAdEditOpen(false)}
-                      className="px-4 py-2 text-sm font-medium border border-border rounded-lg hover:bg-muted transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+            <div className="space-y-4">
+              <AdSlotCard
+                placement="carousel"
+                title="Banner Carousel"
+                description="Rotates in the attendee home screen carousel."
+                myBooth={myBooth}
+                slot={myAds.carousel}
+              />
+              <AdSlotCard
+                placement="video-carousel"
+                title="Video Carousel"
+                description="Short video ad in the attendee home screen carousel."
+                myBooth={myBooth}
+                slot={myAds['video-carousel']}
+              />
+              <AdSlotCard
+                placement="footer-strip"
+                title="Strip Footer Banner"
+                description="Persistent banner along the bottom of the site."
+                myBooth={myBooth}
+                slot={myAds['footer-strip']}
+              />
             </div>
           ) : (
             <div className="relative">

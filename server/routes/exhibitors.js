@@ -1,4 +1,4 @@
-import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { nextMay30ISO } from '../lib/subscription.js';
@@ -53,52 +53,6 @@ export default crudRouter('adma_exhibitors', {
         }
       }
       next();
-    });
-
-    // POST /api/exhibitors/marketplace-addon/request — exhibitor requests activation of
-    // the account-level Marketplace Add-on (Section C of the rate card). Mirrors the
-    // shape of job-listings.js's /:id/request-payment: sets a 'requested' status server-
-    // side and emails the organiser's paidFeatureRequestEmail — no payment/activation
-    // happens here, that's a separate organiser-only action in Paid Listing Requests.
-    r.post('/marketplace-addon/request', requireAuth, async (req, res) => {
-      try {
-        const { tier, period } = req.body;
-        if (!['text', 'interactive'].includes(tier)) return res.status(400).json({ error: 'tier must be "text" or "interactive".' });
-        if (!period) return res.status(400).json({ error: 'period is required.' });
-
-        const exhibitorId = await getMyExhibitorId(req);
-        if (!exhibitorId) return res.status(400).json({ error: 'No booth linked to your account.' });
-
-        const exhibitorResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
-        const exhibitor = exhibitorResult.Item;
-        if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
-
-        await ddb.send(new UpdateCommand({
-          TableName: 'adma_exhibitors',
-          Key: { id: exhibitorId },
-          UpdateExpression: 'SET marketplace_addon_tier = :t, marketplace_addon_period = :p, marketplace_addon_status = :s',
-          ExpressionAttributeValues: { ':t': tier, ':p': period, ':s': 'requested' },
-        }));
-
-        const settingsResult = await ddb.send(new GetCommand({ TableName: 'adma_app_settings', Key: { pk: 'singleton' } }));
-        const billingEmail = settingsResult.Item?.paidFeatureRequestEmail;
-        if (billingEmail) {
-          await sendOtpEmail(billingEmail, null, {
-            subject: `ADMA — Marketplace Add-on requested: ${exhibitor.name}`,
-            html: `
-              <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
-                <h2 style="margin:0 0 8px;color:#111">Marketplace Add-on requested</h2>
-                <p style="color:#555"><strong>${exhibitor.name}</strong> has requested the <strong>${tier === 'interactive' ? 'Interactive' : 'Text Only'}</strong> Marketplace Add-on, billed <strong>${period}</strong>.</p>
-                <p style="color:#555">This unlocks Jobs, Tenders &amp; Collaborations posting for their account. Once payment is confirmed, activate it from the ADMA organiser console — Paid Listing Requests.</p>
-              </div>
-            `,
-          }).catch(() => {});
-        }
-
-        res.json({ ok: true, marketplace_addon_status: 'requested' });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
     });
 
     // POST /api/exhibitors/upgrade-enquiry — exhibitor asks about upgrading their

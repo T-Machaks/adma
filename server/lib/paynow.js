@@ -28,8 +28,11 @@ function client() {
   return paynow;
 }
 
-// { paymentId, reference, amount, itemName, email } → { success, redirectUrl, pollUrl }
-export async function initiatePayment({ paymentId, reference, amount, itemName, email }) {
+// { paymentId, reference, items: [{item_label, amount}, ...], email } → { success, redirectUrl, pollUrl }
+// One Paynow Payment can carry multiple line items — Payment.add() accumulates into a
+// Cart (confirmed directly against node_modules/paynow/dist/types/{payment,cart}.js) and
+// the SDK sums the total itself, so a multi-item cart checkout is one real transaction.
+export async function initiatePayment({ paymentId, reference, items, email }) {
   if (!isPaynowConfigured()) {
     return {
       success: true,
@@ -39,7 +42,7 @@ export async function initiatePayment({ paymentId, reference, amount, itemName, 
   }
   const paynow = client();
   const payment = paynow.createPayment(reference, email);
-  payment.add(itemName, amount);
+  items.forEach(item => payment.add(item.item_label, item.amount));
   const response = await paynow.send(payment);
   if (!response.success) throw new Error(response.error || 'Paynow payment initiation failed');
   return { success: true, redirectUrl: response.redirectUrl, pollUrl: response.pollUrl };

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Exhibitor, AdSlot, RateCard, Payment } from '@/api/entities';
-import { CheckCircle, Clock, ShoppingBag, Loader2, XCircle, Megaphone, BookOpen } from 'lucide-react';
+import { AdSlot, Payment } from '@/api/entities';
+import { CheckCircle, Clock, Loader2, XCircle, Megaphone, BookOpen } from 'lucide-react';
 
 function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline, busy, activateLabel = 'Activate' }) {
   return (
@@ -35,47 +35,27 @@ function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline,
   );
 }
 
-// Adds a billing period's total months (period.months, already net of any free months —
-// the free months are a discount on price, not on how long the period covers) to now.
-function computeExpiryISO(periodKey, billingPeriods) {
-  const months = billingPeriods?.[periodKey]?.months ?? 1;
-  const d = new Date();
-  d.setMonth(d.getMonth() + months);
-  return d.toISOString();
-}
-
 export default function PaidListingRequests() {
   const qc = useQueryClient();
 
-  const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors-all'], queryFn: () => Exhibitor.list('-created_date') });
   const { data: adSlots = [] } = useQuery({ queryKey: ['adslots'], queryFn: () => AdSlot.list('-created_date') });
-  const { data: rateCard } = useQuery({ queryKey: ['rate-card'], queryFn: () => RateCard.get() });
   const { data: payments = [] } = useQuery({ queryKey: ['payments'], queryFn: () => Payment.list() });
 
-  const pendingAddons = exhibitors.filter(e => e.marketplace_addon_status === 'requested');
   const pendingAdSlots = adSlots.filter(a => a.review_status === 'requested');
-  // Ad slot & package/add-on payments resolve themselves automatically once confirmed
+  // Package/add-on/ad-slot payments resolve themselves automatically once confirmed
   // (server/routes/payments.js's completePayment dispatcher) — only magazine requests
-  // have no existing entity to review, so they're the only payment type that needs a
-  // manual organiser follow-up here.
-  const pendingMagazine = payments.filter(p => p.type === 'magazine_request' && p.status === 'paid' && !p.fulfilled);
+  // have no existing entity to review, so they're the only payment item type that needs
+  // a manual organiser follow-up here. A checkout can bundle several items together, so
+  // this flattens across every paid record down to just the unfulfilled magazine lines.
+  const pendingMagazine = payments
+    .filter(p => p.status === 'paid')
+    .flatMap(p => (p.items || [])
+      .filter(i => i.type === 'magazine_request' && !i.fulfilled)
+      .map(i => ({ ...i, paymentId: p.id, exhibitor_name: p.exhibitor_name })));
 
   const fulfillMagazine = useMutation({
-    mutationFn: (id) => Payment.fulfill(id),
+    mutationFn: ({ paymentId, itemId }) => Payment.fulfill(paymentId, itemId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['payments'] }),
-  });
-
-  const activateAddon = useMutation({
-    mutationFn: (ex) => Exhibitor.update(ex.id, {
-      marketplace_addon_status: 'active',
-      marketplace_addon_billed_at: new Date().toISOString(),
-      marketplace_addon_expires_at: computeExpiryISO(ex.marketplace_addon_period, rateCard?.billingPeriods),
-    }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
-  });
-  const declineAddon = useMutation({
-    mutationFn: (id) => Exhibitor.update(id, { marketplace_addon_status: 'none' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
 
   const activateAdSlot = useMutation({
@@ -95,7 +75,7 @@ export default function PaidListingRequests() {
     },
   });
 
-  const totalPending = pendingAddons.length + pendingAdSlots.length + pendingMagazine.length;
+  const totalPending = pendingAdSlots.length + pendingMagazine.length;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -104,7 +84,7 @@ export default function PaidListingRequests() {
           <Clock className="w-6 h-6 text-amber" />
           Paid Listing Requests
         </h1>
-        <p className="text-muted-foreground text-sm mt-1">Activate ad slots and the Marketplace Add-on once payment has been confirmed.</p>
+        <p className="text-muted-foreground text-sm mt-1">Review ad slots and magazine placements once payment has been confirmed.</p>
       </div>
 
       {totalPending === 0 ? (
@@ -138,36 +118,16 @@ export default function PaidListingRequests() {
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Magazine Placement Requests (Paid)</p>
               <div className="space-y-2">
-                {pendingMagazine.map(p => (
+                {pendingMagazine.map(i => (
                   <RequestCard
-                    key={p.id}
+                    key={i.id}
                     icon={BookOpen}
-                    title={p.exhibitor_name}
-                    subtitle={`${p.item_label} — $${Number(p.amount).toLocaleString()} paid, billed ${p.period}`}
-                    meta={p.request_payload?.click_url ? `Destination: ${p.request_payload.click_url}` : undefined}
+                    title={i.exhibitor_name}
+                    subtitle={`${i.item_label} — $${Number(i.amount).toLocaleString()} paid, billed ${i.period}`}
+                    meta={i.request_payload?.click_url ? `Destination: ${i.request_payload.click_url}` : undefined}
                     activateLabel="Mark Fulfilled"
                     busy={fulfillMagazine.isPending}
-                    onActivate={() => fulfillMagazine.mutate(p.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {pendingAddons.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Marketplace Add-on Requests</p>
-              <div className="space-y-2">
-                {pendingAddons.map(ex => (
-                  <RequestCard
-                    key={ex.id}
-                    icon={ShoppingBag}
-                    title={ex.name}
-                    subtitle={`${ex.marketplace_addon_tier === 'interactive' ? 'Interactive' : 'Text Only'} — unlocks Jobs, Tenders & Collaborations`}
-                    meta={`Billing: ${ex.marketplace_addon_period || 'monthly'}`}
-                    busy={activateAddon.isPending || declineAddon.isPending}
-                    onActivate={() => activateAddon.mutate(ex)}
-                    onDecline={() => declineAddon.mutate(ex.id)}
+                    onActivate={() => fulfillMagazine.mutate({ paymentId: i.paymentId, itemId: i.id })}
                   />
                 ))}
               </div>

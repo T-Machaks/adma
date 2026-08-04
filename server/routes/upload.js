@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createPresignedPut, deleteS3Object } from '../lib/s3.js';
 import { requireAuth, requireRole } from '../lib/authMiddleware.js';
+import { getMyExhibitorId } from '../lib/ownership.js';
 
 const r = Router();
 
@@ -173,6 +174,31 @@ r.post('/guide-image-url', requireAuth, async (req, res) => {
 
     const key = `guide-images/page-${pageNum}-${Date.now()}.jpg`;
     const { uploadUrl, publicUrl } = await createPresignedPut(key, 'image/jpeg');
+    res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// EFT "pay another way" proof-of-payment — a receipt, so it could reasonably be a PDF or
+// a photographed image; contentType/extension come from the actual file, not assumed.
+// Keyed by the caller's own exhibitor id (never a client-supplied owner id) since this is
+// payment-adjacent.
+r.post('/payment-pop-url', requireAuth, async (req, res) => {
+  try {
+    const exhibitorId = await getMyExhibitorId(req);
+    if (!exhibitorId) return res.status(400).json({ error: 'No booth linked to your account.' });
+
+    const { oldFileUrl, contentType, fileName } = req.body;
+    if (oldFileUrl) {
+      const url = new URL(oldFileUrl);
+      const key = decodeURIComponent(url.pathname.slice(1));
+      await deleteS3Object(key);
+    }
+
+    const ext = fileName?.split('.').pop() || 'pdf';
+    const key = `payment-pop/${exhibitorId}-${Date.now()}.${ext}`;
+    const { uploadUrl, publicUrl } = await createPresignedPut(key, contentType || 'application/octet-stream');
     res.json({ uploadUrl, publicUrl });
   } catch (e) {
     res.status(500).json({ error: e.message });

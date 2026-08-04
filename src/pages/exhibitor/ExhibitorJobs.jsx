@@ -14,7 +14,7 @@ import {
   Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp, ArrowRight,
 } from 'lucide-react';
 
-const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
+const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '', interactive_status: null };
 
 export default function ExhibitorJobs() {
   const { user } = useAuth();
@@ -71,6 +71,7 @@ export default function ExhibitorJobs() {
       closing_date: job.closing_date || '', contact_email: job.contact_email || '', source_url: job.source_url || '',
       accept_submissions: job.accept_submissions !== false,
       display_format: job.display_format || 'text', display_image_url: job.display_image_url || '',
+      interactive_status: job.interactive_status || null,
     });
     setEditingId(job.id);
     setFormOpen(true);
@@ -247,6 +248,18 @@ export default function ExhibitorJobs() {
               onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
             />
           </div>
+          {myBooth.marketplace_addon_tier === 'interactive' && marketplaceActive && (
+            <div className="flex items-center justify-between gap-3 bg-muted/50 rounded-lg px-3 py-2.5">
+              <div>
+                <p className="text-sm font-medium">Interactive listing</p>
+                <p className="text-xs text-muted-foreground">Adds a CV upload field for applicants on this listing. Choose per listing — not every role needs it.</p>
+              </div>
+              <Switch
+                checked={form.interactive_status === 'active'}
+                onCheckedChange={v => setForm(f => ({ ...f, interactive_status: v ? 'active' : null }))}
+              />
+            </div>
+          )}
           <div className="space-y-2 bg-muted/50 rounded-lg px-3 py-2.5">
             <label className="text-xs text-muted-foreground font-medium block">Listing Display Format</label>
             <select

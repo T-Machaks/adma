@@ -15,7 +15,7 @@ import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
 
 const CATEGORIES = EVENT_CONFIG.exhibitorCategories;
-const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
+const EMPTY_TENDER = { title: '', category: CATEGORIES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '', interactive_status: null };
 
 export default function ExhibitorTenders() {
   const { user } = useAuth();
@@ -72,6 +72,7 @@ export default function ExhibitorTenders() {
       title: t.title || '', category: t.category || CATEGORIES[0], description: t.description || '', closing_date: t.closing_date || '',
       contact_email: t.contact_email || '', source_url: t.source_url || '', accept_submissions: t.accept_submissions !== false,
       display_format: t.display_format || 'text', display_image_url: t.display_image_url || '',
+      interactive_status: t.interactive_status || null,
     });
     setEditingId(t.id);
     setFormOpen(true);
@@ -234,6 +235,18 @@ export default function ExhibitorTenders() {
               onCheckedChange={v => setForm(f => ({ ...f, accept_submissions: v }))}
             />
           </div>
+          {myBooth.marketplace_addon_tier === 'interactive' && marketplaceActive && (
+            <div className="flex items-center justify-between gap-3 bg-muted/50 rounded-lg px-3 py-2.5">
+              <div>
+                <p className="text-sm font-medium">Interactive listing</p>
+                <p className="text-xs text-muted-foreground">Adds a document upload field for this tender. Choose per listing — not every tender needs it.</p>
+              </div>
+              <Switch
+                checked={form.interactive_status === 'active'}
+                onCheckedChange={v => setForm(f => ({ ...f, interactive_status: v ? 'active' : null }))}
+              />
+            </div>
+          )}
           <div className="space-y-2 bg-muted/50 rounded-lg px-3 py-2.5">
             <label className="text-xs text-muted-foreground font-medium block">Listing Display Format</label>
             <select
