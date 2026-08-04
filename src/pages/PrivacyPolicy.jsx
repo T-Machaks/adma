@@ -67,7 +67,7 @@ Exhibitor Portal without needing to contact us.`,
   },
   {
     title: '8. Contact',
-    body: `For any privacy question or data request, contact us at ${EVENT_CONFIG.contactEmail}.`,
+    body: `For any privacy question or data request, contact us at ${EVENT_CONFIG.helpEmail}.`,
   },
 ];
 

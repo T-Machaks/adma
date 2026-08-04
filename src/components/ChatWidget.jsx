@@ -329,6 +329,10 @@ export default function ChatWidget() {
                     {' '}to book meetings instantly.
                   </p>
                 )}
+                <p className="mt-3 text-[11px] text-slate-500">
+                  Something I can't help with?{' '}
+                  <a href={`mailto:${EVENT_CONFIG.helpEmail}`} className="underline underline-offset-2 hover:text-slate-300 transition-colors">{EVENT_CONFIG.helpEmail}</a>
+                </p>
               </div>
             )}
 

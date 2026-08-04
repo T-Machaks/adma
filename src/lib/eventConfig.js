@@ -20,7 +20,8 @@ export const EVENT_CONFIG = {
   venue:        'ART Farm, Pomona, Harare',
   venueShort:   'ART Farm Pomona',
   website:      'https://agrishow.co.zw',
-  contactEmail: 'info@agrishow.co.zw',
+  contactEmail: 'info@agrishow.co.zw', // physical ADMA Agri Show contact — venue, physical booths, subscription renewal
+  helpEmail:    'marketing@admadigital.co.zw', // ADMA Digital platform help & enquiries — account/login/payment issues, general questions about using the platform
 
   // ── QR payload event code ─────────────────────────────────────────────────
   // Embedded in every QR payload so scanners reject codes from other events.
