@@ -36,10 +36,17 @@ export default function ExhibitorTeam() {
   );
   const companyName = myBooth?.name || user?.company || '';
 
+  // Trimmed on both sides before comparing — several existing team members were seeded
+  // (before this was fixed to always pull the live name) with a `company` copy that
+  // doesn't byte-match adma_exhibitors.name whenever the exhibitor's own name has
+  // incidental leading/trailing whitespace (confirmed in production: "Mediaserv " vs
+  // stored "Mediaserv"). A plain === here silently drops those members from the list.
+  const normCompany = s => (s || '').trim().toLowerCase();
+
   // Filter to same company if the current user is an exhibitor (not organizer)
   const team = isOrganizer
     ? allUsers
-    : allUsers.filter(u => u.company && companyName && u.company.toLowerCase() === companyName.toLowerCase());
+    : allUsers.filter(u => u.company && companyName && normCompany(u.company) === normCompany(companyName));
 
   const createMutation = useMutation({
     mutationFn: (data) => User.inviteTeamMember(data),
