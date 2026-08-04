@@ -52,12 +52,25 @@ const DEFAULTS = {
   ],
 };
 
+// Shared with server/routes/payments.js, which needs the same document (to look up an
+// item's monthlyRate and the billing-period discount curve) to compute the authoritative
+// charge server-side — never trust a client-supplied price.
+export async function getRateCard() {
+  const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: KEY }));
+  return { ...DEFAULTS, ...(result.Item || {}) };
+}
+
+export function computeServerPrice(monthlyRate, periodKey, billingPeriods) {
+  const period = billingPeriods?.[periodKey];
+  if (!period) return monthlyRate;
+  return monthlyRate * (period.months - period.freeMonths);
+}
+
 const r = Router();
 
 r.get('/', async (_req, res) => {
   try {
-    const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: KEY }));
-    res.json({ ...DEFAULTS, ...(result.Item || {}) });
+    res.json(await getRateCard());
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

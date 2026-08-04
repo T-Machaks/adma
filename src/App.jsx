@@ -64,6 +64,7 @@ import MarketplaceListings from '@/pages/console/MarketplaceListings';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
 import PaidListingRequests from '@/pages/console/PaidListingRequests';
 import RateCardManager from '@/pages/console/RateCardManager';
+import PaymentsLedger from '@/pages/console/PaymentsLedger';
 import Registrations from '@/pages/console/Registrations';
 import SessionsManager from '@/pages/console/SessionsManager';
 import AuctionsManager from '@/pages/console/AuctionsManager';
@@ -84,6 +85,8 @@ import ExhibitorTenders from '@/pages/exhibitor/ExhibitorTenders';
 import ExhibitorCollaborations from '@/pages/exhibitor/ExhibitorCollaborations';
 import ExhibitorListings from '@/pages/exhibitor/ExhibitorListings';
 import ExhibitorRateCard from '@/pages/exhibitor/ExhibitorRateCard';
+import PaymentStub from '@/pages/PaymentStub';
+import PaymentReturn from '@/pages/PaymentReturn';
 
 // Layout wrappers (give each shell access to Outlet)
 const AttendeeLayout = () => (
@@ -136,6 +139,8 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password"  element={<ForgotPassword />} />
       <Route path="/reset-password"   element={<ResetPassword />} />
       <Route path="/privacy"          element={<PrivacyPolicy />} />
+      <Route path="/payment/stub/:id" element={<PaymentStub />} />
+      <Route path="/payment/return"   element={<PaymentReturn />} />
 
       {/* ── Management Console (organizer + marketing_partner only) ── */}
       <Route element={<ConsoleGuard />}>
@@ -160,6 +165,7 @@ const AuthenticatedApp = () => {
             <Route path="/console/exhibitor-applications" element={<ExhibitorApplications />} />
             <Route path="/console/paid-listing-requests"  element={<PaidListingRequests />} />
             <Route path="/console/rate-card"              element={<RateCardManager />} />
+            <Route path="/console/payments"               element={<PaymentsLedger />} />
             <Route path="/console/enquiries"              element={<EnquiriesPanel />} />
           </Route>
         </Route>

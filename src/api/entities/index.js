@@ -24,3 +24,4 @@ export { Lot } from "./Lot";
 export { Bid } from "./Bid";
 export { Collaboration } from "./Collaboration";
 export { RateCard } from "./RateCard";
+export { Payment } from "./Payment";

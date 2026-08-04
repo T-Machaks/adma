@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Exhibitor, AdSlot, RateCard } from '@/api/entities';
-import { CheckCircle, Clock, ShoppingBag, Loader2, XCircle, Megaphone } from 'lucide-react';
+import { Exhibitor, AdSlot, RateCard, Payment } from '@/api/entities';
+import { CheckCircle, Clock, ShoppingBag, Loader2, XCircle, Megaphone, BookOpen } from 'lucide-react';
 
-function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline, busy }) {
+function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline, busy, activateLabel = 'Activate' }) {
   return (
     <div className="bg-card border border-border rounded-xl p-4 flex items-start gap-3">
       <div className="w-9 h-9 bg-amber/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -28,7 +28,7 @@ function RequestCard({ icon: Icon, title, subtitle, meta, onActivate, onDecline,
           disabled={busy}
           className="flex items-center gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-semibold transition-colors disabled:opacity-60"
         >
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} Activate
+          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />} {activateLabel}
         </button>
       </div>
     </div>
@@ -50,9 +50,20 @@ export default function PaidListingRequests() {
   const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors-all'], queryFn: () => Exhibitor.list('-created_date') });
   const { data: adSlots = [] } = useQuery({ queryKey: ['adslots'], queryFn: () => AdSlot.list('-created_date') });
   const { data: rateCard } = useQuery({ queryKey: ['rate-card'], queryFn: () => RateCard.get() });
+  const { data: payments = [] } = useQuery({ queryKey: ['payments'], queryFn: () => Payment.list() });
 
   const pendingAddons = exhibitors.filter(e => e.marketplace_addon_status === 'requested');
   const pendingAdSlots = adSlots.filter(a => a.review_status === 'requested');
+  // Ad slot & package/add-on payments resolve themselves automatically once confirmed
+  // (server/routes/payments.js's completePayment dispatcher) — only magazine requests
+  // have no existing entity to review, so they're the only payment type that needs a
+  // manual organiser follow-up here.
+  const pendingMagazine = payments.filter(p => p.type === 'magazine_request' && p.status === 'paid' && !p.fulfilled);
+
+  const fulfillMagazine = useMutation({
+    mutationFn: (id) => Payment.fulfill(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['payments'] }),
+  });
 
   const activateAddon = useMutation({
     mutationFn: (ex) => Exhibitor.update(ex.id, {
@@ -84,7 +95,7 @@ export default function PaidListingRequests() {
     },
   });
 
-  const totalPending = pendingAddons.length + pendingAdSlots.length;
+  const totalPending = pendingAddons.length + pendingAdSlots.length + pendingMagazine.length;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -117,6 +128,26 @@ export default function PaidListingRequests() {
                     busy={activateAdSlot.isPending || declineAdSlot.isPending}
                     onActivate={() => activateAdSlot.mutate(a)}
                     onDecline={() => declineAdSlot.mutate(a.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {pendingMagazine.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">Magazine Placement Requests (Paid)</p>
+              <div className="space-y-2">
+                {pendingMagazine.map(p => (
+                  <RequestCard
+                    key={p.id}
+                    icon={BookOpen}
+                    title={p.exhibitor_name}
+                    subtitle={`${p.item_label} — $${Number(p.amount).toLocaleString()} paid, billed ${p.period}`}
+                    meta={p.request_payload?.click_url ? `Destination: ${p.request_payload.click_url}` : undefined}
+                    activateLabel="Mark Fulfilled"
+                    busy={fulfillMagazine.isPending}
+                    onActivate={() => fulfillMagazine.mutate(p.id)}
                   />
                 ))}
               </div>

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Exhibitor, MeetingRequest, AdSlot } from '@/api/entities';
+import { Exhibitor, MeetingRequest, AdSlot, Payment } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { notifyMeeting } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
@@ -9,7 +9,7 @@ import {
   Store, Calendar, CheckCircle, XCircle, Clock,
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
-  Images, MessageCircle, Award, Plus, Video,
+  Images, MessageCircle, Award, Plus, Video, CreditCard,
 } from 'lucide-react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
@@ -19,6 +19,7 @@ import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { toEmbedUrl } from '@/lib/videoUtils';
+import { BILLING_PERIOD_ORDER } from '@/lib/rateCard';
 
 const STATUS_STYLES = {
   Pending:   { cls: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -207,6 +208,7 @@ export default function ExhibitorHome() {
   // `pending_changes` on the live record until the organiser approves.
   const [adEditOpen, setAdEditOpen] = useState(false);
   const [adForm, setAdForm] = useState({});
+  const [adPayPeriod, setAdPayPeriod] = useState('monthly');
 
   const openAdEdit = () => {
     const base = myAd ? { ...myAd, ...(myAd.pending_changes || {}) } : {};
@@ -224,25 +226,29 @@ export default function ExhibitorHome() {
     setAdEditOpen(true);
   };
 
+  // Saving no longer requests organiser review directly — that now only happens once
+  // payment is confirmed (payForAdMutation below), via the server's completePayment
+  // dispatcher calling the same markAdSlotRequested() helper this used to call inline.
   const saveAdRequest = useMutation({
     mutationFn: async (formValues) => {
-      if (myAd) {
-        await AdSlot.update(myAd.id, { pending_changes: formValues });
-        return AdSlot.requestReview(myAd.id);
-      }
-      const created = await AdSlot.create({
+      if (myAd) return AdSlot.update(myAd.id, { pending_changes: formValues });
+      return AdSlot.create({
         ...formValues,
         exhibitor_id: myBooth.id,
         exhibitor_name: myBooth.name,
         placement: 'carousel',
         active: false,
       });
-      return AdSlot.requestReview(created.id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['adslots'] });
       setAdEditOpen(false);
     },
+  });
+
+  const payForAdMutation = useMutation({
+    mutationFn: () => Payment.initiate({ type: 'adslot_request', ad_slot_id: myAd.id, period: adPayPeriod }),
+    onSuccess: ({ redirectUrl }) => { window.location.href = redirectUrl; },
   });
 
   if (!myBooth) {
@@ -823,13 +829,17 @@ export default function ExhibitorHome() {
               )}
               {myAd?.pending_changes && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber mb-1.5">Pending Review</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wide mb-1.5 ${myAd.review_status === 'requested' ? 'text-amber' : 'text-muted-foreground'}`}>
+                    {myAd.review_status === 'requested' ? 'Pending Review' : 'Edit Saved — Payment Required'}
+                  </p>
                   <AdBannerPreview ad={{ ...myAd, ...myAd.pending_changes }} />
                 </div>
               )}
               {myAd && myAd.active === false && !myAd.pending_changes && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-amber mb-1.5">Awaiting First Review</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wide mb-1.5 ${myAd.review_status === 'requested' ? 'text-amber' : 'text-muted-foreground'}`}>
+                    {myAd.review_status === 'requested' ? 'Awaiting First Review' : 'Saved — Payment Required'}
+                  </p>
                   <AdBannerPreview ad={myAd} />
                 </div>
               )}
@@ -844,22 +854,46 @@ export default function ExhibitorHome() {
               )}
 
               {!adEditOpen ? (
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs text-muted-foreground flex-1">
-                    {myAd?.review_status === 'requested'
-                      ? 'Your changes are awaiting organiser review.'
-                      : myAd
-                        ? <>This banner rotates in the attendee home screen carousel. Click performance is tracked in{' '}
-                            <a href="/exhibitor/analytics" className="text-amber font-medium hover:underline">Analytics</a>.</>
-                        : ''}
-                  </p>
-                  <button
-                    onClick={openAdEdit}
-                    disabled={myAd?.review_status === 'requested'}
-                    className="flex-shrink-0 flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-amber/90 disabled:opacity-50 transition-colors"
-                  >
-                    <Edit className="w-3.5 h-3.5" /> {myAd ? 'Edit Ad' : 'Create Ad'}
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground flex-1">
+                      {myAd?.review_status === 'requested'
+                        ? 'Your changes are awaiting organiser review.'
+                        : myAd && (myAd.pending_changes || myAd.active === false)
+                          ? 'Saved — pay to submit it for organiser review.'
+                          : myAd
+                            ? <>This banner rotates in the attendee home screen carousel. Click performance is tracked in{' '}
+                                <a href="/exhibitor/analytics" className="text-amber font-medium hover:underline">Analytics</a>.</>
+                            : ''}
+                    </p>
+                    <button
+                      onClick={openAdEdit}
+                      disabled={myAd?.review_status === 'requested'}
+                      className="flex-shrink-0 flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-amber/90 disabled:opacity-50 transition-colors"
+                    >
+                      <Edit className="w-3.5 h-3.5" /> {myAd ? 'Edit Ad' : 'Create Ad'}
+                    </button>
+                  </div>
+                  {myAd && myAd.review_status !== 'requested' && (myAd.pending_changes || myAd.active === false) && (
+                    <div className="flex flex-wrap items-center gap-2 bg-amber/10 border border-amber/20 rounded-xl p-3">
+                      <CreditCard className="w-4 h-4 text-amber flex-shrink-0" />
+                      <p className="text-xs flex-1 min-w-[140px]">Pay to submit this ad for organiser review.</p>
+                      <select
+                        value={adPayPeriod}
+                        onChange={e => setAdPayPeriod(e.target.value)}
+                        className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background"
+                      >
+                        {BILLING_PERIOD_ORDER.map(key => <option key={key} value={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</option>)}
+                      </select>
+                      <button
+                        onClick={() => payForAdMutation.mutate()}
+                        disabled={payForAdMutation.isPending}
+                        className="flex items-center gap-1.5 text-xs bg-amber text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60"
+                      >
+                        {payForAdMutation.isPending ? 'Redirecting…' : 'Pay & Submit for Review'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="border-t border-border pt-3 space-y-3">
@@ -931,14 +965,14 @@ export default function ExhibitorHome() {
                       className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
                     />
                   </div>
-                  <p className="text-[11px] text-muted-foreground">Submitting sends this to the organiser for review — it won't go live until approved.</p>
+                  <p className="text-[11px] text-muted-foreground">Save your ad, then pay to submit it for organiser review — it won't go live until approved.</p>
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={() => saveAdRequest.mutate(adForm)}
                       disabled={saveAdRequest.isPending || !adForm.company}
                       className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 touch-manipulation"
                     >
-                      {saveAdRequest.isPending ? 'Submitting…' : 'Submit for Review'}
+                      {saveAdRequest.isPending ? 'Saving…' : 'Save Ad'}
                     </button>
                     <button
                       onClick={() => setAdEditOpen(false)}
