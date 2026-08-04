@@ -9,7 +9,10 @@ import { useState, useMemo } from 'react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const VALID_SECTIONS = EVENT_CONFIG.exhibitorSections;
-const TIER_COLORS = { Platinum: '#16a34a', Gold: '#eab308', Silver: '#94a3b8', Bronze: '#92400e' };
+// ADMA Digital virtual package tiers (Basic/Enhanced/Premium) — independent of the
+// physical show's booth tier (Platinum/Gold/Silver/Bronze). Colors match TierBadge.jsx.
+const PACKAGE_TIERS = ['Basic', 'Enhanced', 'Premium'];
+const PACKAGE_COLORS = { Basic: '#64748b', Enhanced: '#3b82f6', Premium: '#f59e0b' };
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -28,10 +31,10 @@ export default function Dashboard() {
     setToggling(false);
   }
 
-  const tierCounts = EVENT_CONFIG.exhibitorTiers.map(t => ({
+  const tierCounts = PACKAGE_TIERS.map(t => ({
     name: t,
-    count: exhibitors.filter(e => e.tier === t).length,
-    color: TIER_COLORS[t] || '#94a3b8',
+    count: exhibitors.filter(e => (e.package || 'Basic') === t).length,
+    color: PACKAGE_COLORS[t] || '#94a3b8',
   }));
 
   const catCounts = EVENT_CONFIG.exhibitorCategories.map(c => ({
@@ -190,7 +193,7 @@ export default function Dashboard() {
       {/* Exhibitors by tier */}
       {exhibitors.length > 0 && (
         <div className="bg-card border border-border rounded-xl p-4 mb-4">
-          <h2 className="font-heading text-base font-bold uppercase tracking-wide mb-3">Exhibitors by Tier</h2>
+          <h2 className="font-heading text-base font-bold uppercase tracking-wide mb-3">Exhibitors by ADMA Digital Package</h2>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={tierCounts} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
