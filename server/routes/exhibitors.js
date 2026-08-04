@@ -1,4 +1,4 @@
-import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { nextMay30ISO } from '../lib/subscription.js';
@@ -52,6 +52,38 @@ export default crudRouter('adma_exhibitors', {
           await revokeAllSessionsForExhibitor(req.params.id, result.Item?.user_id);
         }
       }
+
+      // Renaming the company was previously a dead end: `adma_exhibitors.name` updated
+      // fine, but `adma_users.company` (copied once at exhibitor-approval time onto the
+      // owner's account and again onto every team member added afterward, since
+      // ExhibitorTeam.jsx seeds new members from that same stale field) never got
+      // touched again — so the old name kept showing up everywhere that reads `company`
+      // off a user record. Cascade the rename to every user record carrying the old
+      // name so it actually propagates instead of leaving orphaned copies behind.
+      if (typeof req.body.name === 'string' && req.body.name.trim()) {
+        const current = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+        const oldName = current.Item?.name;
+        // Deliberately NOT trimmed — must be byte-identical to what crudRouter's generic
+        // PUT handler is about to write to adma_exhibitors.name itself (untrimmed), or
+        // the two fields end up mismatched again the moment either side has stray
+        // whitespace (confirmed this the hard way: an existing record's name already
+        // carries a trailing space, and a trimmed cascade silently diverged from it).
+        const newName = req.body.name;
+        if (oldName && oldName.toLowerCase() !== newName.toLowerCase()) {
+          const usersResult = await ddb.send(new ScanCommand({
+            TableName: 'adma_users',
+            FilterExpression: 'company = :old',
+            ExpressionAttributeValues: { ':old': oldName },
+          }));
+          await Promise.all((usersResult.Items || []).map(u => ddb.send(new UpdateCommand({
+            TableName: 'adma_users',
+            Key: { id: u.id },
+            UpdateExpression: 'SET company = :new',
+            ExpressionAttributeValues: { ':new': newName },
+          }))));
+        }
+      }
+
       next();
     });
 

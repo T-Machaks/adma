@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User } from '@/api/entities';
+import { User, Exhibitor } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { Users, Plus, Trash2, Edit2, Building2, CheckCircle, X, Mail } from 'lucide-react';
 
@@ -19,14 +19,30 @@ export default function ExhibitorTeam() {
     queryFn: () => User.filter({ role: 'exhibitor' }),
   });
 
-  // Filter to same company if the current user is an exhibitor (not organizer)
   const isOrganizer = user?.role === 'organizer' || user?.role === 'marketing_partner';
+
+  // Resolved live from adma_exhibitors rather than trusting the session's cached
+  // `user.company` (only refreshed on login) — this is the exhibitor's actual current
+  // name, immune to the exact staleness that caused the team page to show the old
+  // company name after a rename.
+  const { data: exhibitors = [] } = useQuery({
+    queryKey: ['exhibitors-all'],
+    queryFn: () => Exhibitor.list('-created_date'),
+    enabled: !isOrganizer,
+  });
+  const myBooth = exhibitors.find(
+    e => e.contact_email?.toLowerCase() === user?.email?.toLowerCase()
+      || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
+  );
+  const companyName = myBooth?.name || user?.company || '';
+
+  // Filter to same company if the current user is an exhibitor (not organizer)
   const team = isOrganizer
     ? allUsers
-    : allUsers.filter(u => u.company && user?.company && u.company.toLowerCase() === user.company.toLowerCase());
+    : allUsers.filter(u => u.company && companyName && u.company.toLowerCase() === companyName.toLowerCase());
 
   const createMutation = useMutation({
-    mutationFn: (data) => User.create({ ...data, role: 'exhibitor' }),
+    mutationFn: (data) => User.inviteTeamMember(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users-exhibitors'] }); closeForm(); },
     onError: (e) => setFormError(e.message),
   });
@@ -44,7 +60,7 @@ export default function ExhibitorTeam() {
 
   const openAdd = () => {
     setEditUser(null);
-    setForm({ ...EMPTY_FORM, company: user?.company || '' });
+    setForm({ ...EMPTY_FORM, company: companyName });
     setFormError('');
     setShowForm(true);
   };
@@ -73,7 +89,7 @@ export default function ExhibitorTeam() {
         <div>
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Exhibitor Team</h1>
           <p className="text-muted-foreground text-sm">
-            {isOrganizer ? 'All exhibitor portal users' : `Team members for ${user?.company || 'your company'}`}
+            {isOrganizer ? 'All exhibitor portal users' : `Team members for ${companyName || 'your company'}`}
           </p>
         </div>
         <button onClick={openAdd}
@@ -89,7 +105,7 @@ export default function ExhibitorTeam() {
           <Building2 className="w-5 h-5 text-amber" />
         </div>
         <div className="flex-1">
-          <p className="font-semibold text-sm">{user?.company || 'Your Company'}</p>
+          <p className="font-semibold text-sm">{companyName || 'Your Company'}</p>
           <p className="text-slate-300 text-xs">{team.length} team member{team.length !== 1 ? 's' : ''} with exhibitor portal access</p>
         </div>
       </div>
@@ -162,7 +178,7 @@ export default function ExhibitorTeam() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <FormField label="Full Name *" value={form.full_name} onChange={v => setForm(f => ({ ...f, full_name: v }))} placeholder="Jane Doe" />
               <FormField label="Email *" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} placeholder="jane@company.com" disabled={!!editUser} />
-              <FormField label="Company" value={form.company} onChange={v => setForm(f => ({ ...f, company: v }))} placeholder={user?.company || 'Company name'} />
+              <FormField label="Company" value={form.company} onChange={v => setForm(f => ({ ...f, company: v }))} placeholder={companyName || 'Company name'} />
 
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={closeForm}

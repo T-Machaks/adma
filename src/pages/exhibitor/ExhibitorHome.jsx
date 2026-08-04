@@ -32,7 +32,7 @@ const UPGRADE_PERKS = {
 };
 
 export default function ExhibitorHome() {
-  const { user } = useAuth();
+  const { user, setSession } = useAuth();
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -148,7 +148,17 @@ export default function ExhibitorHome() {
 
   const updateBooth = useMutation({
     mutationFn: (data) => Exhibitor.update(myBooth.id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['exhibitors-all'] }); setEditOpen(false); },
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ['exhibitors-all'] });
+      setEditOpen(false);
+      // The server cascades a rename onto every adma_users.company copy (own account +
+      // team members), but the CURRENTLY logged-in session's cached `company` (in
+      // AuthContext/localStorage) has no way to know that happened — without this it'd
+      // keep showing the old name everywhere in this session until the next login.
+      if (user?.role === 'exhibitor' && updated.name && updated.name !== user.company) {
+        setSession({ ...user, company: updated.name });
+      }
+    },
   });
 
   const handleEditOpen = () => {

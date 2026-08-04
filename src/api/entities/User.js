@@ -27,4 +27,10 @@ export const User = {
   async filter(query = {}) {
     return apiFetch(`${BASE}?filter=${encodeURIComponent(JSON.stringify(query))}`);
   },
+  // Creates an exhibitor team member's account, a Confirmed event registration, and
+  // emails them a combined invite + set-password link — unlike create(), which just
+  // makes a bare record with no way to ever log in or get a badge.
+  async inviteTeamMember(data) {
+    return apiFetch('/api/auth/invite-team-member', { method: 'POST', body: data });
+  },
 };

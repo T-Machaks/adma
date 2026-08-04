@@ -9,7 +9,8 @@ import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
 import { createSession, revokeSession, SESSION_COOKIE } from '../lib/session.js';
-import { requireRole } from '../lib/authMiddleware.js';
+import { requireRole, requireAuth } from '../lib/authMiddleware.js';
+import { getMyExhibitorId } from '../lib/ownership.js';
 
 const TABLE = 'adma_users';
 const APP_URL = 'https://admadigital.co.zw';
@@ -56,6 +57,27 @@ function welcomeHtml(user) {
         <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;">ADMA Digital · Zimbabwe</p>
         <p style="margin:0;color:#cbd5e1;font-size:11px;">If you did not create this account, please ignore this email.</p>
       </div>
+    </div>`;
+}
+
+// Combined "you've been added + here's your registration + set your password" email —
+// one email rather than three, since all of it lands on the same new account at once.
+function teamMemberInviteHtml(user, companyName, resetUrl) {
+  return `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+      <h2 style="margin:0 0 8px;color:#111">You've been added to the ${companyName} team</h2>
+      <p style="margin:0 0 20px;color:#555">Hi <strong>${user.full_name}</strong>, you now have exhibitor portal access for <strong>${companyName}</strong> on ADMA Digital, and you're registered for the event — your entry badge will be available once you log in.</p>
+      <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Registration</p>
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:4px 0;color:#888;font-size:13px;width:40%">Name</td><td style="padding:4px 0;color:#111;font-size:13px;font-weight:600">${user.full_name}</td></tr>
+          <tr><td style="padding:4px 0;color:#888;font-size:13px">Email</td><td style="padding:4px 0;color:#111;font-size:13px;font-weight:600">${user.email}</td></tr>
+          <tr><td style="padding:4px 0;color:#888;font-size:13px">Badge</td><td style="padding:4px 0;color:#111;font-size:13px;font-weight:600">Exhibitor</td></tr>
+        </table>
+      </div>
+      <p style="margin:0 0 20px;color:#555">Set a password to finish activating your account:</p>
+      <a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Set Password &amp; Log In →</a>
+      <p style="margin:24px 0 0;font-size:13px;color:#888">This link expires in 30 minutes. If you weren't expecting this, you can safely ignore it.</p>
     </div>`;
 }
 
@@ -735,6 +757,93 @@ router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadm
     if (send_email) await sendPasswordResetLink({ ...linkedUser, email: normalizedEmail }, req);
 
     res.json({ ok: true, email: normalizedEmail });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/invite-team-member  — exhibitor adds a colleague ──────
+// Previously ExhibitorTeam.jsx just POSTed straight to /api/users, which created a
+// bare account with no password, no way to ever set one, and no event registration —
+// the new member had portal access in theory but no way to actually log in or get a
+// badge. This creates the account, a Confirmed 'Exhibitor' registration (so QR/badge
+// access works immediately, no separate payment step — it's covered by the inviting
+// exhibitor's own package), and emails a single combined invite + set-password link.
+router.post('/invite-team-member', requireAuth, async (req, res) => {
+  try {
+    const { full_name, email } = req.body;
+    if (!full_name || !email) return res.status(400).json({ error: 'full_name and email are required.' });
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+
+    const normalizedEmail = email.toLowerCase();
+    const existing = await findByEmail(normalizedEmail);
+    if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
+
+    // The inviting exhibitor's OWN live company name/tier — never trust a client-
+    // supplied `company` for this case, it's exactly the stale-copy bug being fixed.
+    // An organizer using this same page has no linked exhibitor record, so falls back
+    // to whatever they typed in the form.
+    let companyName = req.body.company || '';
+    let exhibitor = null;
+    if (req.user.role === 'exhibitor') {
+      const exhibitorId = await getMyExhibitorId(req);
+      if (exhibitorId) {
+        const exhResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
+        exhibitor = exhResult.Item || null;
+        if (exhibitor?.name) companyName = exhibitor.name;
+      }
+    }
+
+    const newUser = {
+      id: generateId(),
+      created_date: new Date().toISOString(),
+      full_name,
+      email: normalizedEmail,
+      company: companyName,
+      phone: '',
+      role: 'exhibitor',
+      status: 'active',
+    };
+    await ddb.send(new PutCommand({ TableName: 'adma_users', Item: newUser }));
+
+    // adma_registrations' own CRUD route is organizer/superadmin-write-only, so this
+    // can't go through Registration.create() from the client — written directly here,
+    // same pattern server/routes/exhibitor-applications.js uses for its /approve handler.
+    const registration = {
+      id: generateId(),
+      created_date: new Date().toISOString(),
+      full_name,
+      email: normalizedEmail,
+      company: companyName,
+      role_type: 'Exhibitor',
+      ticket_type: 'Exhibitor Staff Pass',
+      badge_category: 'Exhibitor',
+      exhibitor_tier: exhibitor?.package || null,
+      status: 'Confirmed',
+      otp_verified: true,
+      day1: true,
+      day2: true,
+      day3: true,
+      token: crypto.randomUUID(),
+      checked_in: false,
+      check_in_time: null,
+    };
+    await ddb.send(new PutCommand({ TableName: 'adma_registrations', Item: registration }));
+
+    const token = newToken();
+    challengeStore.set(token, { type: 'password_reset', userId: newUser.id, expiresAt: newResetExpiry() });
+    logSecurityEvent('team_member_invited', { invitedBy: req.user.id, newUserId: newUser.id, email: normalizedEmail, ip: req.ip });
+    const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+    try {
+      await sendOtpEmail(normalizedEmail, null, {
+        subject: `ADMA Digital — You've been added to ${companyName || 'the'} team`,
+        html: teamMemberInviteHtml(newUser, companyName || 'your', resetUrl),
+      });
+    } catch (mailErr) {
+      console.error('Team member invite email failed:', mailErr.message);
+    }
+
+    res.status(201).json(sanitize(newUser));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
