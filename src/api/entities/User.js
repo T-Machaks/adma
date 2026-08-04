@@ -33,4 +33,10 @@ export const User = {
   async inviteTeamMember(data) {
     return apiFetch('/api/auth/invite-team-member', { method: 'POST', body: data });
   },
+  // Backfills a missing registration (for members added before invites existed) and
+  // resends the invite + set-password email. Refused server-side if the account already
+  // has a password set.
+  async resendTeamInvite(email) {
+    return apiFetch('/api/auth/resend-team-invite', { method: 'POST', body: { email } });
+  },
 };

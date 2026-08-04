@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Exhibitor } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
-import { Users, Plus, Trash2, Edit2, Building2, CheckCircle, X, Mail } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { Users, Plus, Trash2, Edit2, Building2, CheckCircle, X, Mail, Send } from 'lucide-react';
 
 const EMPTY_FORM = { full_name: '', email: '', company: '' };
 
 export default function ExhibitorTeam() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -63,6 +65,15 @@ export default function ExhibitorTeam() {
   const deleteMutation = useMutation({
     mutationFn: (id) => User.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users-exhibitors'] }),
+  });
+
+  // Recovers members added before the invite email existed (no password, no
+  // registration) and doubles as a plain "resend it" for a lost email — refused
+  // server-side once the member has actually set a password.
+  const resendInviteMutation = useMutation({
+    mutationFn: (email) => User.resendTeamInvite(email),
+    onSuccess: (_, email) => { qc.invalidateQueries({ queryKey: ['users-exhibitors'] }); toast({ title: 'Invite sent', description: `A new invite was emailed to ${email}.` }); },
+    onError: (e) => toast({ title: 'Could not resend invite', description: e.message, variant: 'destructive' }),
   });
 
   const openAdd = () => {
@@ -146,6 +157,12 @@ export default function ExhibitorTeam() {
                   u.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500'
                 }`}>{u.status || 'active'}</span>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => resendInviteMutation.mutate(u.email)}
+                    disabled={resendInviteMutation.isPending}
+                    title="Resend invite / set-password email"
+                    className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50">
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
                   <button onClick={() => openEdit(u)}
                     className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
                     <Edit2 className="w-3.5 h-3.5" />

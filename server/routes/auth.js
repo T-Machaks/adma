@@ -849,6 +849,77 @@ router.post('/invite-team-member', requireAuth, async (req, res) => {
   }
 });
 
+// ── POST /api/auth/resend-team-invite  — recover a stuck invite ──────────
+// Covers two real cases found in production: (a) a team member added before this
+// invite flow existed, who has no password and no registration at all — this backfills
+// the missing registration and sends the invite email for the first time; (b) a normal
+// "the invite email never arrived, send it again" request. Deliberately refuses to touch
+// an account that already has a password set — that's what /forgot-password is for, and
+// this endpoint must never become a way to hijack an active teammate's account.
+router.post('/resend-team-invite', requireAuth, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email is required.' });
+
+    const target = await findByEmail(email.toLowerCase());
+    if (!target || target.role !== 'exhibitor') return res.status(404).json({ error: 'No team member found with that email.' });
+    if (target.password_hash) return res.status(400).json({ error: 'This member has already set up their account — they should use "Forgot password" instead.' });
+
+    const isOrganizer = req.user.role === 'organizer' || req.user.role === 'superadmin';
+    if (!isOrganizer) {
+      if (req.user.role !== 'exhibitor') return res.status(403).json({ error: 'You do not have permission to do that.' });
+      const exhibitorId = await getMyExhibitorId(req);
+      const exhResult = exhibitorId ? await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } })) : null;
+      const myCompany = (exhResult?.Item?.name || '').trim().toLowerCase();
+      const targetCompany = (target.company || '').trim().toLowerCase();
+      if (!myCompany || myCompany !== targetCompany) return res.status(403).json({ error: 'You do not have permission to do that.' });
+    }
+
+    const existingReg = await ddb.send(new QueryCommand({
+      TableName: 'adma_registrations', IndexName: 'email-index',
+      KeyConditionExpression: 'email = :e', ExpressionAttributeValues: { ':e': target.email },
+      Limit: 1,
+    }));
+    if (!existingReg.Items?.length) {
+      await ddb.send(new PutCommand({
+        TableName: 'adma_registrations',
+        Item: {
+          id: generateId(),
+          created_date: new Date().toISOString(),
+          full_name: target.full_name,
+          email: target.email,
+          company: target.company || '',
+          role_type: 'Exhibitor',
+          ticket_type: 'Exhibitor Staff Pass',
+          badge_category: 'Exhibitor',
+          exhibitor_tier: null,
+          status: 'Confirmed',
+          otp_verified: true,
+          day1: true,
+          day2: true,
+          day3: true,
+          token: crypto.randomUUID(),
+          checked_in: false,
+          check_in_time: null,
+        },
+      }));
+    }
+
+    const token = newToken();
+    challengeStore.set(token, { type: 'password_reset', userId: target.id, expiresAt: newResetExpiry() });
+    logSecurityEvent('team_member_invite_resent', { requestedBy: req.user.id, userId: target.id, email: target.email, ip: req.ip });
+    const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+    await sendOtpEmail(target.email, null, {
+      subject: `ADMA Digital — You've been added to ${target.company || 'the'} team`,
+      html: teamMemberInviteHtml(target, target.company || 'your', resetUrl),
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /api/auth/logout  ────────────────────────────────────────────────
 router.post('/logout', async (req, res) => {
   await revokeSession(req.cookies?.[SESSION_COOKIE]);
