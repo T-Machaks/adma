@@ -12,7 +12,7 @@ const rawDdb = new DynamoDBClient({ region: 'af-south-1' });
 const ddb = DynamoDBDocumentClient.from(rawDdb, { marshallOptions: { removeUndefinedValues: true } });
 
 const AGENT_ID    = 'FF6WRKU3JK';
-const AGENT_ALIAS = 'L1UEL8YV7G'; // production_v1 — Claude Sonnet 4.5, free-form meeting dates
+const AGENT_ALIAS = 'SZOYS0IEHB'; // updated alias — reflects the current ADMA Digital instructions (Rate Card, Paynow/EFT, Team page, new help email)
 const TABLE       = 'adma_meeting_requests';
 
 router.post('/', async (req, res) => {
