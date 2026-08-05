@@ -7,7 +7,7 @@ import { requireAuth } from '../lib/authMiddleware.js';
 import { CONSOLE_ROLES, getMyExhibitorId } from '../lib/ownership.js';
 import { getRateCard, computeServerPrice } from './rate-card.js';
 import { initiatePayment, pollPaymentStatus, isPaynowConfigured } from '../lib/paynow.js';
-import { markAdSlotRequested } from './adslots.js';
+import { markAdSlotRequested, createAdSlotFromRequest } from './adslots.js';
 import { sendOtpEmail } from '../lib/mailer.js';
 
 const TABLE = 'adma_payments';
@@ -24,6 +24,13 @@ const SECTION_BY_TYPE = {
 // active add-on tier, so a second selection replaces rather than adds. Re-validated here
 // even though the client UI already enforces it (never trust the client).
 const SINGLETON_TYPES = new Set(['package', 'marketplace_addon']);
+
+// Only meaningful on an exhibitor record — a non-exhibitor account has no `package` or
+// marketplace posting rights to attach these to. Enforced server-side, not just hidden
+// from the non-exhibitor Rate Card view.
+const EXHIBITOR_ONLY_TYPES = new Set(['package', 'marketplace_addon']);
+
+const AD_PLACEMENTS = new Set(['carousel', 'video-carousel', 'footer-strip']);
 
 function findItem(rateCard, sectionId, itemKey) {
   const section = rateCard.sections.find(s => s.id === sectionId);
@@ -60,29 +67,50 @@ function paymentConfirmationHtml(record) {
 // Validates and server-prices one submitted cart line. Returns a fully-formed item object
 // (never trusting client-supplied item_key/amount beyond what's re-derived here), or
 // throws a { status, message } error the caller turns into an HTTP response.
+// `exhibitorId` is null for a non-exhibitor payer — package/marketplace_addon are
+// rejected outright, and an adslot_request has no pre-existing slot to reference so it's
+// built entirely from `request_payload` instead.
 async function buildItem(rateCard, exhibitorId, raw) {
   const { type, period, ad_slot_id, request_payload } = raw;
   if (!SECTION_BY_TYPE[type]) throw { status: 400, message: 'Invalid payment type.' };
   if (!period) throw { status: 400, message: 'period is required.' };
+  if (!exhibitorId && EXHIBITOR_ONLY_TYPES.has(type)) {
+    throw { status: 403, message: 'That item requires a Virtual Exhibitor account.' };
+  }
 
   let itemKey = raw.item_key;
   let adSlotId = null;
+  let itemRequestPayload = null;
+  let fulfilled = null;
 
   if (type === 'adslot_request') {
-    if (!ad_slot_id) throw { status: 400, message: 'ad_slot_id is required.' };
-    const slotResult = await ddb.send(new GetCommand({ TableName: 'adma_adslots', Key: { id: ad_slot_id } }));
-    const slot = slotResult.Item;
-    if (!slot || slot.exhibitor_id !== exhibitorId) throw { status: 403, message: 'That ad slot does not belong to your account.' };
-    // The item priced is always the slot's OWN placement — never the client's claimed
-    // item_key — so a tampered item_key can't buy a cheaper/different placement type.
-    itemKey = slot.placement;
-    adSlotId = ad_slot_id;
+    if (ad_slot_id) {
+      // Existing-slot path — the exhibitor already created/edited the ad on My Booth and
+      // is now paying to submit it for review.
+      if (!exhibitorId) throw { status: 403, message: 'That ad slot does not belong to your account.' };
+      const slotResult = await ddb.send(new GetCommand({ TableName: 'adma_adslots', Key: { id: ad_slot_id } }));
+      const slot = slotResult.Item;
+      if (!slot || slot.exhibitor_id !== exhibitorId) throw { status: 403, message: 'That ad slot does not belong to your account.' };
+      // The item priced is always the slot's OWN placement — never the client's claimed
+      // item_key — so a tampered item_key can't buy a cheaper/different placement type.
+      itemKey = slot.placement;
+      adSlotId = ad_slot_id;
+    } else {
+      // No pre-existing slot (always true for a non-exhibitor payer, who has no booth to
+      // create one on) — the ad is built entirely from inline cart content instead, and
+      // the actual AdSlot record gets created at payment-completion time.
+      if (!AD_PLACEMENTS.has(itemKey)) throw { status: 400, message: 'Unknown ad placement.' };
+      if (!request_payload?.company) throw { status: 400, message: 'Ad request: a company/advertiser name is required.' };
+      itemRequestPayload = request_payload;
+    }
   }
 
   if (type === 'magazine_request') {
     if (!request_payload?.company || !request_payload?.image_url) {
       throw { status: 400, message: 'Magazine request: company and image_url are required.' };
     }
+    itemRequestPayload = request_payload;
+    fulfilled = false;
   }
 
   const item = findItem(rateCard, SECTION_BY_TYPE[type], itemKey);
@@ -97,8 +125,8 @@ async function buildItem(rateCard, exhibitorId, raw) {
     period,
     amount: computeServerPrice(item.monthlyRate, period, rateCard.billingPeriods),
     ad_slot_id: adSlotId,
-    request_payload: type === 'magazine_request' ? request_payload : null,
-    fulfilled: type === 'magazine_request' ? false : null,
+    request_payload: itemRequestPayload,
+    fulfilled,
   };
 }
 
@@ -165,21 +193,32 @@ async function completePayment(record) {
         },
       }));
     } else if (item.type === 'adslot_request') {
-      await markAdSlotRequested(item.ad_slot_id).catch(() => {});
+      if (item.ad_slot_id) {
+        await markAdSlotRequested(item.ad_slot_id).catch(() => {});
+      } else {
+        // Non-exhibitor path — no pre-existing slot, build it now from what was
+        // collected inline in the cart.
+        await createAdSlotFromRequest({
+          placement: item.item_key,
+          requestPayload: item.request_payload,
+          createdByUserId: record.created_by_user_id,
+        }).catch(() => {});
+      }
     } else if (item.type === 'magazine_request' && !magazineNotified) {
       magazineNotified = true; // one email even if somehow more than one magazine line exists
       const settingsResult = await ddb.send(new GetCommand({ TableName: 'adma_app_settings', Key: { pk: 'singleton' } }));
       const reviewEmail = settingsResult.Item?.paidFeatureRequestEmail;
       if (reviewEmail) {
         const p = item.request_payload || {};
+        const advertiser = p.company || record.exhibitor_name || 'A customer';
         await sendOtpEmail(reviewEmail, null, {
-          subject: `ADMA — Paid magazine placement request: ${record.exhibitor_name}`,
+          subject: `ADMA — Paid magazine placement request: ${advertiser}`,
           html: `
             <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
               <h2 style="margin:0 0 8px;color:#111">Magazine placement request (paid)</h2>
-              <p style="color:#555"><strong>${record.exhibitor_name}</strong> has paid for a <strong>${item.item_label}</strong> placement.</p>
+              <p style="color:#555"><strong>${advertiser}</strong> has paid for a <strong>${item.item_label}</strong> placement.</p>
               <table style="width:100%;margin-top:12px;border-collapse:collapse">
-                <tr><td style="padding:4px 0;color:#888;font-size:13px;width:35%">Company</td><td style="padding:4px 0;color:#111;font-size:13px">${p.company || record.exhibitor_name}</td></tr>
+                <tr><td style="padding:4px 0;color:#888;font-size:13px;width:35%">Company</td><td style="padding:4px 0;color:#111;font-size:13px">${advertiser}</td></tr>
                 <tr><td style="padding:4px 0;color:#888;font-size:13px">Image</td><td style="padding:4px 0;color:#111;font-size:13px">${p.image_url ? `<a href="${p.image_url}">${p.image_url}</a>` : '—'}</td></tr>
                 <tr><td style="padding:4px 0;color:#888;font-size:13px">Destination URL</td><td style="padding:4px 0;color:#111;font-size:13px">${p.click_url || '—'}</td></tr>
               </table>
@@ -199,31 +238,68 @@ async function completePayment(record) {
   }
 }
 
+// An exhibitor sees every payment tied to their booth (any team member added one);
+// a non-exhibitor payer only ever sees the ones they personally made — there's no
+// "booth" to share visibility across for that account type.
 async function ownsPaymentRecord(req, record) {
   if (CONSOLE_ROLES.includes(req.user.role)) return true;
-  return record.exhibitor_id === await getMyExhibitorId(req);
+  if (record.exhibitor_id) return record.exhibitor_id === await getMyExhibitorId(req);
+  return record.created_by_user_id === req.user.id;
 }
 
-async function loadExhibitorForCheckout(req) {
-  if (req.user.role !== 'exhibitor') throw { status: 403, message: 'Only exhibitors can make payments.' };
-  const exhibitorId = await getMyExhibitorId(req);
-  if (!exhibitorId) throw { status: 400, message: 'No booth linked to your account.' };
-  const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
-  if (!result.Item) throw { status: 404, message: 'Exhibitor not found.' };
-  return { exhibitorId, exhibitor: result.Item };
+// Resolves who's actually paying. An exhibitor session pays as their booth (unchanged
+// behaviour — package/marketplace-addon/ad-slot-by-id all need this). Any other
+// authenticated role (attendee, etc.) can still check out — buildCart rejects the
+// exhibitor-only item types for them — using their own account as the record-level payer
+// identity; the advertiser/company name for what they're actually buying lives on the
+// individual cart item's request_payload instead.
+async function loadPayerForCheckout(req) {
+  if (req.user.role === 'exhibitor') {
+    const exhibitorId = await getMyExhibitorId(req);
+    if (!exhibitorId) throw { status: 400, message: 'No booth linked to your account.' };
+    const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
+    if (!result.Item) throw { status: 404, message: 'Exhibitor not found.' };
+    return { exhibitorId, payerName: result.Item.name, payerEmail: result.Item.contact_email || null };
+  }
+  const result = await ddb.send(new GetCommand({ TableName: 'adma_users', Key: { id: req.user.id } }));
+  if (!result.Item) throw { status: 404, message: 'Account not found.' };
+  return { exhibitorId: null, payerName: result.Item.full_name || null, payerEmail: result.Item.email || req.user.email || null };
+}
+
+// Shared by /initiate and /initiate-eft — the two differ only in method/status/pop_url.
+async function buildPaymentRecord(req) {
+  const { exhibitorId, payerName, payerEmail } = await loadPayerForCheckout(req);
+  const items = await buildCart(exhibitorId, req.body.items);
+  const amount = items.reduce((sum, i) => sum + i.amount, 0);
+  return {
+    id: generateId(),
+    created_date: new Date().toISOString(),
+    // `adma_payments` has a GSI keyed on exhibitor_id (exhibitor-index) — DynamoDB
+    // rejects a PutItem where an indexed attribute is an explicit NULL type, it must be
+    // omitted entirely for a non-exhibitor payer. `undefined` gets stripped by
+    // removeUndefinedValues before the PutCommand goes out (see lib/dynamo.js).
+    exhibitor_id: exhibitorId || undefined,
+    exhibitor_name: payerName,
+    exhibitor_email: payerEmail,
+    created_by_user_id: req.user.id,
+    amount,
+    currency: 'USD',
+    reference: `ADMA-${generateId()}`,
+    items,
+  };
 }
 
 const r = Router();
 
-// List — organiser sees everything (Payments Ledger console page); an exhibitor only
-// ever sees their own records.
+// List — organiser sees everything (Payments Ledger console page); anyone else only
+// ever sees their own records (booth-wide for an exhibitor, personal for anyone else).
 r.get('/', requireAuth, async (req, res) => {
   try {
     const result = await ddb.send(new ScanCommand({ TableName: TABLE }));
     let items = result.Items || [];
     if (!CONSOLE_ROLES.includes(req.user.role)) {
-      const myId = await getMyExhibitorId(req);
-      items = items.filter(p => p.exhibitor_id === myId);
+      const myExhibitorId = await getMyExhibitorId(req);
+      items = items.filter(p => (myExhibitorId && p.exhibitor_id === myExhibitorId) || p.created_by_user_id === req.user.id);
     }
     items.sort((a, b) => (b.created_date || '').localeCompare(a.created_date || ''));
     res.json(items);
@@ -246,26 +322,11 @@ r.get('/:id', requireAuth, async (req, res) => {
 
 r.post('/initiate', requireAuth, async (req, res) => {
   try {
-    const { exhibitorId, exhibitor } = await loadExhibitorForCheckout(req);
-    const items = await buildCart(exhibitorId, req.body.items);
-    const amount = items.reduce((sum, i) => sum + i.amount, 0);
-    const reference = `ADMA-${generateId()}`;
+    const record = await buildPaymentRecord(req);
+    record.method = 'paynow';
+    record.status = 'pending';
 
-    const record = {
-      id: generateId(),
-      created_date: new Date().toISOString(),
-      exhibitor_id: exhibitorId,
-      exhibitor_name: exhibitor.name,
-      exhibitor_email: exhibitor.contact_email || null,
-      method: 'paynow',
-      status: 'pending',
-      amount,
-      currency: 'USD',
-      reference,
-      items,
-    };
-
-    const init = await initiatePayment({ paymentId: record.id, reference, items, email: exhibitor.contact_email });
+    const init = await initiatePayment({ paymentId: record.id, reference: record.reference, items: record.items, email: record.exhibitor_email });
     record.poll_url = init.pollUrl;
     record.redirect_url = init.redirectUrl;
 
@@ -277,28 +338,13 @@ r.post('/initiate', requireAuth, async (req, res) => {
 });
 
 // EFT/bank-transfer alternative — no Paynow call, lands as pending_verification for the
-// organiser to manually approve/reject after the exhibitor uploads a proof-of-payment.
+// organiser to manually approve/reject after the payer uploads a proof-of-payment.
 r.post('/initiate-eft', requireAuth, async (req, res) => {
   try {
-    const { exhibitorId, exhibitor } = await loadExhibitorForCheckout(req);
-    const items = await buildCart(exhibitorId, req.body.items);
-    const amount = items.reduce((sum, i) => sum + i.amount, 0);
-    const reference = `ADMA-${generateId()}`;
-
-    const record = {
-      id: generateId(),
-      created_date: new Date().toISOString(),
-      exhibitor_id: exhibitorId,
-      exhibitor_name: exhibitor.name,
-      exhibitor_email: exhibitor.contact_email || null,
-      method: 'eft',
-      status: 'pending_verification',
-      amount,
-      currency: 'USD',
-      reference,
-      items,
-      pop_url: null,
-    };
+    const record = await buildPaymentRecord(req);
+    record.method = 'eft';
+    record.status = 'pending_verification';
+    record.pop_url = null;
 
     await ddb.send(new PutCommand({ TableName: TABLE, Item: record }));
     res.json({ paymentId: record.id });

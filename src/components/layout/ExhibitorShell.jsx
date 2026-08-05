@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
-import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign } from 'lucide-react';
+import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt } from 'lucide-react';
 import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -16,6 +16,7 @@ const exhibitorNav = [
   { path: '/exhibitor/collaborations', label: 'Collaborations', icon: Handshake },
   { path: '/exhibitor/listings',       label: 'My Listings',    icon: LayoutList },
   { path: '/exhibitor/rate-card',      label: 'Rate Card',      icon: DollarSign },
+  { path: '/exhibitor/billing',        label: 'Billing',        icon: Receipt },
 ];
 
 export default function ExhibitorShell() {

@@ -85,6 +85,7 @@ import ExhibitorTenders from '@/pages/exhibitor/ExhibitorTenders';
 import ExhibitorCollaborations from '@/pages/exhibitor/ExhibitorCollaborations';
 import ExhibitorListings from '@/pages/exhibitor/ExhibitorListings';
 import ExhibitorRateCard from '@/pages/exhibitor/ExhibitorRateCard';
+import PaymentHistory from '@/pages/PaymentHistory';
 import PaymentStub from '@/pages/PaymentStub';
 import PaymentReturn from '@/pages/PaymentReturn';
 
@@ -185,6 +186,7 @@ const AuthenticatedApp = () => {
         <Route path="/exhibitor/collaborations" element={<ExhibitorCollaborations />} />
         <Route path="/exhibitor/listings"  element={<ExhibitorListings />} />
         <Route path="/exhibitor/rate-card" element={<ExhibitorRateCard />} />
+        <Route path="/exhibitor/billing"   element={<PaymentHistory />} />
       </Route>
 
       {/* ── Attendee PWA ── */}
@@ -201,6 +203,8 @@ const AuthenticatedApp = () => {
         <Route path="/register"           element={<Register />} />
         <Route element={<AttendeeAuthRequired />}>
           <Route path="/attendee-dashboard" element={<AttendeeDashboard />} />
+          <Route path="/rate-card"          element={<ExhibitorRateCard />} />
+          <Route path="/rate-card/history"  element={<PaymentHistory />} />
         </Route>
         <Route path="/partners"           element={<Sponsors />} />
         <Route path="/magazine"           element={<Magazine />} />
