@@ -91,11 +91,6 @@ function resetPasswordHtml(resetUrl) {
     </div>`;
 }
 
-// Superadmins — only these accounts can hold the organizer role and add other organizers.
-// info@agrishow.co.zw was a stale demo account (removed) — tamuka@tyflex.co.zw is the only
-// real console-level account as of now. Add real emails here as more are provisioned.
-const SUPERADMIN_EMAILS = ['tamuka@tyflex.co.zw'];
-
 // ── In-memory challenge store ─────────────────────────────────────────────────
 // token -> { type: 'email'|'totp'|'totp_setup', userId, email, otp?, secret?, expiresAt }
 const challengeStore = new Map();
@@ -115,8 +110,10 @@ function generateOtp() { return Math.floor(100000 + Math.random() * 900000).toSt
 // Organizer/superadmin accounts require TOTP no matter which login path got them
 // here (password, OAuth, ...) — sends the totp_required challenge response and
 // returns true if it did, so the caller knows to stop instead of logging them in.
+const CONSOLE_MFA_ROLES = ['organizer', 'superadmin', 'marketing_partner'];
+
 async function totpChallengeIfRequired(res, user) {
-  if (user.role !== 'organizer' && user.role !== 'superadmin') return false;
+  if (!CONSOLE_MFA_ROLES.includes(user.role)) return false;
   const token = newToken();
   if (!user.totp_secret) {
     const secret = generateSecret();
@@ -259,15 +256,19 @@ router.post('/login', async (req, res) => {
       return res.json({ must_change_password: true, change_token: token });
     }
 
-    // Explicitly-flagged demo accounts skip MFA entirely (no TOTP, no email OTP).
-    // Opt-in per account -- real organizer/superadmin accounts are unaffected.
+    // Organizer/superadmin/marketing_partner → TOTP (authenticator app), unconditionally —
+    // console-role MFA is not skippable via mfa_exempt (CAIQ Phase 2 item 8). This must run
+    // BEFORE the mfa_exempt check below, since totpChallengeIfRequired already returns
+    // false for any non-console role and would otherwise never get a chance to run.
+    if (await totpChallengeIfRequired(res, user)) return;
+
+    // Explicitly-flagged demo accounts skip the remaining 2FA step (email OTP). Opt-in per
+    // account, attendee/exhibitor only — a console-role account can never reach this
+    // branch, since the check above already returned true for it.
     if (user.mfa_exempt) {
       await issueSession(req, res, user);
       return res.json(sanitize(user));
     }
-
-    // Organizers + superadmin → TOTP (authenticator app)
-    if (await totpChallengeIfRequired(res, user)) return;
 
     // All other roles → email OTP via NoReply@tyflex.co.zw
     const otp = generateOtp();
@@ -623,7 +624,9 @@ router.post('/google', async (req, res) => {
     const { email, name, sub } = await r.json();
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Google' });
     const user = await upsertOAuthUser({ email, full_name: name, oauth_provider: 'google', oauth_id: sub });
-    if (!user.mfa_exempt && await totpChallengeIfRequired(res, user)) return;
+    // Console-role MFA is not skippable via mfa_exempt (CAIQ Phase 2 item 8) -- the function
+    // itself already gates on role, so this is unconditional here.
+    if (await totpChallengeIfRequired(res, user)) return;
     await issueSession(req, res, user);
     res.json(sanitize(user));
   } catch (e) {
@@ -644,7 +647,9 @@ router.post('/microsoft', async (req, res) => {
     const email = profile.mail || profile.userPrincipalName;
     if (!email) return res.status(401).json({ error: 'Could not retrieve email from Microsoft' });
     const user = await upsertOAuthUser({ email, full_name: profile.displayName, oauth_provider: 'microsoft', oauth_id: profile.id });
-    if (!user.mfa_exempt && await totpChallengeIfRequired(res, user)) return;
+    // Console-role MFA is not skippable via mfa_exempt (CAIQ Phase 2 item 8) -- the function
+    // itself already gates on role, so this is unconditional here.
+    if (await totpChallengeIfRequired(res, user)) return;
     await issueSession(req, res, user);
     res.json(sanitize(user));
   } catch (e) {
@@ -662,7 +667,9 @@ router.post('/facebook', async (req, res) => {
     const profile = await r.json();
     if (!profile.email) return res.status(401).json({ error: 'Facebook account has no email. Please use email registration.' });
     const user = await upsertOAuthUser({ email: profile.email, full_name: profile.name, oauth_provider: 'facebook', oauth_id: profile.id });
-    if (!user.mfa_exempt && await totpChallengeIfRequired(res, user)) return;
+    // Console-role MFA is not skippable via mfa_exempt (CAIQ Phase 2 item 8) -- the function
+    // itself already gates on role, so this is unconditional here.
+    if (await totpChallengeIfRequired(res, user)) return;
     await issueSession(req, res, user);
     res.json(sanitize(user));
   } catch (e) {
@@ -678,7 +685,13 @@ router.post('/organizer/add-user', async (req, res) => {
     // not a client-supplied field — a spoofed requester can no longer claim to be a
     // superadmin just by naming one in the request body.
     const requester = req.user ? await getById(req.user.id) : null;
-    if (!requester || !SUPERADMIN_EMAILS.includes(requester.email.toLowerCase())) {
+    // Role is the source of truth (matches every other authz check in this app) — this
+    // used to be a hardcoded SUPERADMIN_EMAILS allowlist that only listed one address,
+    // silently locking out a second, legitimately-provisioned superadmin account (found
+    // 2026-08-05 while auditing MFA coverage — CAIQ Phase 2 item 9's "second admin
+    // account" already existed at the data level, this bug just prevented it from
+    // exercising full superadmin capability).
+    if (!requester || requester.role !== 'superadmin') {
       logSecurityEvent('add_organizer_denied', { requesterId: req.user?.id, ip: req.ip });
       return res.status(403).json({ error: 'Only superadmin organizers can add organizer accounts.' });
     }
