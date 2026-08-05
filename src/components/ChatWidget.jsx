@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sprout, X, Send, Loader2, UserPlus, LogIn, ExternalLink, Ticket, QrCode, WifiOff, Building2 } from 'lucide-react';
+import { Sprout, X, Send, Loader2, UserPlus, LogIn, Ticket, QrCode, WifiOff, Building2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const BUBBLE_SIZE = 52;
@@ -99,29 +98,23 @@ function AuthGate() {
 }
 
 // Item 3: physical event ticketing is handled on the official show site, not in-chat —
-// this replaces what used to be a full ticket-purchase-and-payment wizard.
+// this replaces what used to be a full ticket-purchase-and-payment wizard. Registration
+// is currently closed pending the 2027 site plan (see Register.jsx for the same notice).
 function RegisterInfoCard() {
-  const { settings } = useAppSettings();
-  const redirectUrl = settings.physicalEventRegistrationUrl || 'https://agrishow.co.zw/';
-
   return (
     <div className="flex justify-start">
       <div className="rounded-lg px-4 py-3 bg-gray-700 border border-amber/30 text-sm max-w-[95%] w-full space-y-3">
         <div className="flex items-start gap-2">
-          <Ticket size={15} className="text-amber shrink-0 mt-0.5" />
+          <Ticket size={15} className="text-gray-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-amber font-semibold text-xs uppercase tracking-wide">Physical Show Tickets</p>
-            <p className="text-gray-300 text-xs mt-1">Entry passes and tickets for the physical ADMA Agri Show are handled on the official show site.</p>
+            <p className="text-gray-300 font-semibold text-xs uppercase tracking-wide flex items-center gap-1.5">
+              Physical Show Registration <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-gray-600 text-gray-300">Closed</span>
+            </p>
+            <p className="text-gray-300 text-xs mt-1.5 leading-relaxed">
+              Registration for the 2027 physical exhibition is not yet open — it depends on the 2027 site plan, still being finalised. Exhibitors will be notified directly once registration begins.
+            </p>
           </div>
         </div>
-        <a
-          href={redirectUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded bg-amber text-slate-900 text-xs font-bold hover:bg-amber/80 transition-colors"
-        >
-          Register for the Physical Show <ExternalLink size={13} />
-        </a>
         <div className="border-t border-gray-600 pt-2.5 flex items-start gap-2">
           <Building2 size={15} className="text-emerald-400 shrink-0 mt-0.5" />
           <div className="flex-1">
