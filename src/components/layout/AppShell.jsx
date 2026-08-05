@@ -3,7 +3,7 @@ import {
   Home, Users, Map, Calendar, Info, Bell,
   LayoutDashboard, QrCode, Menu, X, Star, Zap,
   BookOpen, UserCheck, Clock, Shield, ChevronLeft, ChevronRight, Download,
-  LogIn, LogOut, UserCircle, WifiOff, Video, Briefcase, FileText, Gavel, Handshake,
+  LogIn, LogOut, UserCircle, WifiOff, Video, Briefcase, FileText, Gavel, Handshake, DollarSign,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import EventLogo from './EventLogo.jsx';
@@ -41,6 +41,7 @@ const navGroups = [
       { path: '/tenders',       label: 'Tenders',            icon: FileText },
       { path: '/auctions',      label: 'Auctions',           icon: Gavel },
       { path: '/collaborations', label: 'Collaborations',    icon: Handshake },
+      { path: '/rate-card',      label: 'Advertise / Rate Card', icon: DollarSign },
     ],
   },
   {
