@@ -134,6 +134,17 @@ Ordered in three phases. Phase 1 items are chosen because they're **cheap relati
 | 6 | Enable AWS CloudTrail | **Blocked on manual action.** The app's IAM credentials are correctly scoped to DynamoDB/S3 only and cannot enable CloudTrail (confirmed via a real `AccessDeniedException`). Exact console steps are in `security/CLOUDTRAIL_SETUP.md` — needs the account owner to do this once. |
 | 7 | Acceptable Use / confidentiality note | **Done.** See `security/ACCEPTABLE_USE_POLICY.md`. |
 
+### Phase 3 progress (as of 2026-08-05)
+
+| # | Action | Status |
+|---|---|---|
+| 15 | Commission a third-party penetration test | **Scope drafted, not commissioned** — commissioning needs real budget/vendor engagement, which I can't do myself. See `security/PENTEST_SCOPE.md` for a ready-to-send scope (in/out of scope, format, cost expectation) so this is a quick decision whenever timing/budget allow. |
+| 16 | Move off a single EC2 instance | **Outline written, not started** — deliberately not touching production infrastructure speculatively. See `security/INFRASTRUCTURE_RESILIENCE_OUTLINE.md`: three options ranked cheapest→most involved, with a recommendation to start with AMI snapshot + auto-recovery (cheap) rather than jumping to full multi-AZ. |
+| 17 | Formal risk register | **Done.** See `security/RISK_REGISTER.md` — 12 open/tracked risks synthesized from everything found across Phases 1–3, plus a "resolved since 2026-08-04" section so closed risks aren't silently dropped from the record. |
+| 18 | Automated SAST scanning | **Done.** `.github/workflows/codeql.yml` — GitHub CodeQL, `security-and-quality` query suite, JavaScript/TypeScript (covers both frontend and backend), runs on push/PR/weekly. Free for this repo (public). |
+| 19 | Privacy policy legal review / DPA | **Self-review pass done (not a substitute for real legal review).** Found and fixed one concrete factual gap: the policy (dated 26 July) never mentioned Paynow despite real payment processing shipping 2026-08-04 — added. 7 other items flagged in `security/PRIVACY_POLICY_REVIEW_NOTES.md` that genuinely need a lawyer's judgment (international transfer disclosure, named regulator, legal basis framing, minors policy, financial retention minimums, cookie disclosure, public breach-notification commitment) — explicitly not resolved here. |
+| 20 | Onboarding/offboarding checklist | **Done, prepared ahead of need.** See `security/ONBOARDING_OFFBOARDING.md` — not yet exercised since the team hasn't grown, but ready for the first hire/contractor. |
+
 ### Rough score impact
 
 Phase 1 alone (documentation-heavy, ~1 week of focused effort) should meaningfully lift **Audit & Assurance, Governance, Business Continuity, Logging, and Change Control** from ~0–48% toward 40–60%+, since most of those items convert existing informal practice into a documented "Yes"/"Partial." Phase 2 pushes Identity & Access Management and Application & Interface Security into the 70–90% range. Phase 3 is what would be needed to responsibly claim CSA STAR Level 2 (independently audited) rather than Level 1 (self-assessed).

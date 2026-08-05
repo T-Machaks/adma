@@ -35,7 +35,9 @@ We do not sell your personal information to third parties.`,
   {
     title: '4. Third parties we share data with',
     body: `Amazon Web Services (AWS) — hosting, database (DynamoDB), and file storage (S3), region af-south-1 (Cape
-Town). Microsoft Graph API — sends transactional emails on our behalf. OmniFlex — sends SMS verification codes and
+Town). Paynow — processes payments for Rate Card purchases (packages, ads, marketplace add-ons, magazine
+placements); card and mobile-money details are entered directly on Paynow's own checkout page and never reach our
+servers. Microsoft Graph API — sends transactional emails on our behalf. OmniFlex — sends SMS verification codes and
 notifications. Google, Microsoft, and Facebook — only if you choose to sign in using one of these providers, in
 which case that provider shares your name and email with us per their own privacy terms. CC Sales — pedigree
 livestock auction listings link out to their platform; we don't share your data with them unless you follow that
@@ -90,7 +92,7 @@ export default function PrivacyPolicy() {
           </div>
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Privacy Policy</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-8">ADMA Digital — last updated 26 July 2026</p>
+        <p className="text-sm text-muted-foreground mb-8">ADMA Digital — last updated 5 August 2026</p>
 
         <div className="space-y-6">
           {SECTIONS.map(s => (

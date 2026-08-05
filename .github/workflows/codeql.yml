@@ -1,0 +1,37 @@
+name: CodeQL SAST
+
+# CAIQ Phase 3 item 18 — automated static analysis on top of the dependency-only
+# scanning from Phase 1 (security-audit.yml). CodeQL's default JavaScript/TypeScript
+# query suite covers both the frontend (React/Vite) and backend (Express) since they're
+# both JS in this repo. Free for public repos (this repo is public), no external
+# service/API key needed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Catches newly-published query rules against unchanged code, not just new commits.
+    - cron: '30 6 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
