@@ -7,9 +7,11 @@ This documents the process that's already in practice — the point is to make i
 
 ## 1. Who can deploy
 
-Deploys to production (`admadigital.co.zw`, EC2 host `13.245.143.11`) are made by whoever has:
+Deploys to production are made by whoever has:
 - Push access to the `main` branch of the `T-Machaks/adma` GitHub repository, and
-- SSH access to the EC2 host (key-based, IP-restricted via the EC2 security group's inbound SSH rule — see §5).
+- SSH access to the EC2 host(s) (key-based, IP-restricted via the EC2 security group's inbound SSH rule — see §5).
+
+**As of 2026-08-06, there are two EC2 hosts:** the primary (`admadigital.co.zw`, `13.245.143.11`, af-south-1a) that serves live traffic, and a warm standby (`13.245.80.124`, af-south-1b) that runs the app but doesn't serve public traffic — see `PROMOTION_RUNBOOK.md`. Every deploy targets **both**, in the same step (§2.5) — the standby existing at all only provides real resilience if it's never more than one deploy behind.
 
 Today that's the platform operator (T-Machaks) directly, optionally assisted by an AI coding agent (Claude Code) operating under their direction and using the same credentials/keys — every change it makes is still a real, reviewable git commit attributed accordingly.
 
@@ -22,8 +24,8 @@ Today that's the platform operator (T-Machaks) directly, optionally assisted by 
    - Small/config-only changes: syntax check (`node --check`) and read-through are enough.
    - Changes touching auth, payments, or data ownership: run against a local backend instance connected to the real (shared) database, with synthetic test records that are cleaned up afterward — never leave test data in production tables.
    - UI-only changes: a local `npm run build` to catch compile errors at minimum; a manual click-through when the change is user-facing.
-5. **Deploy**: `git push origin main`, then on the EC2 host: `cd ~/adma && git pull origin main && npm run build && pm2 restart adma-api` (add `cd server && npm install` first if backend dependencies changed).
-6. **Smoke test after deploy** — at minimum, confirm the site (`/`) and API (`/api/rate-card` or an equivalent cheap endpoint) both return HTTP 200 immediately after the `pm2 restart`.
+5. **Deploy**: `git push origin main`, then on **each** EC2 host in turn (primary, then standby): `cd ~/adma && git pull origin main && npm run build && pm2 restart adma-api` (add `cd server && npm install` first if backend dependencies changed). The standby doesn't need a smoke test against the public domain (it isn't serving it), but do confirm its `pm2` process and local `curl 127.0.0.1/api/health` are healthy after every deploy — a standby that's silently been broken since its last successful deploy provides zero real resilience.
+6. **Smoke test after deploy** — at minimum, confirm the site (`/`) and API (`/api/rate-card` or an equivalent cheap endpoint) both return HTTP 200 immediately after the `pm2 restart`, against the primary's public domain.
 
 ## 3. Rollback procedure
 

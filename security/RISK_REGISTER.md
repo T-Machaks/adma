@@ -8,7 +8,7 @@
 | # | Risk | Likelihood | Impact | Risk | Owner | Status | Mitigation | Next review |
 |---|---|---|---|---|---|---|---|---|
 | 1 | No independent penetration test has ever been performed | Medium | High | **High** | Platform operator | Open | Scope + cost estimate ready in `PENTEST_SCOPE.md` (~$1,500–4,000 for a regional-firm scoped engagement); needs budget approval to commission (CAIQ Phase 3 item 15) | Before next major feature push, or 2027 site plan launch |
-| 2 | Single EC2 instance, no redundant/multi-AZ infrastructure | Low (no incident to date) | High (total outage if lost) | **Low-Medium** | Platform operator | **Mitigated 2026-08-05** (option 1) | Automated daily EBS snapshots (DLM) + EC2 auto-recovery alarm are live, ~$1-5/mo. Full multi-AZ (options 2-3, `INFRASTRUCTURE_RESILIENCE_OUTLINE.md`) still open, ~$10-50+/mo, gated on scale | Q4 2026 or after next funding/revenue milestone |
+| 2 | Single EC2 instance, no redundant/multi-AZ infrastructure | Low (no incident to date) | Medium (a warm standby exists, but promotion is manual and unrehearsed) | **Low** | Platform operator | **Mitigated 2026-08-05/06** (options 1 & 2) | Automated daily EBS snapshots + EC2 auto-recovery alarm (option 1, ~$1-5/mo), plus a live warm-standby instance in a different AZ (option 2, ~$10-15/mo — see `PROMOTION_RUNBOOK.md`). Only gap left: the promotion runbook has never been rehearsed end-to-end. Full automatic multi-AZ (option 3) still open, ~$35-50+/mo, gated on scale | Rehearse promotion runbook within 90 days; revisit option 3 at next funding/revenue milestone |
 | 3 | `server/.env` secrets and nginx config exist only on the EC2 instance, no off-instance backup | Low | High (re-provisioning every credential from scratch on instance loss) | **Medium** | Platform operator | Open | Tracked in `DISASTER_RECOVERY_PLAN.md` §5 | Next DR plan review |
 | 4 | AWS CloudTrail not enabled — no audit trail of AWS-account-level actions | Medium | Medium | ~~Medium~~ **Closed** | Platform operator | **Closed 2026-08-05.** Verified genuinely delivering log files, not just configured — see `CLOUDTRAIL_SETUP.md` | — | — |
 | 5 | No centralized log shipping (CloudWatch) — security logs live only in pm2's local stdout capture | Medium | Medium | ~~Medium~~ **Closed** | Platform operator | **Closed 2026-08-05.** CloudWatch agent shipping pm2 logs, verified receiving real events, 365-day retention — see `CLOUDWATCH_LOGGING_SETUP.md` | — | — |
@@ -32,6 +32,7 @@ For context — these rows existed in earlier thinking about this platform's ris
 - ~~AWS CloudTrail not enabled~~ — **Closed 2026-08-05,** via CloudShell. Verified real log files delivering to S3.
 - ~~No centralized log shipping~~ — **Closed 2026-08-05.** CloudWatch agent live, verified receiving events.
 - ~~Single EC2 instance with no automated backup or recovery~~ — **Mitigated 2026-08-05.** Daily DLM snapshots + auto-recovery alarm live.
+- ~~No redundant compute — one instance is the whole platform~~ — **Mitigated 2026-08-06.** Warm standby live in a different AZ, verified reachable/healthy end-to-end. See `PROMOTION_RUNBOOK.md`.
 
 ---
 *Part of ADMA Digital's CAIQ v4.0.3 remediation plan — see `ADMA_CAIQ_Assessment_and_Security_Plan_2026-08-04.md`, Phase 3 item 17.*
