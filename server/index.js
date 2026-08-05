@@ -77,12 +77,17 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com'],
+      // blob: — file-upload preview images (URL.createObjectURL) use img src="blob:...",
+      // confirmed via a real Report-Only violation on /console/marketplace-listings.
+      // i.ytimg.com — YouTube thumbnail images, confirmed via real ongoing violations on
+      // the homepage (not a one-off — recurring daily until this fix).
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com', 'https://i.ytimg.com'],
       mediaSrc: ["'self'", 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com'],
       // www.google.com (not just accounts.google.com) hosts the Google Identity Services
       // iframe relay used by the Google login button — confirmed via a real Report-Only
-      // violation, not guessed.
-      frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://accounts.google.com', 'https://www.google.com'],
+      // violation, not guessed. Zoom domains — Live Sessions embeds a Zoom meeting
+      // iframe, confirmed via real violations on /sessions/:id.
+      frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://accounts.google.com', 'https://www.google.com', 'https://us05web.zoom.us', 'https://app.zoom.us'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       // 'unsafe-inline' for styles only — the app uses inline style={{...}} props and a
       // couple of inline <style> blocks (e.g. AdBannerCarousel's keyframes) extensively;
@@ -90,18 +95,18 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       scriptSrc: ["'self'", 'https://connect.facebook.net', 'https://accounts.google.com', 'https://apis.google.com'],
       // connect-src governs fetch()/XHR — including the service worker's own runtime-
-      // caching fetches (public/sw.js) of S3 images/video and Google Fonts files, which
-      // img-src/media-src/font-src DON'T cover (those only gate native <img>/<video>/
-      // @font-face loads, not fetch() calls). Confirmed via real Report-Only violations —
-      // this omission is the likely root cause of the original CSP rollout breaking
-      // images/video.
+      // caching fetches (public/sw.js) of S3 images/video, YouTube thumbnails, and Google
+      // Fonts files, which img-src/media-src/font-src DON'T cover (those only gate native
+      // <img>/<video>/@font-face loads, not fetch() calls). Confirmed via real Report-Only
+      // violations — this omission is the likely root cause of the original CSP rollout
+      // breaking images/video.
       connectSrc: [
         "'self'",
         'https://accounts.google.com', 'https://www.googleapis.com',
         'https://login.microsoftonline.com', 'https://graph.microsoft.com',
         'https://graph.facebook.com', 'https://connect.facebook.net',
         'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com',
-        'https://fonts.googleapis.com', 'https://fonts.gstatic.com',
+        'https://fonts.googleapis.com', 'https://fonts.gstatic.com', 'https://i.ytimg.com',
       ],
       frameAncestors: ["'self'"],
     },
