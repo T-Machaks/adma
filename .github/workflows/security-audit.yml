@@ -1,0 +1,46 @@
+name: Dependency Security Audit
+
+# CAIQ v4.0.3 Phase 1 item 3 — visibility into known-vulnerable dependencies on every
+# push/PR, for both the frontend (root package.json) and backend (server/package.json).
+# Doesn't auto-fix anything yet; the point is that a high/critical CVE can no longer sit
+# undetected indefinitely.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, even with no code changes — a dependency can go from clean to vulnerable
+    # the moment a new CVE is disclosed against a version already in use.
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  audit-frontend:
+    name: npm audit — frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Audit (high + critical)
+        run: npm audit --audit-level=high
+
+  audit-backend:
+    name: npm audit — backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: server
+        run: npm install
+      - name: Audit (high + critical)
+        working-directory: server
+        run: npm audit --audit-level=high
