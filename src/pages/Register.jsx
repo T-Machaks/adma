@@ -3,17 +3,16 @@ import { UserPlus, LogIn, QrCode, CheckCircle, Ticket, Building2, ArrowRight, Cl
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
-// Item 3: physical event ticketing/registration is handled entirely on the official
-// Agri-Show site, not duplicated here. This page only offers the free digital platform
-// account (used for the QR account-holder badge) — physical registration is currently
-// closed (see the notice below) pending the 2027 site plan.
+// Physical event registration is handled entirely separately from ADMA Digital (not
+// duplicated or linked out from here) — see the notice below. This page only offers the
+// free digital platform account (used for the QR account-holder badge).
 export default function Register() {
   const { user } = useAuth();
 
   return (
     <div className="pb-24 max-w-2xl mx-auto px-4 pt-5">
       <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Registration</h1>
-      <p className="text-muted-foreground text-sm mb-6">Get set up for {EVENT_CONFIG.eventFullName} — physical show tickets and your digital platform account.</p>
+      <p className="text-muted-foreground text-sm mb-6">Get set up for {EVENT_CONFIG.eventFullName} — your digital platform account.</p>
 
       {/* Physical event registration — closed pending the 2027 site plan */}
       <div className="bg-card border border-border rounded-2xl p-5 mb-4">
@@ -29,9 +28,9 @@ export default function Register() {
               </span>
             </p>
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Registration for the 2027 physical exhibition will open once the 2027 site plan
-              is confirmed. Exhibitors will be notified directly as soon as registration
-              begins. Thank you for your patience.
+              The physical exhibition event is separate from the digital platform and will
+              continue to be handled separately, as before. Exhibitors will be notified
+              directly as soon as the 2027 site plan is ready and registration opens.
             </p>
           </div>
         </div>

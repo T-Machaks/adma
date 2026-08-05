@@ -97,9 +97,8 @@ function AuthGate() {
   );
 }
 
-// Item 3: physical event ticketing is handled on the official show site, not in-chat —
-// this replaces what used to be a full ticket-purchase-and-payment wizard. Registration
-// is currently closed pending the 2027 site plan (see Register.jsx for the same notice).
+// Physical event registration is handled entirely separately from ADMA Digital, not
+// in-chat (see Register.jsx for the same notice).
 function RegisterInfoCard() {
   return (
     <div className="flex justify-start">
@@ -111,7 +110,7 @@ function RegisterInfoCard() {
               Physical Show Registration <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-gray-600 text-gray-300">Closed</span>
             </p>
             <p className="text-gray-300 text-xs mt-1.5 leading-relaxed">
-              Registration for the 2027 physical exhibition will open once the 2027 site plan is confirmed. Exhibitors will be notified directly as soon as registration begins.
+              The physical exhibition event is separate from the digital platform and will continue to be handled separately, as before. Exhibitors will be notified directly as soon as the 2027 site plan is ready and registration opens.
             </p>
           </div>
         </div>
