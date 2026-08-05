@@ -7,17 +7,30 @@
 
 ---
 
-## 0. 2026-08-05 re-score — overall: 31.7% → **60.8%**
+## 0. 2026-08-05 re-score — overall: 31.7% → 60.8% → **64.2%** (two rounds, same day)
 
 The full 263-question questionnaire was re-scored, question by question, against everything shipped across Phases 1–3 plus the CloudShell-executed AWS infrastructure work (CloudTrail, CloudWatch log shipping, automated snapshots/auto-recovery). This was a **real re-score, not an estimate** — every one of the 117 changed answers cites the specific document or verified technical artifact behind it (see the updated `ADMA_CAIQ_v4.0.3_Completed_2026-08-05.xlsx`, kept alongside the original 2026-08-04 file for audit trail rather than overwriting it).
 
-| | 2026-08-04 | 2026-08-05 |
-|---|---:|---:|
-| **Overall score** | 31.7% | **60.8%** |
-| Answered Yes | 30 | 95 |
-| Answered Partial | 96 | 109 |
-| Answered No | 120 | 42 |
-| N/A | 17 | 17 |
+| | 2026-08-04 | 2026-08-05, round 1 | 2026-08-05, round 2 |
+|---|---:|---:|---:|
+| **Overall score** | 31.7% | 60.8% | **64.2%** |
+| Answered Yes | 30 | 95 | 104 |
+| Answered Partial | 96 | 109 | 108 |
+| Answered No | 120 | 42 | 34 |
+| N/A | 17 | 17 | 17 |
+
+**Round 2 (same day)** added a batch of low-cost, zero-risk documentation: `security/INTEROPERABILITY_AND_API_POLICY.md` and `security/GOVERNANCE_ADDENDUM.md` (new), plus explicit annual-review-cadence commitments added to five existing policy docs that were previously missing one. 15 more answers changed. **Interoperability & Portability alone moved from 37.5% to 68.8%** — the export feature did the heavy lifting in round 1, and formalizing the surrounding policy closed most of the rest.
+
+### Is 80% realistically reachable?
+
+Ran the math honestly rather than assuming yes because it was asked for. **80% is not reachable through more documentation or infrastructure work alone.** Three domains are structurally capped by things that take calendar time, not engineering effort:
+- **Threat & Vulnerability Management (45.8%)** — capped without an independent pentest (TVM-06.1 alone, plus the malware-protection sub-questions, which are genuinely not applicable without a managed endpoint fleet).
+- **Audit & Assurance (31.3%)** — three of its eight questions (A&A-02/03/04) specifically require an *independent* assessment; no amount of internal documentation satisfies "independent."
+- **Human Resources (27.5%)** — background-check and formal-employment-agreement questions that only make sense once hiring grows past people already known personally.
+
+Real multi-AZ infrastructure (CAIQ Phase 3 item 16, options 2–3 in `security/INFRASTRUCTURE_RESILIENCE_OUTLINE.md`) would help — mainly Business Continuity Management (currently 69.4%) and Infrastructure & Virtualization Security (67.9%) — but the honest estimate is **roughly +5–6 points**, landing around **69–70%**, not 80%. See the question in this conversation for the go/no-go on that spend.
+
+**The highest-leverage next step toward 80% is the pentest** (`security/PENTEST_SCOPE.md`, ~$1,500–4,000) — it's the only lever that unlocks meaningful movement in both Threat & Vulnerability Management *and* Audit & Assurance at once, and it's evidence a market/exhibitor audience actually recognizes, unlike another internal policy document.
 
 **What moved it, roughly in order of impact:** the self-service data export endpoint (single-handedly took Interoperability & Portability from 0% to 37.5% — CAIQ's IPY-02.1 asks almost verbatim for exactly that capability), the real MFA-enforcement bug fix plus extensive IAM-segregation proof (IAM 54.8%→81.0%), the Incident Response/Risk Register/Vendor Review/Key Management/Data Classification policy documents (each directly and specifically answering several questions, not just generically "showing effort"), and CloudTrail+CloudWatch both being verified genuinely delivering events, not just configured (Logging 47.2%→63.9%, Audit & Assurance 0%→31.3%).
 
@@ -42,27 +55,27 @@ ADMA Digital is a small, fast-moving team operating a real production platform w
 
 ## 2. Score by CCM Domain
 
-**Both baselines shown** — 2026-08-04 (original) and 2026-08-05 (re-scored), sorted by the current score, lowest → highest.
+**All three snapshots shown** — 2026-08-04 (original), 2026-08-05 round 1, 2026-08-05 round 2 (current) — sorted by the current score, lowest → highest.
 
-| Domain | 2026-08-04 | **2026-08-05** | Qs |
-|---|---:|---:|---:|
-| Human Resources | 0.0% | **25.0%** | 20 |
-| Audit & Assurance | 0.0% | **31.3%** | 8 |
-| Interoperability & Portability | 0.0% | **37.5%** | 8 |
-| Supply Chain Mgmt, Transparency & Accountability | 0.0% | **43.3%** | 15 |
-| Governance, Risk and Compliance | 0.0% | **44.4%** | 9 |
-| Threat & Vulnerability Management | 0.0% | **45.8%** | 12 |
-| Cryptography, Encryption & Key Management | 21.7% | **47.8%** | 23 |
-| Security Incident Mgmt, E-Discovery & Cloud Forensics | 0.0% | **59.1%** | 11 |
-| Business Continuity Mgmt & Operational Resilience | 0.0% | **61.1%** | 18 |
-| Logging and Monitoring | 47.2% | **63.9%** | 18 |
-| Data Security and Privacy Lifecycle Management | 43.8% | **66.7%** | 24 |
-| Infrastructure & Virtualization Security | 50.0% | **67.9%** | 14 |
-| Application & Interface Security | 50.0% | **72.7%** | 11 |
-| Identity & Access Management | 54.8% | **81.0%** | 21 |
-| Change Control and Configuration Management | 63.6% | **86.4%** | 11 |
-| Datacenter Security | 100.0% | **100.0%** | 23 |
-| Universal Endpoint Management | N/A | **N/A** | 17 |
+| Domain | 2026-08-04 | Round 1 | **Round 2 (current)** | Qs |
+|---|---:|---:|---:|---:|
+| Human Resources | 0.0% | 25.0% | **27.5%** | 20 |
+| Audit & Assurance | 0.0% | 31.3% | **31.3%** | 8 |
+| Threat & Vulnerability Management | 0.0% | 45.8% | **45.8%** | 12 |
+| Supply Chain Mgmt, Transparency & Accountability | 0.0% | 43.3% | **46.7%** | 15 |
+| Cryptography, Encryption & Key Management | 21.7% | 47.8% | **50.0%** | 23 |
+| Governance, Risk and Compliance | 0.0% | 44.4% | **50.0%** | 9 |
+| Logging and Monitoring | 47.2% | 63.9% | **63.9%** | 18 |
+| Infrastructure & Virtualization Security | 50.0% | 67.9% | **67.9%** | 14 |
+| Data Security and Privacy Lifecycle Management | 43.8% | 66.7% | **68.8%** | 24 |
+| Interoperability & Portability | 0.0% | 37.5% | **68.8%** | 8 |
+| Business Continuity Mgmt & Operational Resilience | 0.0% | 61.1% | **69.4%** | 18 |
+| Application & Interface Security | 50.0% | 72.7% | **72.7%** | 11 |
+| Security Incident Mgmt, E-Discovery & Cloud Forensics | 0.0% | 59.1% | **72.7%** | 11 |
+| Identity & Access Management | 54.8% | 81.0% | **81.0%** | 21 |
+| Change Control and Configuration Management | 63.6% | 86.4% | **90.9%** | 11 |
+| Datacenter Security | 100.0% | 100.0% | **100.0%** | 23 |
+| Universal Endpoint Management | N/A | N/A | **N/A** | 17 |
 
 **Datacenter Security scores 100%** because it is fully inherited from AWS — ADMA runs no physical infrastructure, so this domain is answered "Yes, inherited from AWS's own SOC 2 / ISO 27001 certifications." That's legitimate but worth flagging in any customer-facing use of this CAIQ: cite AWS's compliance reports as the evidence, don't imply ADMA itself was audited for it.
 
