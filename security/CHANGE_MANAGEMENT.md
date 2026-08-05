@@ -43,5 +43,9 @@ If a deploy causes a regression:
 
 Changes to AWS-level configuration (IAM policies, EC2 security groups, DynamoDB table settings, S3 bucket policies) are made directly via the AWS Console or CLI by the platform operator — the application's own IAM credentials are deliberately scoped to DynamoDB/S3 data access only (least privilege) and cannot make these changes themselves. Any such change (e.g. updating the SSH security-group rule for a new IP, enabling a new table setting) should be noted here or in the incident log if it was made in response to an access problem.
 
+## 6. Review cadence
+
+This process should be reviewed **at least annually**, and whenever the deploy process itself changes materially (e.g. moving to automated CI/CD, or multi-instance infrastructure).
+
 ---
 *Part of ADMA Digital's CAIQ v4.0.3 remediation plan — see `ADMA_CAIQ_Assessment_and_Security_Plan_2026-08-04.md`, Phase 1 item 4.*

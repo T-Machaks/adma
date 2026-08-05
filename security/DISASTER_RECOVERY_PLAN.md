@@ -50,5 +50,9 @@ If the EC2 instance itself is lost or unrecoverable:
 
 Multi-AZ/warm-standby infrastructure (removing the single-EC2-instance dependency entirely) is intentionally **not** in this plan — see CAIQ Phase 3 item 16. That's a real-money infrastructure investment appropriate once the platform's scale/revenue justifies it, not before.
 
+## 6. Review cadence
+
+This plan should be reviewed **at least annually**, after any real disaster-recovery event (successful or not), and whenever the underlying infrastructure changes materially (e.g. moving off a single EC2 instance).
+
 ---
 *Part of ADMA Digital's CAIQ v4.0.3 remediation plan — see `ADMA_CAIQ_Assessment_and_Security_Plan_2026-08-04.md`, Phase 2 item 13.*

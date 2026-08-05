@@ -27,5 +27,9 @@ Anyone with the access described above agrees to:
 
 By using console, server, or database access to ADMA Digital, an individual (or an AI agent operating on their behalf) agrees to this policy. As the team grows beyond its current size, this will be extended into a signed onboarding acknowledgement (see CAIQ Phase 3 item 20).
 
+## 5. Review cadence
+
+This policy should be reviewed **at least annually**, and immediately whenever a new person (contractor, employee, second admin) is given console, server, or database access.
+
 ---
 *Part of ADMA Digital's CAIQ v4.0.3 remediation plan — see `ADMA_CAIQ_Assessment_and_Security_Plan_2026-08-04.md`, Phase 1 item 7.*

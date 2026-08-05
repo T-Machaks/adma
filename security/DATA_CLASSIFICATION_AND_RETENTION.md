@@ -37,7 +37,11 @@ There is no automated "delete my account" self-service flow yet — this is a do
 ## 4. Encryption
 
 - **In transit:** TLS on all connections (enforced via HSTS in `server/index.js`'s Helmet configuration).
-- **At rest:** AWS-managed encryption on DynamoDB (encryption at rest is on by default for all DynamoDB tables) and S3 (default bucket encryption). No customer-managed KMS keys are in use today — this is the deliberate "AWS default encryption, no separate key management policy" gap flagged in the CAIQ assessment (Cryptography domain, 21.7%). Revisit if/when a customer or partner specifically requires customer-managed keys.
+- **At rest:** AWS-managed encryption on DynamoDB (encryption at rest is on by default for all DynamoDB tables) and S3 (default bucket encryption). See `security/KEY_MANAGEMENT_POLICY.md` for the dedicated write-up of key ownership, application-level secrets, and the deliberate no-customer-managed-KMS decision.
+
+## 5. Review cadence
+
+This policy should be reviewed **at least annually**, and whenever a new data category is introduced to the platform or a data-protection regulation applicable to Zimbabwe changes.
 
 ---
 *Part of ADMA Digital's CAIQ v4.0.3 remediation plan — see `ADMA_CAIQ_Assessment_and_Security_Plan_2026-08-04.md`, Phase 1 item 5.*

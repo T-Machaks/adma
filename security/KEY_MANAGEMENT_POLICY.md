@@ -37,7 +37,11 @@ This is the part a "just check the AWS console" review misses — the app also m
 - **AWS-managed encryption keys** (DynamoDB/S3 default) are implicitly accessible to any AWS principal with data-plane access to those specific resources — which for this app is exactly the one scoped IAM user, confirmed least-privilege.
 - **No one holds a "master key"** across all of this — there's no single secret whose compromise unlocks everything at once, other than root/full AWS account access itself (which is a separate, higher-tier concern outside this document's scope).
 
-## 5. Open items
+## 5. Review cadence
+
+This policy should be reviewed **at least annually**, and immediately after any credential rotation, suspected compromise, or new secret type being introduced (e.g. a new third-party integration requiring its own API key).
+
+## 6. Open items
 
 - [ ] **Define a rotation schedule** for `server/.env` secrets (AWS keys, OAuth secrets, mailer/SMS/Paynow credentials) — currently no periodic rotation happens; a reasonable starting policy would be annual rotation plus immediate rotation on any suspected exposure (this overlaps with `INCIDENT_RESPONSE_PLAN.md`'s containment step for a credential-leak scenario).
 - [ ] **Back up `.env` securely off-instance** (already flagged in `DISASTER_RECOVERY_PLAN.md` §5 as a DR gap — it's also a key-management gap from this document's angle: right now there's exactly one copy of every application secret in existence).
