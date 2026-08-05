@@ -29,9 +29,9 @@ export default function Register() {
               </span>
             </p>
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Registration for the 2027 physical exhibition is not yet open — it depends on
-              the 2027 site plan, which is still being finalised. Exhibitors will be notified
-              directly as soon as registration begins. Thank you for your patience.
+              Registration for the 2027 physical exhibition will open once the 2027 site plan
+              is confirmed. Exhibitors will be notified directly as soon as registration
+              begins. Thank you for your patience.
             </p>
           </div>
         </div>

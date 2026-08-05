@@ -111,7 +111,7 @@ function RegisterInfoCard() {
               Physical Show Registration <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-gray-600 text-gray-300">Closed</span>
             </p>
             <p className="text-gray-300 text-xs mt-1.5 leading-relaxed">
-              Registration for the 2027 physical exhibition is not yet open — it depends on the 2027 site plan, still being finalised. Exhibitors will be notified directly once registration begins.
+              Registration for the 2027 physical exhibition will open once the 2027 site plan is confirmed. Exhibitors will be notified directly as soon as registration begins.
             </p>
           </div>
         </div>
