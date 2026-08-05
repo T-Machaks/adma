@@ -4,6 +4,7 @@ import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { requireAuth } from '../lib/authMiddleware.js';
+import { getMyExhibitorId } from '../lib/ownership.js';
 
 const TABLE = 'adma_users';
 
@@ -45,6 +46,74 @@ export default crudRouter(TABLE, {
           Limit: 1,
         }));
         res.json(sanitize(result.Items?.[0] ?? null));
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    // Self-service data export/portability — GET /api/users/me/export downloads a JSON
+    // file of everything the caller's own account, registration, meeting requests,
+    // attendee notes, and payments hold. This is the same "what data do you hold about
+    // me" right already promised in PrivacyPolicy.jsx Section 7, made self-service
+    // instead of a fully manual email request. CAIQ Interoperability & Portability
+    // domain point of reference — a real machine-readable export, not just a policy
+    // statement.
+    r.get('/me/export', requireAuth, async (req, res) => {
+      try {
+        const me = req.user;
+        const email = me.email?.toLowerCase();
+
+        const account = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: me.id } }));
+
+        let exhibitor = null;
+        const exhibitorId = await getMyExhibitorId(req);
+        if (exhibitorId) {
+          const exResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
+          exhibitor = exResult.Item ?? null;
+        }
+
+        const registrations = email ? await ddb.send(new QueryCommand({
+          TableName: 'adma_registrations',
+          IndexName: 'email-index',
+          KeyConditionExpression: 'email = :e',
+          ExpressionAttributeValues: { ':e': email },
+        })) : { Items: [] };
+
+        const attendeeNotes = email ? await ddb.send(new QueryCommand({
+          TableName: 'adma_attendee_notes',
+          IndexName: 'user-email-index',
+          KeyConditionExpression: 'user_email = :e',
+          ExpressionAttributeValues: { ':e': email },
+        })) : { Items: [] };
+
+        // No email-index GSI on meeting_requests (only exhibitor-index) — a filtered scan
+        // is the same approach the rest of this app already uses for small tables without
+        // a matching index (e.g. payments.js's own list endpoint).
+        const meetingRequests = email ? await ddb.send(new ScanCommand({
+          TableName: 'adma_meeting_requests',
+          FilterExpression: 'visitor_email = :e',
+          ExpressionAttributeValues: { ':e': email },
+        })) : { Items: [] };
+
+        const paymentsResult = await ddb.send(new ScanCommand({ TableName: 'adma_payments' }));
+        const payments = (paymentsResult.Items || []).filter(p =>
+          (exhibitorId && p.exhibitor_id === exhibitorId) || p.created_by_user_id === me.id
+        );
+
+        const exportPayload = {
+          exported_at: new Date().toISOString(),
+          note: 'This is a self-service export of everything ADMA Digital holds tied to your account, generated on request. See /privacy for how this data is used and retained.',
+          account: sanitize(account.Item),
+          exhibitor_profile: exhibitor,
+          registrations: registrations.Items || [],
+          meeting_requests: meetingRequests.Items || [],
+          attendee_notes: attendeeNotes.Items || [],
+          payments,
+        };
+
+        res.setHeader('Content-Disposition', `attachment; filename="adma-digital-my-data-${new Date().toISOString().slice(0, 10)}.json"`);
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify(exportPayload, null, 2));
       } catch (e) {
         res.status(500).json({ error: e.message });
       }

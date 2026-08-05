@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Shield } from 'lucide-react';
+import { ArrowLeft, Shield, Download } from 'lucide-react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useAuth } from '@/lib/AuthContext';
 
 const SECTIONS = [
   {
@@ -64,8 +65,9 @@ to suspicious activity, and rate-limit authentication endpoints to reduce the ri
   {
     title: '7. Your rights',
     body: `You can ask us to access, correct, or delete your personal data, or ask what data we hold about you, at any
-time using the contact details below. Exhibitors can update most of their own profile data directly from the
-Exhibitor Portal without needing to contact us.`,
+time using the contact details below. If you're signed in, you can download a copy of everything we hold about
+your account right now using the button below — no need to wait on a manual request. Exhibitors can update most of
+their own profile data directly from the Exhibitor Portal without needing to contact us.`,
   },
   {
     title: '8. Contact',
@@ -75,6 +77,7 @@ Exhibitor Portal without needing to contact us.`,
 
 export default function PrivacyPolicy() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,6 +102,14 @@ export default function PrivacyPolicy() {
             <div key={s.title}>
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-2">{s.title}</h2>
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{s.body}</p>
+              {s.title === '7. Your rights' && isAuthenticated && (
+                <a
+                  href="/api/users/me/export"
+                  className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold bg-amber/10 text-amber border border-amber/30 px-3 py-2 rounded-lg hover:bg-amber/20 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" /> Download my data
+                </a>
+              )}
             </div>
           ))}
         </div>

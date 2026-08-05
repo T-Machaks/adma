@@ -1,0 +1,12 @@
+# ADMA Digital security disclosure policy — RFC 9116
+#
+# If you've found a security vulnerability in this platform, please report it
+# responsibly using the contact below rather than disclosing it publicly first.
+# We'll acknowledge your report, investigate, and let you know once it's fixed.
+# Please don't access, modify, or delete data that isn't your own while testing,
+# and give us a reasonable window to fix an issue before any public disclosure.
+
+Contact: mailto:marketing@admadigital.co.zw
+Expires: 2027-08-05T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://admadigital.co.zw/.well-known/security.txt
