@@ -87,6 +87,20 @@ Ordered in three phases. Phase 1 items are chosen because they're **cheap relati
 | 6 | **Enable AWS CloudTrail** for the account (management + optionally data events on the DynamoDB tables/S3 buckets) — currently not enabled per prior notes. Even with no active alerting yet, this creates the audit trail CAIQ's A&A and LOG domains are asking about. | LOG, A&A | Low — AWS console, ~30 min |
 | 7 | **Write a one-page Acceptable Use / confidentiality note** for anyone with console or server access (even if it's currently one person) — this is the cheapest possible HR-domain point and matters immediately if a contractor or second admin is ever added. | HRS | Low — 30 min |
 
+### Phase 2 progress (as of 2026-08-05)
+
+| # | Action | Status |
+|---|---|---|
+| 8 | Enforce MFA for console roles | **Done.** Found and fixed a real bug: `mfa_exempt` could bypass MFA for *any* role, including organizer/superadmin, and `marketing_partner` wasn't TOTP-gated at all. Fixed and verified against 6 synthetic-account test paths. Bonus find while auditing: a hardcoded `SUPERADMIN_EMAILS` allowlist was silently denying a second, real, already-provisioned superadmin account from adding organizers — switched to role-based authz. |
+| 9 | Second admin/backup-access account | **Turned out to already exist.** A DB query confirmed **two** real superadmin accounts (`tamuka@tyflex.co.zw`, `mediaservad@gmail.com`), both with TOTP already configured — contradicts the original assessment's "single point of failure" framing. The item 8 fix above was what let the second account actually exercise full superadmin capability. |
+| 10 | Centralized log shipping to CloudWatch | **Blocked on manual action.** The EC2 instance has no IAM role attached at all (confirmed via the instance metadata endpoint) — nothing can write to CloudWatch Logs until one is. Console steps + what I'll do once unblocked are in `security/CLOUDWATCH_LOGGING_SETUP.md`. |
+| 11 | Flip CSP from Report-Only to enforcing | **Not yet — real ongoing violations found, now fixed, still needs a clean window.** Before touching enforcement, pulled real production violation logs rather than trusting the directive list looked complete (per the 2026-07-26 incident's lesson). Found 3 genuine, currently-recurring gaps — missing `blob:` and `i.ytimg.com` in `img-src`, `i.ytimg.com` in `connect-src`, and both Zoom domains in `frame-src` — fixed in both `server/index.js` and the actual enforcing surface (nginx). Flipping to enforcing itself is intentionally deferred to a future pass, once a real clean observation window is confirmed — not bundled into today's fix. |
+| 12 | WAF / interim rate-limiting | **Not started this pass** — see note below. |
+| 13 | Document a DR plan (RTO/RPO) | **Done.** See `security/DISASTER_RECOVERY_PLAN.md` — honest estimates (DynamoDB restore ~15–30 min per table, EC2 rebuild ~2–4 hours), explicitly flagged as *estimates*, with a tracked list of what's still unrehearsed/unvalidated (large-table restore timing, a real EC2-rebuild rehearsal, off-instance secrets/nginx-config backup). |
+| 14 | Vendor/dependency review | **Done.** See `security/VENDOR_DEPENDENCY_REVIEW.md` — every third party with real data access (AWS, Paynow, Google/Microsoft/Facebook OAuth, Microsoft Graph email, OmniFlex SMS, CC Sales) with what they see and why they're trusted. |
+
+**On item 12 (WAF):** application-level rate limiting already exists and was verified live (`express-rate-limit`: 20 req/15min on `/api/auth/*`, 600 req/15min elsewhere) — a genuinely new nginx-level layer is a production change to the same perimeter config that caused the 2026-07-26 incident, so it's deliberately not bundled into this pass without a separate go/no-go check-in.
+
 ### Phase 2 — 30–90 days (moderate effort, some real engineering)
 
 | # | Action | CAIQ domain(s) helped | Effort |
