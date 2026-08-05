@@ -1,6 +1,8 @@
-# Enabling AWS CloudTrail — one-time console setup
+# AWS CloudTrail — DONE (2026-08-05)
 
-**CAIQ Phase 1, item 6.** This cannot be done by the application's own AWS credentials — confirmed via a real `AccessDeniedException` (`cloudtrail:DescribeTrails` denied for `arn:aws:iam::479887547220:user/tamuka`), consistent with that IAM user being deliberately scoped to DynamoDB/S3 only. This needs to be done once, manually, by whoever has full AWS Console access to account `479887547220`.
+**CAIQ Phase 1, item 6 — closed.** Enabled via CloudShell on 2026-08-05. Trail `adma-digital-trail`, multi-region, logging to `s3://adma-cloudtrail-logs-479887547220/`. **Verified genuinely delivering**, not just configured — confirmed real `.json.gz` log files landing in the bucket (checked directly via the app's own S3-scoped credentials), covering both af-south-1 (regional events) and us-east-1 (global service events, e.g. IAM changes — expected for a multi-region trail).
+
+This could not be done by the application's own scoped AWS credentials — confirmed via a real `AccessDeniedException` (`cloudtrail:DescribeTrails` denied for `arn:aws:iam::479887547220:user/tamuka`) — so it was done via CloudShell (full console access) instead. The steps below are kept for reference/reproducibility.
 
 ## Steps
 
@@ -14,12 +16,11 @@
 8. Click **Create trail**.
 9. (Optional, recommended) On the new S3 bucket, add a **lifecycle rule** to transition logs to Glacier after ~90 days and expire after ~1 year, matching the retention window noted in `DATA_CLASSIFICATION_AND_RETENTION.md`.
 
-## After it's on
+## Confirmed live
 
-Nothing else needs to change in the app — this is pure AWS-account-level logging, independent of ADMA Digital's own code. Once enabled, note the date here and update the CAIQ assessment's Logging/Audit & Assurance domain scores accordingly:
-
-- [ ] CloudTrail enabled on: _______________
-- [ ] Trail name / S3 bucket: _______________
+- [x] CloudTrail enabled on: **2026-08-05**
+- [x] Trail name / S3 bucket: **adma-digital-trail** / **adma-cloudtrail-logs-479887547220**
+- [x] Verified actually delivering log files (not just `IsLogging: true`)
 
 ---
 *Part of ADMA Digital's CAIQ v4.0.3 remediation plan — see `ADMA_CAIQ_Assessment_and_Security_Plan_2026-08-04.md`, Phase 1 item 6.*

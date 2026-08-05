@@ -1,31 +1,19 @@
-# Centralized log shipping to CloudWatch — one-time console setup
+# Centralized log shipping to CloudWatch — DONE (2026-08-05)
 
-**CAIQ Phase 2, item 10.** This needs a manual first step before any agent/config work can happen: confirmed via the EC2 instance metadata service (`curl http://169.254.169.254/latest/meta-data/iam/security-credentials/`) that the EC2 instance has **no IAM role attached at all** — the app's own AWS credentials in `server/.env` are a separate, deliberately DynamoDB/S3-scoped IAM *user*, not an instance role, and don't grant CloudWatch Logs access either. Nothing running on the box today can write to CloudWatch Logs without this being done first.
+**CAIQ Phase 2, item 10 — closed.** `EC2-SSM-Role` (attached to the instance by the account owner) was granted `AmazonSSMManagedInstanceCore` + `CloudWatchAgentServerPolicy` via CloudShell, then the CloudWatch agent was installed and configured over SSH.
 
-## Step 1 (you, AWS Console) — attach an IAM role to the EC2 instance
+- **Log group:** `/adma-digital/api`, 365-day retention
+- **Streams:** `adma-api-out` (stdout — includes every `logSecurityEvent(...)` JSON-lines event from `server/lib/securityLog.js`) and `adma-api-error` (stderr)
+- **Config:** `/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json` on the EC2 host, tailing pm2's log files (`/home/ec2-user/.pm2/logs/adma-api-{out,error}.log`)
+- **Verified genuinely receiving events**, not just running — confirmed both log streams have real `firstEventTimestamp`/`lastEventTimestamp`/`lastIngestionTime` via `aws logs describe-log-streams`, within seconds of the agent starting.
 
-1. **IAM Console** → **Roles** → **Create role** → trusted entity type **AWS service** → use case **EC2**.
-2. Attach the AWS-managed policy **`CloudWatchAgentServerPolicy`** (grants exactly what the CloudWatch agent needs — `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`, plus a few CloudWatch metrics permissions — nothing broader).
-3. Name it e.g. `adma-ec2-cloudwatch-role`, create it.
-4. **EC2 Console** → select the instance (`13.245.143.11`) → **Actions** → **Security** → **Modify IAM role** → attach `adma-ec2-cloudwatch-role`.
+This could not be done by the application's own scoped AWS credentials, and initially not by the EC2 instance either — the instance had **no IAM role attached at all** when first checked (confirmed via the instance metadata service). The account owner created and attached `EC2-SSM-Role`, then granted it the CloudWatch Agent policy via CloudShell, which unblocked this.
 
-This does **not** require restarting the instance or the application — an attached role becomes available to anything on the box within moments.
+## Confirmed live
 
-## Step 2 (I can do this once step 1 is done — just say so)
-
-Once the role is attached, I can SSH in and:
-1. Install the CloudWatch agent (`amazon-cloudwatch-agent` package, available directly from Amazon Linux's own repos).
-2. Configure it to tail pm2's log files (`~/.pm2/logs/adma-api-out.log` / `adma-api-error.log`) into a log group (e.g. `/adma-digital/api`), which also captures every `logSecurityEvent(...)` JSON line already being emitted (`server/lib/securityLog.js` — already flat JSON-lines, a drop-in fit for this per its own code comment).
-3. Set a log retention period on the new log group (recommend 1 year for security events, per `security/DATA_CLASSIFICATION_AND_RETENTION.md`).
-4. Verify events are actually arriving in CloudWatch Logs before considering this done.
-
-## After it's on
-
-Update the CAIQ assessment's Logging domain score, and note the completion date here:
-
-- [ ] IAM role attached: _______________
-- [ ] CloudWatch agent installed & verified receiving events: _______________
-- [ ] Log group retention set: _______________
+- [x] IAM role attached: **2026-08-05** (`EC2-SSM-Role`, granted `CloudWatchAgentServerPolicy` + `AmazonSSMManagedInstanceCore`)
+- [x] CloudWatch agent installed & verified receiving events: **2026-08-05**
+- [x] Log group retention set: **365 days**
 
 ---
 *Part of ADMA Digital's CAIQ v4.0.3 remediation plan — see `ADMA_CAIQ_Assessment_and_Security_Plan_2026-08-04.md`, Phase 2 item 10.*

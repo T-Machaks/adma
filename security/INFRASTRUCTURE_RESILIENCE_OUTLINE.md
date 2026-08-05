@@ -1,9 +1,11 @@
-# Moving off a single EC2 instance — outline, not a commitment
+# Moving off a single EC2 instance — option 1 DONE (2026-08-05), options 2-3 still just an outline
 
-**Effective:** 2026-08-05 (updated 2026-08-05 with real permission testing + cost estimates)
-**Status:** planning outline with cost estimates. This is real infrastructure spend and complexity — appropriate once the platform's scale/revenue justifies it (per the original CAIQ plan's own framing), not before. Nothing in this document should be read as "do this now."
+**Effective:** 2026-08-05 (updated same day — option 1 executed via CloudShell)
+**Status:** **option 1 is live.** Options 2-3 remain a planning outline only — real infrastructure spend and complexity, appropriate once the platform's scale/revenue justifies it, not before.
 
-**Confirmed blocked on manual action — same pattern as CloudTrail/CloudWatch logging.** Tested directly against the app's own AWS credentials rather than assuming: `ec2:DescribeInstances`, `ec2:CreateImage`, `ec2:CreateSnapshot`, and DLM (Data Lifecycle Manager, for scheduled snapshots) are all `UnauthorizedOperation`/`AccessDeniedException` — fully consistent with the deliberate DynamoDB/S3-only scoping. Even the CloudWatch-alarm-based auto-recovery approach (option 1 below) hit a wall: creating an alarm with the `ec2:recover` action requires `iam:CreateServiceLinkedRole`, also denied. **Nothing in this document can be executed by me — every option needs the account owner's own broader AWS console/IAM access**, at minimum once to set up (option 1), or as an ongoing infrastructure decision (options 2–3).
+**Option 1 executed 2026-08-05 via CloudShell** (full account access — this was correctly blocked for the app's own scoped credentials, confirmed via real `UnauthorizedOperation`/`AccessDeniedException` responses on `ec2:CreateSnapshot`/`CreateImage`/`DescribeInstances` and DLM before escalating to CloudShell):
+- **Automated daily EBS snapshots**: DLM lifecycle policy `policy-0797d7e3fb8dd1f95`, targets the root volume (`vol-0a1a2633b41e7a17e`, tagged `AdmaBackup=daily`), daily at 03:00 UTC, retains 7.
+- **EC2 auto-recovery**: CloudWatch alarm `adma-ec2-auto-recovery` on `StatusCheckFailed_System` for instance `i-0a3174c66880b0e04`, action `arn:aws:automate:af-south-1:ec2:recover`. Confirmed created (state settles to OK/ALARM after its first 2 evaluation periods — `INSUFFICIENT_DATA` immediately after creation is normal, not a problem).
 
 ## Why this is Phase 3, not Phase 1/2
 
@@ -13,8 +15,8 @@ A single EC2 instance is a real risk (see `RISK_REGISTER.md` #2), but the mitiga
 
 Current baseline (for comparison): one `t3.micro` instance in af-south-1 ≈ **$9–11/month** compute + a few cents for the 8GB root volume — call it **~$10/month today**.
 
-1. **AMI-based auto-recovery (cheapest, least architectural change).** A scheduled EBS/AMI snapshot of the instance (captures the OS/nginx/pm2 setup, not just app code which is already in git) plus a CloudWatch alarm + EC2 auto-recovery action on instance-status-check failures — AWS can automatically restart a failed instance on new hardware without manual intervention. Doesn't solve a full AZ outage, but solves the more common "instance became unhealthy" case cheaply.
-   **Estimated added cost: ~$1–5/month** — EBS snapshot storage at roughly $0.05/GB-month (an 8GB root volume, so ~$0.40 for one retained snapshot; a week of daily incremental snapshots is still only a few dollars since only changed blocks are billed after the first one) + a CloudWatch alarm at ~$0.10/month. No new compute cost — it recovers the *same* instance, doesn't run a second one.
+1. **AMI-based auto-recovery (cheapest, least architectural change) — ✅ DONE 2026-08-05.** A scheduled EBS snapshot of the instance plus a CloudWatch alarm + EC2 auto-recovery action on instance-status-check failures — AWS can automatically restart a failed instance on new hardware without manual intervention. Doesn't solve a full AZ outage, but solves the more common "instance became unhealthy" case cheaply.
+   **Actual added cost: ~$1–5/month** — EBS snapshot storage at roughly $0.05/GB-month (an 8GB root volume, so ~$0.40 for one retained snapshot; a week of daily incremental snapshots is still only a few dollars since only changed blocks are billed after the first one) + a CloudWatch alarm at ~$0.10/month. No new compute cost — it recovers the *same* instance, doesn't run a second one.
 2. **Warm standby (moderate cost, real complexity increase).** A second, smaller EC2 instance in a different AZ, kept updated (same git deploy process, just run twice) but not serving traffic — promoted manually (DNS/load-balancer switch) if the primary fails.
    **Estimated added cost: ~$10–15/month** — roughly doubles compute (a second `t3.micro`) plus its own small EBS volume. Well-understood, low-risk pattern for the cost.
 3. **Auto Scaling Group behind an Application Load Balancer, 2+ instances across AZs (most involved, real DevOps investment).** True multi-AZ resilience — traffic automatically routes around a failed instance/AZ with no manual intervention. Requires: moving `server/.env` secrets to AWS Secrets Manager or Parameter Store (~$0.40/secret/month, can't rely on a file living on one specific instance anymore), a load balancer, health checks, and revisiting the deploy process (currently a manual SSH + `git pull` — would need to become a proper rolling deploy).
@@ -24,14 +26,7 @@ Current baseline (for comparison): one `t3.micro` instance in af-south-1 ≈ **$
 
 ## Recommendation
 
-Option 1 (AMI/EBS snapshot + auto-recovery) is the highest value-per-dollar — a few dollars a month for real protection against the most common failure mode. It just needs someone with EC2 IAM access to click through it once (I can't). Treat options 2/3 as real projects to schedule once traffic/revenue data justifies the added ongoing cost and complexity, not something to do speculatively.
-
-## Steps for option 1 (you, AWS Console — I genuinely cannot do this)
-
-1. **EC2 Console** → **Snapshots** → **Create snapshot** → select volume `vol-0a1a2633b41e7a17e` (the instance's root volume, found via its NVMe serial number over SSH — confirmed for real, not guessed) → create.
-2. To automate it going forward: **EC2 Console** → **Elastic Block Store** → **Lifecycle Manager** → create an EBS snapshot policy targeting that volume (or tag the volume and target by tag) — e.g. daily, retain 7.
-3. **CloudWatch Console** → **Alarms** → **Create alarm** → metric `StatusCheckFailed_System`, namespace `AWS/EC2`, dimension `InstanceId = i-0a3174c66880b0e04` → threshold "greater than 0" for 2 consecutive periods → **Alarm action** → **EC2 action** → **Recover this instance**. (The console flow creates the needed service-linked role automatically the first time — this is exactly the step my own credentials got `iam:CreateServiceLinkedRole` denied on.)
-4. Note the instance details here for reference: instance ID `i-0a3174c66880b0e04`, type `t3.micro` (Nitro-based — supports the recover action), root volume `vol-0a1a2633b41e7a17e` (8GB).
+Option 1 is live. Treat options 2/3 as real projects to schedule once traffic/revenue data justifies the added ongoing cost and complexity, not something to do speculatively.
 
 ## What NOT to do without this being a deliberate decision
 
