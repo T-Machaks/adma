@@ -41,7 +41,7 @@ const navGroups = [
       { path: '/tenders',       label: 'Tenders',            icon: FileText },
       { path: '/auctions',      label: 'Auctions',           icon: Gavel },
       { path: '/collaborations', label: 'Collaborations',    icon: Handshake },
-      { path: '/rate-card',      label: 'Advertise / Rate Card', icon: DollarSign },
+      { path: '/rate-card',      label: 'Rate Card',          icon: DollarSign },
     ],
   },
   {
