@@ -8,9 +8,9 @@ import { sendOtpEmail } from '../lib/mailer.js';
 import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
-import { createSession, revokeSession, SESSION_COOKIE } from '../lib/session.js';
+import { createSession, revokeSession, revokeAllSessionsForUser, SESSION_COOKIE } from '../lib/session.js';
 import { requireRole, requireAuth } from '../lib/authMiddleware.js';
-import { getMyExhibitorId } from '../lib/ownership.js';
+import { getMyExhibitorId, CONSOLE_ROLES } from '../lib/ownership.js';
 
 const TABLE = 'adma_users';
 const APP_URL = 'https://admadigital.co.zw';
@@ -78,6 +78,28 @@ function teamMemberInviteHtml(user, companyName, resetUrl) {
       <p style="margin:0 0 20px;color:#555">Set a password to finish activating your account:</p>
       <a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Set Password &amp; Log In →</a>
       <p style="margin:24px 0 0;font-size:13px;color:#888">This link expires in 30 minutes. If you weren't expecting this, you can safely ignore it.</p>
+    </div>`;
+}
+
+// Same "you've been added" notice as teamMemberInviteHtml, but for an existing
+// account that already has a password — no reset link, just a plain heads-up with
+// a login link so they can accept access with their current credentials.
+function teamMemberUpgradeHtml(user, companyName, loginUrl) {
+  return `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+      <h2 style="margin:0 0 8px;color:#111">You've been added to the ${companyName} team</h2>
+      <p style="margin:0 0 20px;color:#555">Hi <strong>${user.full_name}</strong>, your existing ADMA Digital account (<strong>${user.email}</strong>) now has exhibitor portal access for <strong>${companyName}</strong>, and you're registered for the event — your entry badge will be available once you log in.</p>
+      <div style="background:#f8fafc;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;font-weight:700;">Registration</p>
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:4px 0;color:#888;font-size:13px;width:40%">Name</td><td style="padding:4px 0;color:#111;font-size:13px;font-weight:600">${user.full_name}</td></tr>
+          <tr><td style="padding:4px 0;color:#888;font-size:13px">Email</td><td style="padding:4px 0;color:#111;font-size:13px;font-weight:600">${user.email}</td></tr>
+          <tr><td style="padding:4px 0;color:#888;font-size:13px">Badge</td><td style="padding:4px 0;color:#111;font-size:13px;font-weight:600">Exhibitor</td></tr>
+        </table>
+      </div>
+      <p style="margin:0 0 20px;color:#555">Log in with your existing password to accept and access the exhibitor portal:</p>
+      <a href="${loginUrl}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Log In &amp; Accept →</a>
+      <p style="margin:24px 0 0;font-size:13px;color:#888">If you weren't expecting this, please contact ADMA Digital support.</p>
     </div>`;
 }
 
@@ -775,6 +797,91 @@ router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadm
   }
 });
 
+// Upgrade path for invite-team-member: the email belongs to an existing account
+// (an attendee, or an exhibitor moving over from a different company) rather than
+// a brand-new one. Reuses the account id/password — only role/company/status
+// change — instead of the old behaviour of rejecting with "already exists".
+async function upgradeToExhibitor(req, res, { existing, full_name, normalizedEmail, companyName, exhibitor }) {
+  try {
+    const previousRole = existing.role;
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { id: existing.id },
+      UpdateExpression: 'SET full_name = :n, company = :c, #role = :r, #status = :s',
+      ExpressionAttributeNames: { '#role': 'role', '#status': 'status' },
+      ExpressionAttributeValues: { ':n': full_name, ':c': companyName, ':r': 'exhibitor', ':s': 'active' },
+    }));
+    const updatedUser = { ...existing, full_name, company: companyName, role: 'exhibitor', status: 'active' };
+
+    // Role just changed — kill any live sessions issued under the old role so a
+    // stale cookie can't keep acting as an attendee (or whatever they were before).
+    await revokeAllSessionsForUser(existing.id);
+
+    // Upgrade their existing registration in place if they have one (e.g. an
+    // attendee ticket) rather than leaving two conflicting registrations behind;
+    // otherwise create the same Confirmed exhibitor registration a new invite gets.
+    const existingReg = await ddb.send(new QueryCommand({
+      TableName: 'adma_registrations', IndexName: 'email-index',
+      KeyConditionExpression: 'email = :e', ExpressionAttributeValues: { ':e': normalizedEmail },
+      Limit: 1,
+    }));
+    if (existingReg.Items?.length) {
+      const reg = existingReg.Items[0];
+      await ddb.send(new UpdateCommand({
+        TableName: 'adma_registrations',
+        Key: { id: reg.id },
+        UpdateExpression: 'SET full_name = :n, company = :c, role_type = :rt, ticket_type = :tt, badge_category = :bc, exhibitor_tier = :et, #status = :s',
+        ExpressionAttributeNames: { '#status': 'status' },
+        ExpressionAttributeValues: {
+          ':n': full_name, ':c': companyName, ':rt': 'Exhibitor', ':tt': 'Exhibitor Staff Pass',
+          ':bc': 'Exhibitor', ':et': exhibitor?.package || null, ':s': 'Confirmed',
+        },
+      }));
+    } else {
+      await ddb.send(new PutCommand({
+        TableName: 'adma_registrations',
+        Item: {
+          id: generateId(),
+          created_date: new Date().toISOString(),
+          full_name, email: normalizedEmail, company: companyName,
+          role_type: 'Exhibitor', ticket_type: 'Exhibitor Staff Pass', badge_category: 'Exhibitor',
+          exhibitor_tier: exhibitor?.package || null, status: 'Confirmed', otp_verified: true,
+          day1: true, day2: true, day3: true, token: crypto.randomUUID(),
+          checked_in: false, check_in_time: null,
+        },
+      }));
+    }
+
+    logSecurityEvent('team_member_upgraded', { invitedBy: req.user.id, userId: existing.id, email: normalizedEmail, previousRole, ip: req.ip });
+
+    try {
+      if (existing.password_hash) {
+        // Already has credentials — just notify, with a login link, no reset needed.
+        await sendOtpEmail(normalizedEmail, null, {
+          subject: `ADMA Digital — You've been added to ${companyName || 'the'} team`,
+          html: teamMemberUpgradeHtml(updatedUser, companyName || 'your', `${APP_URL}/login`),
+        });
+      } else {
+        // Account exists but was never activated (no password set) — same combined
+        // invite+set-password email a brand-new account gets.
+        const token = newToken();
+        challengeStore.set(token, { type: 'password_reset', userId: existing.id, expiresAt: newResetExpiry() });
+        const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+        await sendOtpEmail(normalizedEmail, null, {
+          subject: `ADMA Digital — You've been added to ${companyName || 'the'} team`,
+          html: teamMemberInviteHtml(updatedUser, companyName || 'your', resetUrl),
+        });
+      }
+    } catch (mailErr) {
+      console.error('Team member upgrade email failed:', mailErr.message);
+    }
+
+    res.status(200).json(sanitize(updatedUser));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+}
+
 // ── POST /api/auth/invite-team-member  — exhibitor adds a colleague ──────
 // Previously ExhibitorTeam.jsx just POSTed straight to /api/users, which created a
 // bare account with no password, no way to ever set one, and no event registration —
@@ -790,7 +897,6 @@ router.post('/invite-team-member', requireAuth, async (req, res) => {
 
     const normalizedEmail = email.toLowerCase();
     const existing = await findByEmail(normalizedEmail);
-    if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
 
     // The inviting exhibitor's OWN live company name/tier — never trust a client-
     // supplied `company` for this case, it's exactly the stale-copy bug being fixed.
@@ -805,6 +911,20 @@ router.post('/invite-team-member', requireAuth, async (req, res) => {
         exhibitor = exhResult.Item || null;
         if (exhibitor?.name) companyName = exhibitor.name;
       }
+    }
+
+    if (existing) {
+      // Genuinely already on this exact team — that's the one case still worth a 409.
+      if (existing.role === 'exhibitor' && (existing.company || '').trim().toLowerCase() === companyName.trim().toLowerCase()) {
+        return res.status(409).json({ error: 'This person is already on the team.' });
+      }
+      // Refuse to let this consumer-facing form silently reassign a staff/admin
+      // account into an exhibitor team — that privilege change needs to happen
+      // deliberately, not by an exhibitor (or anyone) typing in a matching email.
+      if (CONSOLE_ROLES.includes(existing.role)) {
+        return res.status(409).json({ error: 'An account with that email already exists.' });
+      }
+      return upgradeToExhibitor(req, res, { existing, full_name, normalizedEmail, companyName, exhibitor });
     }
 
     const newUser = {
