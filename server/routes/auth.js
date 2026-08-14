@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { GetCommand, QueryCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, QueryCommand, ScanCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { sendOtpEmail } from '../lib/mailer.js';
@@ -766,30 +766,66 @@ router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadm
     if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
     if (!exhibitor.user_id) return res.status(400).json({ error: 'This exhibitor has no linked login account.' });
 
-    const existing = await findByEmail(email);
+    const normalizedEmail = email.toLowerCase();
+    const existing = await findByEmail(normalizedEmail);
+
+    let linkedUser;
     if (existing && existing.id !== exhibitor.user_id) {
-      return res.status(409).json({ error: 'That email is already in use by another account.' });
+      // The email belongs to a different, already-existing account (e.g. someone who
+      // registered as an attendee and is now being made this exhibitor's login) rather
+      // than a genuine collision — link that account to this exhibitor instead of
+      // rejecting it, same upgrade pattern as invite-team-member below.
+      if (CONSOLE_ROLES.includes(existing.role)) {
+        return res.status(409).json({ error: 'That email is already in use by another account.' });
+      }
+      // An account can only be the primary login for one exhibitor at a time — silently
+      // stealing it from another booth would break that other exhibitor's access.
+      const otherExhibitors = await ddb.send(new ScanCommand({ TableName: 'adma_exhibitors' }));
+      const alreadyLinkedTo = (otherExhibitors.Items || []).find(e => e.id !== exhibitor_id && e.user_id === existing.id);
+      if (alreadyLinkedTo) {
+        return res.status(409).json({ error: `That account is already the login for exhibitor "${alreadyLinkedTo.name || alreadyLinkedTo.id}".` });
+      }
+
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { id: existing.id },
+        UpdateExpression: 'SET company = :c, #role = :r, #status = :s',
+        ExpressionAttributeNames: { '#role': 'role', '#status': 'status' },
+        ExpressionAttributeValues: { ':c': exhibitor.name || '', ':r': 'exhibitor', ':s': 'active' },
+      }));
+      // Role/company just changed — kill any live sessions issued under the old role.
+      await revokeAllSessionsForUser(existing.id);
+      await ddb.send(new UpdateCommand({
+        TableName: 'adma_exhibitors',
+        Key: { id: exhibitor_id },
+        UpdateExpression: 'SET user_id = :u, contact_email = :e',
+        ExpressionAttributeValues: { ':u': existing.id, ':e': normalizedEmail },
+      }));
+      logSecurityEvent('exhibitor_login_relinked', { exhibitorId: exhibitor_id, previousUserId: exhibitor.user_id, newUserId: existing.id, ip: req.ip });
+      linkedUser = { ...existing, company: exhibitor.name || '', role: 'exhibitor', status: 'active', email: normalizedEmail };
+      // The old linked account (typically a placeholder stub created when the exhibitor
+      // record was set up) is deliberately left untouched, not deleted — it's just no
+      // longer this exhibitor's login.
+    } else {
+      const currentLinked = await getById(exhibitor.user_id);
+      if (!currentLinked) return res.status(404).json({ error: 'Linked login account not found.' });
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { id: currentLinked.id },
+        UpdateExpression: 'SET email = :e',
+        ExpressionAttributeValues: { ':e': normalizedEmail },
+      }));
+      await ddb.send(new UpdateCommand({
+        TableName: 'adma_exhibitors',
+        Key: { id: exhibitor_id },
+        UpdateExpression: 'SET contact_email = :e',
+        ExpressionAttributeValues: { ':e': normalizedEmail },
+      }));
+      logSecurityEvent('exhibitor_login_email_set', { exhibitorId: exhibitor_id, userId: currentLinked.id, sentEmail: !!send_email, ip: req.ip });
+      linkedUser = { ...currentLinked, email: normalizedEmail };
     }
 
-    const linkedUser = await getById(exhibitor.user_id);
-    if (!linkedUser) return res.status(404).json({ error: 'Linked login account not found.' });
-
-    const normalizedEmail = email.toLowerCase();
-    await ddb.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { id: linkedUser.id },
-      UpdateExpression: 'SET email = :e',
-      ExpressionAttributeValues: { ':e': normalizedEmail },
-    }));
-    await ddb.send(new UpdateCommand({
-      TableName: 'adma_exhibitors',
-      Key: { id: exhibitor_id },
-      UpdateExpression: 'SET contact_email = :e',
-      ExpressionAttributeValues: { ':e': normalizedEmail },
-    }));
-
-    logSecurityEvent('exhibitor_login_email_set', { exhibitorId: exhibitor_id, userId: linkedUser.id, sentEmail: !!send_email, ip: req.ip });
-    if (send_email) await sendPasswordResetLink({ ...linkedUser, email: normalizedEmail }, req);
+    if (send_email) await sendPasswordResetLink(linkedUser, req);
 
     res.json({ ok: true, email: normalizedEmail });
   } catch (e) {
