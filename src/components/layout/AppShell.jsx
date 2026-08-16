@@ -61,7 +61,7 @@ const bottomNav = [
   { path: '/exhibitors',          label: 'Exhibitors', icon: Users },
   { path: '/attendee-dashboard',  label: EVENT_CONFIG.nav.myEventLabel, icon: LayoutDashboard },
   { path: '/marketplace',         label: 'Marketplace', icon: Store },
-  { path: '/magazine',            label: 'Digital Magazine', icon: BookOpen },
+  { path: '/magazine',            label: 'Magazine', icon: BookOpen },
 ];
 
 export default function AppShell({ children }) {
