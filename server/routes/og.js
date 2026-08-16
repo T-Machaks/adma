@@ -26,6 +26,31 @@ function setMetaContent(html, attr, key, value) {
   return html.replace(re, `$1${escapeHtml(value)}$2`);
 }
 
+// helmet() is mounted globally for the JSON API and sends an enforcing Content-Security-
+// Policy plus several headers (Cross-Origin-Opener-Policy chief among them — a known way
+// to break Google/Facebook popup-based login) that nothing else on this site sends at
+// all; every other page only ever runs CSP in Report-Only (monitoring) mode via nginx.
+// This route serves a real HTML page real visitors land on directly — exactly the
+// shared-link scenario it exists for — so it must behave exactly like every other page,
+// not more strictly. Clears helmet's extras and sets precisely the same headers nginx's
+// own location / block sends for every other route (kept in sync with that block and
+// with the equivalent list in server/index.js's own helmet() config by hand, since
+// there's no shared constants module for it yet).
+const SITE_CSP_REPORT_ONLY = "default-src 'self'; img-src 'self' data: blob: https://adma-zw.s3.af-south-1.amazonaws.com https://adma.s3.af-south-1.amazonaws.com https://i.ytimg.com; media-src 'self' https://adma-zw.s3.af-south-1.amazonaws.com https://adma.s3.af-south-1.amazonaws.com; frame-src 'self' https://www.youtube.com https://player.vimeo.com https://accounts.google.com https://www.google.com https://us05web.zoom.us https://app.zoom.us; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' https://connect.facebook.net https://accounts.google.com https://apis.google.com; connect-src 'self' https://accounts.google.com https://www.googleapis.com https://login.microsoftonline.com https://graph.microsoft.com https://graph.facebook.com https://connect.facebook.net https://adma-zw.s3.af-south-1.amazonaws.com https://adma.s3.af-south-1.amazonaws.com https://fonts.googleapis.com https://fonts.gstatic.com https://i.ytimg.com; frame-ancestors 'self'; report-uri /api/csp-report; report-to csp-endpoint";
+const SITE_REPORT_TO = '{"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"https://admadigital.co.zw/api/csp-report"}]}';
+
+function useSitePageHeaders(res) {
+  ['Content-Security-Policy', 'Cross-Origin-Opener-Policy', 'Cross-Origin-Resource-Policy',
+   'Origin-Agent-Cluster', 'Strict-Transport-Security', 'X-XSS-Protection',
+   'X-Permitted-Cross-Domain-Policies', 'X-Download-Options'].forEach(h => res.removeHeader(h));
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-DNS-Prefetch-Control', 'off');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy-Report-Only', SITE_CSP_REPORT_ONLY);
+  res.setHeader('Report-To', SITE_REPORT_TO);
+}
+
 const r = Router();
 
 // Serves the SPA shell with this exhibitor's own name/logo/description baked into the
@@ -39,6 +64,8 @@ const r = Router();
 // never be the reason a real visitor can't load the page, only the reason the preview
 // stays generic.
 r.get('/exhibitors/:id', async (req, res) => {
+  useSitePageHeaders(res);
+
   let html;
   try {
     html = readFileSync(DIST_INDEX, 'utf-8');
