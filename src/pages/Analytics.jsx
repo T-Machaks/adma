@@ -8,7 +8,7 @@ import {
   Users, Calendar, QrCode, Eye, MousePointerClick, BookOpen, CheckSquare, CalendarCheck,
   Briefcase, FileText, Handshake, Send,
 } from 'lucide-react';
-import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { EVENT_CONFIG, getExhibitorCategories } from '@/lib/eventConfig';
 import { LISTING_TYPE_LABEL, countEventsByListing, countSubmissionsByField } from '@/lib/marketplaceAnalytics';
 
 const CATEGORY_COLORS = ['#f59e0b', '#16a34a', '#92400e', '#3b82f6', '#8b5cf6', '#0d9488', '#ec4899', '#f97316', '#64748b'];
@@ -89,8 +89,11 @@ export default function Analytics() {
   engagements
     .filter(e => e.type === 'profile_view')
     .forEach(e => {
-      const category = exhibitorById[e.exhibitor_id]?.category;
-      if (category) categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      // A booth in multiple categories counts toward each one — this is a "views by
+      // category" breakdown, not a claim that each view belongs to exactly one category.
+      getExhibitorCategories(exhibitorById[e.exhibitor_id]).forEach(category => {
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      });
     });
   const categoryData = Object.entries(categoryCounts)
     .sort((a, b) => b[1] - a[1])

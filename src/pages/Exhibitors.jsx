@@ -7,7 +7,7 @@ import TierBadge from '@/components/ui/TierBadge';
 import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useAuth } from '@/lib/AuthContext';
-import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { EVENT_CONFIG, getExhibitorCategories } from '@/lib/eventConfig';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { getPackageLimits } from '@/lib/standTiers';
 
@@ -48,7 +48,7 @@ export default function Exhibitors() {
   const filtered = exhibitors.filter(ex => {
     if (isSubscriptionExpired(ex) || isPackageBillingExpired(ex)) return false;
     const matchSearch = !search || ex.name.toLowerCase().includes(search.toLowerCase()) || ex.booth?.toLowerCase().includes(search.toLowerCase());
-    const matchCat = category === 'All' || ex.category === category;
+    const matchCat = category === 'All' || getExhibitorCategories(ex).includes(category);
     const matchPkg = pkg === 'All' || (ex.package || 'Basic') === pkg;
     const matchSection = section === 'All' || ex.section === section;
     return matchSearch && matchCat && matchPkg && matchSection;
@@ -176,7 +176,9 @@ export default function Exhibitors() {
                 </div>
                 {ex.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{ex.description.slice(0, getPackageLimits(ex).descChars)}</p>}
                 <div className="flex gap-1.5 mt-2 flex-wrap">
-                  <span className="text-[10px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{ex.category}</span>
+                  {getExhibitorCategories(ex).map(c => (
+                    <span key={c} className="text-[10px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{c}</span>
+                  ))}
                 </div>
               </div>
             </div>

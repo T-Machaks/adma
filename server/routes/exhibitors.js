@@ -1,12 +1,28 @@
-import { GetCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, ScanCommand, QueryCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
 import { nextMay30ISO } from '../lib/subscription.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
-import { revokeAllSessionsForExhibitor } from '../lib/session.js';
-import { requireAuth } from '../lib/authMiddleware.js';
+import { revokeAllSessionsForExhibitor, revokeAllSessionsForUser } from '../lib/session.js';
+import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 import { getMyExhibitorId } from '../lib/ownership.js';
 import { sendOtpEmail } from '../lib/mailer.js';
+
+// Every table with an `exhibitor_id` field to clean up when an exhibitor is deleted,
+// keyed to whether it has a GSI on that field (Query) or needs a filtered Scan.
+// adma_payments is deliberately NOT here — financial/audit records are kept regardless,
+// same reasoning as the rest of this app never hard-deleting a payment row.
+const CASCADE_DELETE_TABLES = [
+  { table: 'adma_meeting_requests',  index: 'exhibitor-index' },
+  { table: 'adma_booth_messages',    index: 'exhibitor-index' },
+  { table: 'adma_collaborations',    index: 'exhibitor-index' },
+  { table: 'adma_job_listings',      index: 'exhibitor-index' },
+  { table: 'adma_tender_listings',   index: 'exhibitor-index' },
+  { table: 'adma_virtual_enquiries', index: 'exhibitor-index' },
+  { table: 'adma_engagements',       index: 'exhibitor-index' },
+  { table: 'adma_adslots',           index: null },
+  { table: 'adma_job_applications',  index: null },
+];
 
 // Fields only an organiser/superadmin/marketing_partner may set — an exhibitor must
 // never be able to grant themselves a package, unlock their own portal, or fake a paid
@@ -34,7 +50,80 @@ function ownsBooth(req, exhibitor) {
 export default crudRouter('adma_exhibitors', {
   defaults: () => ({ featured: false, package: 'Basic', subscription_expires_at: nextMay30ISO() }),
   auth: { read: 'public', write: ownsBooth },
+  // Soft-deleted exhibitors (see DELETE /:id below) disappear from every existing
+  // list/detail read — directory, site plan, dashboard, analytics — with no extra
+  // frontend filtering needed anywhere.
+  filterItems: (item) => !item.deleted,
   extraRoutes(r) {
+    // Overrides crudRouter's generic DELETE — never calls next(), so the generic
+    // handler (registered after extraRoutes runs) never fires for this path. Soft-
+    // deletes the exhibitor itself (recoverable, not physically removed), downgrades
+    // every linked account instead of deleting it (owner + team members keep their
+    // login/registration history, just lose exhibitor access), and hard-deletes every
+    // dependent record so nothing is left pointing at a gone exhibitor_id.
+    r.delete('/:id', requireRole('organizer', 'superadmin'), async (req, res) => {
+      try {
+        const exhibitorId = req.params.id;
+        const exhResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
+        const exhibitor = exhResult.Item;
+        if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
+        if (exhibitor.deleted) return res.status(400).json({ error: 'This exhibitor has already been deleted.' });
+
+        await ddb.send(new UpdateCommand({
+          TableName: 'adma_exhibitors',
+          Key: { id: exhibitorId },
+          UpdateExpression: 'SET deleted = :t, deleted_at = :now, deleted_by = :u',
+          ExpressionAttributeValues: { ':t': true, ':now': new Date().toISOString(), ':u': req.user.id },
+        }));
+
+        // Owner (exhibitor.user_id) + any team member matched the same way
+        // ExhibitorTeam.jsx resolves "my team" — by company name, case-insensitive.
+        const nameLower = (exhibitor.name || '').trim().toLowerCase();
+        const usersResult = await ddb.send(new ScanCommand({ TableName: 'adma_users' }));
+        const linkedUsers = (usersResult.Items || []).filter(u =>
+          u.id === exhibitor.user_id || (u.role === 'exhibitor' && u.company && u.company.trim().toLowerCase() === nameLower)
+        );
+        await Promise.all(linkedUsers.map(async u => {
+          await ddb.send(new UpdateCommand({
+            TableName: 'adma_users',
+            Key: { id: u.id },
+            UpdateExpression: 'SET #role = :r, company = :c',
+            ExpressionAttributeNames: { '#role': 'role' },
+            ExpressionAttributeValues: { ':r': 'attendee', ':c': '' },
+          }));
+          await revokeAllSessionsForUser(u.id);
+        }));
+
+        let cascadeDeleted = 0;
+        for (const { table, index } of CASCADE_DELETE_TABLES) {
+          const result = index
+            ? await ddb.send(new QueryCommand({
+                TableName: table,
+                IndexName: index,
+                KeyConditionExpression: 'exhibitor_id = :id',
+                ExpressionAttributeValues: { ':id': exhibitorId },
+              }))
+            : await ddb.send(new ScanCommand({
+                TableName: table,
+                FilterExpression: 'exhibitor_id = :id',
+                ExpressionAttributeValues: { ':id': exhibitorId },
+              }));
+          const items = result.Items || [];
+          await Promise.all(items.map(item => ddb.send(new DeleteCommand({ TableName: table, Key: { id: item.id } }))));
+          cascadeDeleted += items.length;
+        }
+
+        logSecurityEvent('exhibitor_deleted', {
+          exhibitorId, exhibitorName: exhibitor.name, deletedBy: req.user.id,
+          linkedAccountsDowngraded: linkedUsers.length, dependentRecordsDeleted: cascadeDeleted,
+          ip: req.ip,
+        });
+        res.json({ ok: true });
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
     // Logs lock/unlock separately before falling through to crudRouter's own generic
     // PUT /:id handler (registered after extraRoutes runs) — Express runs both handlers
     // in registration order for the same method+path as long as this one calls next().

@@ -66,9 +66,14 @@ async function filterByOwnership(req, items, mode) {
  *   auth        – { read, write } access mode, see buildAccessMiddleware above.
  *                 No default — every call site sets this explicitly so nothing
  *                 is silently over- or under-restricted.
+ *   filterItems – optional function(item) => boolean, applied to GET / and GET /:id
+ *                 in addition to ownership. Used for soft-delete (e.g. exhibitors.js
+ *                 hides `deleted: true` records everywhere by default) — a no-op for
+ *                 every table that doesn't pass it.
  */
-export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extraRoutes, auth = {} } = {}) {
+export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extraRoutes, auth = {}, filterItems } = {}) {
   const r = Router();
+  const passesFilter = (item) => !filterItems || filterItems(item);
 
   if (extraRoutes) extraRoutes(r);
 
@@ -125,6 +130,7 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
       }
 
       items = await filterByOwnership(req, items, auth.read);
+      items = items.filter(passesFilter);
 
       if (sortBy) {
         const desc = sortBy.startsWith('-');
@@ -145,10 +151,9 @@ export function crudRouter(table, { gsiFields = {}, defaults = () => ({}), extra
   // Get by id
   r.get('/:id', readAccess, readOwnershipCheck, async (req, res) => {
     try {
-      if (req._crudItem) return res.json(req._crudItem);
-      const result = await ddb.send(new GetCommand({ TableName: table, Key: { id: req.params.id } }));
-      if (!result.Item) return res.status(404).json({ error: 'Not found' });
-      res.json(result.Item);
+      const item = req._crudItem || (await ddb.send(new GetCommand({ TableName: table, Key: { id: req.params.id } }))).Item;
+      if (!item || !passesFilter(item)) return res.status(404).json({ error: 'Not found' });
+      res.json(item);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

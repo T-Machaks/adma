@@ -6,7 +6,7 @@ import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useAuth } from '@/lib/AuthContext';
 import { Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
-import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { EVENT_CONFIG, getExhibitorCategories } from '@/lib/eventConfig';
 
 const VALID_SECTIONS = EVENT_CONFIG.exhibitorSections;
 // ADMA Digital virtual package tiers (Basic/Enhanced/Premium) — independent of the
@@ -39,7 +39,7 @@ export default function Dashboard() {
 
   const catCounts = EVENT_CONFIG.exhibitorCategories.map(c => ({
     name: c,
-    count: exhibitors.filter(e => e.category === c).length,
+    count: exhibitors.filter(e => getExhibitorCategories(e).includes(c)).length,
   }));
 
   const pendingMeetings = meetings.filter(m => m.status === 'Pending').length;

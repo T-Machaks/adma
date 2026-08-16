@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { track } from '@/lib/tracking';
 import TierBadge from '@/components/ui/TierBadge';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
+import { getExhibitorCategories } from '@/lib/eventConfig';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import BoothChat from '@/components/exhibitor/BoothChat';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
@@ -257,8 +258,10 @@ export default function ExhibitorDetail() {
                   <MapPin className="w-3 h-3 flex-shrink-0" />
                   <span>Booth <span className="font-bold text-foreground">{ex.booth}</span> · {ex.section || 'General'}</span>
                 </div>
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-[11px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{ex.category}</span>
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  {getExhibitorCategories(ex).map(c => (
+                    <span key={c} className="text-[11px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{c}</span>
+                  ))}
                 </div>
               </div>
             </div>

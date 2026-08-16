@@ -167,6 +167,7 @@ export default function ExhibitorHome() {
     if (!editOpen) setEditForm({
       name: myBooth.name || '',
       logo_url: myBooth.logo_url || '',
+      categories: myBooth.categories?.length ? myBooth.categories : (myBooth.category ? [myBooth.category] : []),
       description: myBooth.description || '',
       contact_email: myBooth.contact_email || '',
       phone: myBooth.phone || '',
@@ -355,6 +356,28 @@ export default function ExhibitorHome() {
               purpose="exhibitor-logo"
               preset="logo"
             />
+            <div>
+              <label className="text-xs text-muted-foreground font-medium block mb-1.5">Categories</label>
+              <div className="flex gap-2 flex-wrap">
+                {EVENT_CONFIG.exhibitorCategories.map(c => {
+                  const active = (editForm.categories || []).includes(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditForm(f => ({
+                        ...f,
+                        categories: active ? f.categories.filter(x => x !== c) : [...(f.categories || []), c],
+                      }))}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${active ? 'bg-amber text-white border-amber' : 'border-border text-muted-foreground hover:border-amber/50'}`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5">Select all that apply — shown as tags on your public listing and used for directory filtering.</p>
+            </div>
             {[
               { key: 'name', label: 'Company Name', type: 'text' },
               { key: 'contact_email', label: 'Contact Email', type: 'email' },

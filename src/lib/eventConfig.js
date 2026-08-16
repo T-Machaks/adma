@@ -72,3 +72,12 @@ export const EVENT_CONFIG = {
     installBarCopy: `add ${NAME} to your home screen`,
   },
 };
+
+// An exhibitor can belong to multiple categories via `categories` (array). Older
+// records (and anywhere the picker hasn't been used yet) only have the legacy
+// single `category` string — read as a one-item fallback so nothing that already
+// has a category set goes uncategorised.
+export function getExhibitorCategories(exhibitor) {
+  if (Array.isArray(exhibitor?.categories) && exhibitor.categories.length) return exhibitor.categories;
+  return exhibitor?.category ? [exhibitor.category] : [];
+}

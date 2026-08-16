@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, Exhibitor } from '@/api/entities';
-import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign } from 'lucide-react';
+import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
@@ -102,6 +102,26 @@ export default function AdminPanel() {
       setSaveError(e.message);
     } finally {
       setSavingLockId(null);
+    }
+  };
+
+  // Soft-delete (server-side): the exhibitor and its dependent records (meetings,
+  // messages, listings, ad slots, analytics) are cleaned up, and any linked login
+  // accounts are downgraded rather than deleted — see server/routes/exhibitors.js.
+  const [deletingId, setDeletingId] = useState(null);
+  const deleteExhibitor = async (e) => {
+    if (!window.confirm(
+      `Delete "${e.name}"? This removes their booth from the directory, deletes their meeting requests, messages, job/tender listings, ad slots, and enquiries, and downgrades any linked exhibitor logins to a plain account. This cannot be undone from the UI.`
+    )) return;
+    setDeletingId(e.id);
+    setSaveError(null);
+    try {
+      await Exhibitor.delete(e.id);
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -324,6 +344,15 @@ export default function AdminPanel() {
                       )}
                     </>
                   )}
+                  <button
+                    type="button"
+                    disabled={deletingId === e.id}
+                    onClick={() => deleteExhibitor(e)}
+                    title="Delete exhibitor"
+                    className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-60"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               );
             })}
