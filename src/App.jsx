@@ -35,6 +35,7 @@ import ExhibitorDetail from '@/pages/ExhibitorDetail';
 import Connect from '@/pages/Connect';
 import LiveSessions from '@/pages/LiveSessions';
 import LiveRoom from '@/pages/LiveRoom';
+import Marketplace from '@/pages/Marketplace';
 import Jobs from '@/pages/Jobs';
 import JobDetail from '@/pages/JobDetail';
 import Tenders from '@/pages/Tenders';
@@ -211,6 +212,7 @@ const AuthenticatedApp = () => {
         <Route path="/connect"            element={<Connect />} />
         <Route path="/sessions"           element={<LiveSessions />} />
         <Route path="/sessions/:id"       element={<LiveRoom />} />
+        <Route path="/marketplace"        element={<Marketplace />} />
         <Route path="/jobs"               element={<Jobs />} />
         <Route path="/jobs/:id"           element={<JobDetail />} />
         <Route path="/tenders"            element={<Tenders />} />

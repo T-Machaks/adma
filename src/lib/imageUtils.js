@@ -1,3 +1,10 @@
+// Gallery items were historically plain URL strings; new uploads store
+// { url, caption } so a caption can be attached — this reads either shape
+// uniformly so nothing on an existing exhibitor's gallery breaks.
+export function normalizeGalleryItem(item) {
+  return typeof item === 'string' ? { url: item, caption: '' } : (item || { url: '', caption: '' });
+}
+
 export function resizeImageToBlob(file, maxDim = 1200, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const objUrl = URL.createObjectURL(file);

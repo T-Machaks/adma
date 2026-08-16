@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Partner, Exhibitor } from '@/api/entities';
-import { Globe, Mail, ExternalLink, Star, Award, MapPin, ChevronRight } from 'lucide-react';
+import { Globe, Mail, Star, Award, MapPin, ChevronRight } from 'lucide-react';
 import { SponsorBannerCarousel } from '@/components/SponsorBannerCarousel';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 
@@ -172,13 +172,14 @@ export default function Sponsors() {
         );
       })}
 
-      {/* Become a partner CTA */}
+      {/* Become a partner CTA — mailto rather than the physical show's own website, which
+          isn't actively monitored for enquiries; this inbox is. */}
       <div className="bg-steel text-white rounded-xl p-5 text-center">
         <p className="font-heading text-lg font-bold tracking-wide mb-2">Become a Partner</p>
         <p className="text-sm text-slate-300 mb-4">Partner with {EVENT_CONFIG.eventFullName} to reach decision-makers across Zimbabwe's agricultural sector.</p>
-        <a href={EVENT_CONFIG.website} target="_blank" rel="noreferrer"
+        <a href={`mailto:${EVENT_CONFIG.helpEmail}?subject=${encodeURIComponent('Partnership enquiry — ' + EVENT_CONFIG.eventFullName)}`}
           className="inline-flex items-center gap-2 bg-amber text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">
-          <ExternalLink className="w-4 h-4" /> Enquire at {EVENT_CONFIG.website.replace('https://', '')}
+          <Mail className="w-4 h-4" /> Enquire at {EVENT_CONFIG.helpEmail}
         </a>
       </div>
     </div>

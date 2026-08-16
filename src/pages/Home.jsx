@@ -184,7 +184,7 @@ export default function Home() {
                   <Ticket className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm leading-tight">Event Registration</p>
+                  <p className="font-semibold text-sm leading-tight">Registration</p>
                   <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Get a badge & ticket to attend the exhibition</p>
                 </div>
                 <span className="text-xs font-bold text-foreground/60 flex items-center gap-1 mt-auto">

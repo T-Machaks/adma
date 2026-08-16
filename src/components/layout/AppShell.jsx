@@ -3,7 +3,7 @@ import {
   Home, Users, Map, Calendar, Info, Bell,
   LayoutDashboard, QrCode, Menu, X, Star, Zap,
   BookOpen, UserCheck, Clock, Shield, ChevronLeft, ChevronRight, Download,
-  LogIn, LogOut, UserCircle, WifiOff, Video, Briefcase, FileText, Gavel, Handshake, DollarSign,
+  LogIn, LogOut, UserCircle, WifiOff, Video, Briefcase, FileText, Gavel, Handshake, DollarSign, Store,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import EventLogo from './EventLogo.jsx';
@@ -37,6 +37,7 @@ const navGroups = [
   {
     label: 'Marketplace',
     items: [
+      { path: '/marketplace',   label: 'Marketplace Home',   icon: Store },
       { path: '/jobs',          label: 'Jobs Board',         icon: Briefcase },
       { path: '/tenders',       label: 'Tenders',            icon: FileText },
       { path: '/auctions',      label: 'Auctions',           icon: Gavel },
@@ -59,7 +60,7 @@ const bottomNav = [
   { path: '/',                    label: 'Home',       icon: Home },
   { path: '/exhibitors',          label: 'Exhibitors', icon: Users },
   { path: '/attendee-dashboard',  label: EVENT_CONFIG.nav.myEventLabel, icon: LayoutDashboard },
-  { path: '/meetings',            label: 'Meetings',   icon: Calendar },
+  { path: '/marketplace',         label: 'Marketplace', icon: Store },
   { path: '/magazine',            label: 'Publications', icon: BookOpen },
 ];
 

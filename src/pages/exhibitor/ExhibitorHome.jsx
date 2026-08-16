@@ -17,7 +17,7 @@ import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import ImagePositioner from '@/components/shared/ImagePositioner';
-import { resizeImageToBlob } from '@/lib/imageUtils';
+import { resizeImageToBlob, normalizeGalleryItem } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { isEmbedVideoUrl } from '@/lib/videoUtils';
@@ -150,7 +150,7 @@ export default function ExhibitorHome() {
       const { uploadUrl, publicUrl } = await Exhibitor.getGalleryUploadUrl(myBooth.id);
       const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
       if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
-      await updateGallery.mutateAsync([...current, publicUrl]);
+      await updateGallery.mutateAsync([...current, { url: publicUrl, caption: '' }]);
     } finally {
       setUploadingGallery(false);
       e.target.value = '';
@@ -159,6 +159,22 @@ export default function ExhibitorHome() {
 
   const handleRemoveGalleryImage = (idx) => {
     updateGallery.mutate((myBooth.gallery || []).filter((_, i) => i !== idx));
+  };
+
+  // Tapping a thumbnail (not its remove button) opens this instead of a tiny inline
+  // input — same modal doubles as a proper full-size preview, addressing both "add a
+  // caption" and "the gallery is just stale thumbnails" in one interaction.
+  const [captionEditIdx, setCaptionEditIdx] = useState(null);
+  const [captionDraft, setCaptionDraft] = useState('');
+  const openCaptionEditor = (idx) => {
+    setCaptionDraft(normalizeGalleryItem(myBooth.gallery[idx]).caption || '');
+    setCaptionEditIdx(idx);
+  };
+  const saveCaptionEdit = () => {
+    const next = (myBooth.gallery || []).map((g, i) =>
+      i === captionEditIdx ? { ...normalizeGalleryItem(g), caption: captionDraft.trim() } : g
+    );
+    updateGallery.mutate(next, { onSuccess: () => setCaptionEditIdx(null) });
   };
 
   const updateBooth = useMutation({
@@ -675,18 +691,32 @@ export default function ExhibitorHome() {
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {(myBooth.gallery || []).map((src, i) => (
-                <div key={i} className="relative group aspect-square">
-                  <img src={src} alt={`Gallery ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-border" />
+              {(myBooth.gallery || []).map((g, i) => {
+                const item = normalizeGalleryItem(g);
+                return (
                   <button
-                    onClick={() => handleRemoveGalleryImage(i)}
-                    className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="Remove image"
+                    key={i}
+                    type="button"
+                    onClick={() => openCaptionEditor(i)}
+                    className="relative group aspect-square text-left"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <img src={item.url} alt={item.caption || `Gallery ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-border" />
+                    {item.caption && (
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent rounded-b-lg px-1.5 pt-3 pb-1">
+                        <p className="text-[9px] text-white leading-tight line-clamp-2">{item.caption}</p>
+                      </div>
+                    )}
+                    <span
+                      onClick={(e) => { e.stopPropagation(); handleRemoveGalleryImage(i); }}
+                      role="button"
+                      aria-label="Remove image"
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </span>
                   </button>
-                </div>
-              ))}
+                );
+              })}
               {(myBooth.gallery || []).length < limits.galleryMax && (
                 <label className={`flex flex-col items-center justify-center gap-1 aspect-square cursor-pointer border-2 border-dashed border-border rounded-lg hover:bg-muted/40 transition-colors ${uploadingGallery ? 'opacity-60 pointer-events-none' : ''}`}>
                   <ImagePlus className="w-5 h-5 text-muted-foreground" />
@@ -696,6 +726,7 @@ export default function ExhibitorHome() {
               )}
             </div>
           )}
+          <p className="text-[11px] text-muted-foreground">Tap an image to preview it full-size and add a caption.</p>
         </div>
       </div>
 
@@ -984,6 +1015,52 @@ export default function ExhibitorHome() {
           </div>
         </div>
       </div>
+
+      {/* Gallery image preview + caption editor */}
+      {captionEditIdx !== null && myBooth.gallery?.[captionEditIdx] && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setCaptionEditIdx(null)} />
+          <div className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="aspect-video bg-black">
+              <img
+                src={normalizeGalleryItem(myBooth.gallery[captionEditIdx]).url}
+                alt=""
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground font-medium block mb-1">Caption <span className="text-muted-foreground/70">(optional)</span></label>
+                <input
+                  type="text"
+                  value={captionDraft}
+                  onChange={e => setCaptionDraft(e.target.value.slice(0, 100))}
+                  placeholder="e.g. Our new irrigation controller, launched this year"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1 text-right">{captionDraft.length}/100</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={updateGallery.isPending}
+                  onClick={saveCaptionEdit}
+                  className="flex-1 py-2.5 rounded-xl bg-amber text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {updateGallery.isPending ? 'Saving…' : 'Save Caption'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCaptionEditIdx(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

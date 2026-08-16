@@ -9,6 +9,7 @@ import { track } from '@/lib/tracking';
 import TierBadge from '@/components/ui/TierBadge';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { getExhibitorCategories } from '@/lib/eventConfig';
+import { normalizeGalleryItem } from '@/lib/imageUtils';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import BoothChat from '@/components/exhibitor/BoothChat';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
@@ -609,13 +610,21 @@ function GalleryCarousel({ images, name }) {
     <div className="px-3 pb-3">
       <Carousel setApi={setApi} opts={{ loop: images.length > 1 }} className="w-full">
         <CarouselContent className="ml-0">
-          {images.map((src, i) => (
-            <CarouselItem key={i} className="pl-0">
-              <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-                <img src={src} alt={`${name} gallery ${i + 1}`} className="w-full h-full object-cover" />
-              </div>
-            </CarouselItem>
-          ))}
+          {images.map((raw, i) => {
+            const { url, caption } = normalizeGalleryItem(raw);
+            return (
+              <CarouselItem key={i} className="pl-0">
+                <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
+                  <img src={url} alt={caption || `${name} gallery ${i + 1}`} className="w-full h-full object-cover" />
+                  {caption && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 pt-8 pb-2">
+                      <p className="text-xs text-white leading-snug">{caption}</p>
+                    </div>
+                  )}
+                </div>
+              </CarouselItem>
+            );
+          })}
         </CarouselContent>
         {images.length > 1 && (
           <>
