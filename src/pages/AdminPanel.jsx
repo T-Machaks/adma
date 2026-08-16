@@ -111,17 +111,42 @@ export default function AdminPanel() {
   const [deletingId, setDeletingId] = useState(null);
   const deleteExhibitor = async (e) => {
     if (!window.confirm(
-      `Delete "${e.name}"? This removes their booth from the directory, deletes their meeting requests, messages, job/tender listings, ad slots, and enquiries, and downgrades any linked exhibitor logins to a plain account. This cannot be undone from the UI.`
+      `Delete "${e.name}"? This removes their booth from the directory, deletes their meeting requests, messages, job/tender listings, ad slots, and enquiries, and downgrades any linked exhibitor logins to a plain account. The booth itself can be restored afterward from "Deleted Exhibitors" below, but the deleted records cannot.`
     )) return;
     setDeletingId(e.id);
     setSaveError(null);
     try {
       await Exhibitor.delete(e.id);
       queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-deleted'] });
     } catch (err) {
       setSaveError(err.message);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const [showDeleted, setShowDeleted] = useState(false);
+  const { data: deletedExhibitors = [], isLoading: loadingDeleted } = useQuery({
+    queryKey: ['exhibitors-deleted'],
+    queryFn: () => Exhibitor.listDeleted(),
+    enabled: showDeleted,
+  });
+  const [restoringId, setRestoringId] = useState(null);
+  const restoreExhibitor = async (e) => {
+    if (!window.confirm(
+      `Restore "${e.name}"? This brings the booth back and re-links its owner's exhibitor access. Team members beyond the owner (if any) were downgraded, not deleted — they'll need to be re-added via the team/login-email tools. Meeting requests, listings, and other data deleted at the time cannot be recovered.`
+    )) return;
+    setRestoringId(e.id);
+    setSaveError(null);
+    try {
+      await Exhibitor.restore(e.id);
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-deleted'] });
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -357,6 +382,49 @@ export default function AdminPanel() {
               );
             })}
         </div>
+      </div>
+
+      {/* Deleted Exhibitors — restore */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+        <button
+          type="button"
+          onClick={() => setShowDeleted(s => !s)}
+          className="w-full px-4 py-3 border-b border-border flex items-center justify-between text-left hover:bg-muted/40 transition-colors"
+        >
+          <div>
+            <p className="font-heading text-sm font-bold uppercase tracking-wide">Deleted Exhibitors</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Restore a booth that was deleted by mistake.</p>
+          </div>
+          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${showDeleted ? 'rotate-90' : ''}`} />
+        </button>
+        {showDeleted && (
+          loadingDeleted ? (
+            <div className="px-4 py-6 text-center text-xs text-muted-foreground">Loading…</div>
+          ) : deletedExhibitors.length === 0 ? (
+            <div className="px-4 py-6 text-center text-xs text-muted-foreground">No deleted exhibitors.</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {deletedExhibitors.map(e => (
+                <div key={e.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{e.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Deleted {e.deleted_at ? new Date(e.deleted_at).toLocaleString() : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={restoringId === e.id}
+                    onClick={() => restoreExhibitor(e)}
+                    className="flex-shrink-0 text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors disabled:opacity-60"
+                  >
+                    {restoringId === e.id ? 'Restoring…' : 'Restore'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
       </div>
 
       {/* Platform Settings — organiser-configurable fields */}

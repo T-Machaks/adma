@@ -124,6 +124,65 @@ export default crudRouter('adma_exhibitors', {
       }
     });
 
+    // GET /api/exhibitors/deleted — organizer/superadmin only. Soft-deleted exhibitors
+    // are excluded from the generic list by filterItems above, so this is the only way
+    // to see them again. Registered ahead of crudRouter's generic GET /:id, or "deleted"
+    // would get matched as an :id instead.
+    r.get('/deleted', requireRole('organizer', 'superadmin'), async (req, res) => {
+      try {
+        const result = await ddb.send(new ScanCommand({
+          TableName: 'adma_exhibitors',
+          FilterExpression: 'deleted = :t',
+          ExpressionAttributeValues: { ':t': true },
+        }));
+        res.json(result.Items || []);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    // POST /api/exhibitors/:id/restore — undoes DELETE /:id. Re-links the owner account
+    // (exhibitor.user_id, still intact — DELETE never clears it) back to role: exhibitor,
+    // since that one account is always known. Team members beyond the owner aren't
+    // tracked anywhere retrievable after the downgrade, so they need to be re-added
+    // through the normal team/set-login-email flow — this is called out in the confirm
+    // dialog on the frontend. The cascade-deleted dependent records (meeting requests,
+    // listings, etc.) are gone for real and are not recreated.
+    r.post('/:id/restore', requireRole('organizer', 'superadmin'), async (req, res) => {
+      try {
+        const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+        const exhibitor = result.Item;
+        if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
+        if (!exhibitor.deleted) return res.status(400).json({ error: 'This exhibitor is not deleted.' });
+
+        const updated = await ddb.send(new UpdateCommand({
+          TableName: 'adma_exhibitors',
+          Key: { id: req.params.id },
+          UpdateExpression: 'REMOVE deleted, deleted_at, deleted_by',
+          ReturnValues: 'ALL_NEW',
+        }));
+
+        if (exhibitor.user_id) {
+          const ownerResult = await ddb.send(new GetCommand({ TableName: 'adma_users', Key: { id: exhibitor.user_id } }));
+          const owner = ownerResult.Item;
+          if (owner && owner.role !== 'exhibitor') {
+            await ddb.send(new UpdateCommand({
+              TableName: 'adma_users',
+              Key: { id: owner.id },
+              UpdateExpression: 'SET #role = :r, company = :c',
+              ExpressionAttributeNames: { '#role': 'role' },
+              ExpressionAttributeValues: { ':r': 'exhibitor', ':c': exhibitor.name || '' },
+            }));
+          }
+        }
+
+        logSecurityEvent('exhibitor_restored', { exhibitorId: req.params.id, exhibitorName: exhibitor.name, restoredBy: req.user.id, ip: req.ip });
+        res.json(updated.Attributes);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
     // Logs lock/unlock separately before falling through to crudRouter's own generic
     // PUT /:id handler (registered after extraRoutes runs) — Express runs both handlers
     // in registration order for the same method+path as long as this one calls next().

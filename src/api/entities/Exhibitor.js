@@ -18,6 +18,14 @@ export const Exhibitor = {
   async delete(id) {
     return apiFetch(`${BASE}/${id}`, { method: 'DELETE' });
   },
+  // Soft-deleted exhibitors (organizer/superadmin only) and the action to bring one back
+  // — see server/routes/exhibitors.js for exactly what does/doesn't get restored.
+  async listDeleted() {
+    return apiFetch(`${BASE}/deleted`);
+  },
+  async restore(id) {
+    return apiFetch(`${BASE}/${id}/restore`, { method: 'POST' });
+  },
   async filter(query = {}) {
     return apiFetch(`${BASE}?filter=${encodeURIComponent(JSON.stringify(query))}`);
   },
