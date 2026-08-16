@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, BookOpen, MessageSquare, UserCheck, Sparkles, UserPlus, Ticket, Video, MapPin, Navigation } from 'lucide-react';
+import { Users, Map, Calendar, Info, Bell, QrCode, LayoutDashboard, ArrowRight, Megaphone, AlertCircle, Clock, BookOpen, MessageSquare, UserCheck, Sparkles, UserPlus, Video, MapPin, Navigation } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Announcement, Exhibitor } from '@/api/entities';
@@ -181,11 +181,11 @@ export default function Home() {
                 className="flex flex-col gap-2 p-4 rounded-2xl border border-border bg-card hover:bg-muted/50 hover:shadow-md active:scale-95 transition-all duration-150 select-none shadow-sm"
               >
                 <div className="w-9 h-9 rounded-lg bg-steel flex items-center justify-center">
-                  <Ticket className="w-5 h-5 text-white" />
+                  <QrCode className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <p className="font-semibold text-sm leading-tight">Registration</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Get a badge & ticket to attend the exhibition</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Get your QR account-holder badge — no physical ticket required</p>
                 </div>
                 <span className="text-xs font-bold text-foreground/60 flex items-center gap-1 mt-auto">
                   Register now <ArrowRight className="w-3 h-3" />
