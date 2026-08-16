@@ -232,16 +232,16 @@ export default function SitePlan() {
                     </div>
                   </div>
 
-                  {(selExhibitor.contact_email || selExhibitor.phone || selExhibitor.contact_phone) && (
+                  {(selExhibitor.contact_email || selExhibitor.phone) && (
                     <div className="border-t border-border px-4 py-2.5 flex gap-4 flex-wrap">
                       {selExhibitor.contact_email && (
                         <a href={`mailto:${selExhibitor.contact_email}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
                           <Mail className="w-3 h-3" /> {selExhibitor.contact_email}
                         </a>
                       )}
-                      {(selExhibitor.phone || selExhibitor.contact_phone) && (
-                        <a href={`tel:${selExhibitor.phone || selExhibitor.contact_phone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                          <Phone className="w-3 h-3" /> {selExhibitor.phone || selExhibitor.contact_phone}
+                      {selExhibitor.phone && (
+                        <a href={`tel:${selExhibitor.phone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                          <Phone className="w-3 h-3" /> {selExhibitor.phone}
                         </a>
                       )}
                     </div>

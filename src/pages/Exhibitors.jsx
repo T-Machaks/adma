@@ -217,9 +217,9 @@ export default function Exhibitors() {
                     <Mail className="w-3.5 h-3.5" /> {ex.contact_email}
                   </a>
                 )}
-                {ex.contact_phone && (
-                  <a href={`tel:${ex.contact_phone}`} className="flex items-center gap-2 text-xs text-foreground/80 hover:text-amber transition-colors">
-                    <Phone className="w-3.5 h-3.5" /> {ex.contact_phone}
+                {ex.phone && (
+                  <a href={`tel:${ex.phone}`} className="flex items-center gap-2 text-xs text-foreground/80 hover:text-amber transition-colors">
+                    <Phone className="w-3.5 h-3.5" /> {ex.phone}
                   </a>
                 )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">

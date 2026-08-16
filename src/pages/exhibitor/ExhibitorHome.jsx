@@ -14,10 +14,12 @@ import {
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdSlotCard from '@/components/exhibitor/AdSlotCard';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
+import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
+import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
-import { toEmbedUrl } from '@/lib/videoUtils';
+import { isEmbedVideoUrl } from '@/lib/videoUtils';
 
 const STATUS_STYLES = {
   Pending:   { cls: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -164,6 +166,7 @@ export default function ExhibitorHome() {
   const handleEditOpen = () => {
     if (!editOpen) setEditForm({
       name: myBooth.name || '',
+      logo_url: myBooth.logo_url || '',
       description: myBooth.description || '',
       contact_email: myBooth.contact_email || '',
       phone: myBooth.phone || '',
@@ -344,6 +347,14 @@ export default function ExhibitorHome() {
         {editOpen && (
           <div className="px-4 sm:px-6 py-5 border-t border-border space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Edit Company Info</p>
+            <ImageUploadOrUrlField
+              label="Logo"
+              value={editForm.logo_url}
+              onChange={v => setEditForm(f => ({ ...f, logo_url: v }))}
+              ownerId={myBooth.id}
+              purpose="exhibitor-logo"
+              preset="logo"
+            />
             {[
               { key: 'name', label: 'Company Name', type: 'text' },
               { key: 'contact_email', label: 'Contact Email', type: 'email' },
@@ -709,13 +720,17 @@ export default function ExhibitorHome() {
           <div className="p-5 space-y-3">
             {myBooth.video_url && !videoEditOpen && (
               <div className="aspect-video rounded-xl overflow-hidden border border-border bg-muted">
-                <iframe
-                  src={myBooth.video_url}
-                  title="Company video"
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+                {isEmbedVideoUrl(myBooth.video_url) ? (
+                  <iframe
+                    src={myBooth.video_url}
+                    title="Company video"
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video src={myBooth.video_url} controls muted playsInline className="w-full h-full object-contain bg-black" />
+                )}
               </div>
             )}
 
@@ -729,14 +744,13 @@ export default function ExhibitorHome() {
               </button>
             ) : (
               <div className="space-y-2">
-                <input
-                  type="url"
+                <VideoUploadOrUrlField
                   value={videoDraft}
-                  placeholder="Paste a YouTube or Vimeo link…"
-                  onChange={e => setVideoDraft(toEmbedUrl(e.target.value))}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+                  onChange={setVideoDraft}
+                  ownerId={myBooth.id}
+                  purpose="exhibitor-video"
+                  helperText="MP4 upload (max 50MB) or a YouTube/Vimeo link — shown as an embedded video on your public booth page."
                 />
-                <p className="text-[11px] text-muted-foreground">Any YouTube or Vimeo link works — it's converted automatically.</p>
                 <div className="flex gap-2">
                   <button
                     type="button"

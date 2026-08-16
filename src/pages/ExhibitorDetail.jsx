@@ -326,7 +326,7 @@ export default function ExhibitorDetail() {
         {/* Right: contacts + CTAs + brochure + enquiry (2/5 on desktop) */}
         <div className="lg:col-span-2 space-y-4 mt-4 lg:mt-0">
           {/* Contact & links — Enhanced+ */}
-          {isEnhancedPlus && (ex.website || ex.contact_email || ex.contact_phone) && (
+          {isEnhancedPlus && (ex.website || ex.contact_email || ex.phone) && (
             <div className="bg-card border border-border rounded-2xl p-4">
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3">Contact</h2>
               <div className="flex flex-wrap gap-2">
@@ -346,9 +346,9 @@ export default function ExhibitorDetail() {
                     <Mail className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{ex.contact_email}</span>
                   </a>
                 )}
-                {ex.contact_phone && (
-                  <a href={`tel:${ex.contact_phone}`} className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 rounded-lg hover:bg-muted active:bg-muted transition-colors">
-                    <Phone className="w-3.5 h-3.5 flex-shrink-0" /> {ex.contact_phone}
+                {ex.phone && (
+                  <a href={`tel:${ex.phone}`} className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 rounded-lg hover:bg-muted active:bg-muted transition-colors">
+                    <Phone className="w-3.5 h-3.5 flex-shrink-0" /> {ex.phone}
                   </a>
                 )}
               </div>
