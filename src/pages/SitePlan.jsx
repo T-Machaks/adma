@@ -196,6 +196,7 @@ export default function SitePlan() {
                       src={selExhibitor.booth_image_url}
                       alt={`${selExhibitor.name} booth`}
                       className="w-full h-40 object-cover"
+                      style={{ objectPosition: `${selExhibitor.booth_image_position?.x ?? 50}% ${selExhibitor.booth_image_position?.y ?? 50}%` }}
                     />
                   )}
 

@@ -9,13 +9,14 @@ import {
   Store, Calendar, CheckCircle, XCircle, Clock,
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
-  Images, MessageCircle, Award, Plus, Video,
+  Images, MessageCircle, Award, Plus, Video, Move,
 } from 'lucide-react';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdSlotCard from '@/components/exhibitor/AdSlotCard';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
+import ImagePositioner from '@/components/shared/ImagePositioner';
 import { resizeImageToBlob } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
@@ -109,7 +110,19 @@ export default function ExhibitorHome() {
   });
 
   const updateBoothImage = useMutation({
-    mutationFn: (imageUrl) => Exhibitor.update(myBooth.id, { booth_image_url: imageUrl }),
+    // A fresh image resets any saved crop position — the old one was framed for a
+    // different photo and would otherwise apply to this one by coincidence, not intent.
+    mutationFn: (imageUrl) => Exhibitor.update(myBooth.id, { booth_image_url: imageUrl, booth_image_position: null }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
+  });
+
+  // Non-destructive pan/position, stored as an object-position percentage pair applied
+  // everywhere this image renders (see ExhibitorDetail.jsx, SitePlan.jsx) — the uploaded
+  // file itself is never touched, only which part of it shows through the crop frame.
+  const [positionEditOpen, setPositionEditOpen] = useState(false);
+  const [positionDraft, setPositionDraft] = useState({ x: 50, y: 50 });
+  const updateBoothPosition = useMutation({
+    mutationFn: (position) => Exhibitor.update(myBooth.id, { booth_image_position: position }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
 
@@ -219,7 +232,7 @@ export default function ExhibitorHome() {
   };
 
   const handleRemoveBoothImage = async () => {
-    await Exhibitor.update(myBooth.id, { booth_image_url: null });
+    await Exhibitor.update(myBooth.id, { booth_image_url: null, booth_image_position: null });
     qc.invalidateQueries({ queryKey: ['exhibitors-all'] });
   };
 
@@ -698,24 +711,64 @@ export default function ExhibitorHome() {
         <div className="p-5 space-y-3">
           {myBooth.booth_image_url ? (
             <>
-              <img
-                src={myBooth.booth_image_url}
-                alt="Booth stand"
-                className="w-full rounded-xl object-cover max-h-56 border border-border"
-              />
-              <div className="flex gap-2">
-                <label className={`flex items-center gap-2 cursor-pointer text-xs bg-muted border border-border px-3 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploadingImage ? 'opacity-60 pointer-events-none' : ''}`}>
-                  <ImagePlus className="w-3.5 h-3.5" />
-                  {uploadingImage ? 'Uploading…' : 'Replace Image'}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleBoothImageUpload} disabled={uploadingImage} />
-                </label>
-                <button
-                  onClick={handleRemoveBoothImage}
-                  className="flex items-center gap-2 text-xs text-red-600 border border-red-200 px-3 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Remove
-                </button>
-              </div>
+              {positionEditOpen ? (
+                <>
+                  <ImagePositioner
+                    src={myBooth.booth_image_url}
+                    value={positionDraft}
+                    onChange={setPositionDraft}
+                    aspectClassName="aspect-video"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={updateBoothPosition.isPending}
+                      onClick={() => updateBoothPosition.mutate(positionDraft, { onSuccess: () => setPositionEditOpen(false) })}
+                      className="px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60"
+                    >
+                      {updateBoothPosition.isPending ? 'Saving…' : 'Save Position'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPositionEditOpen(false)}
+                      className="px-4 py-2 text-sm font-medium border border-border rounded-lg hover:bg-muted transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border">
+                    <img
+                      src={myBooth.booth_image_url}
+                      alt="Booth stand"
+                      className="absolute inset-0 w-full h-full object-cover"
+                      style={{ objectPosition: `${myBooth.booth_image_position?.x ?? 50}% ${myBooth.booth_image_position?.y ?? 50}%` }}
+                    />
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <label className={`flex items-center gap-2 cursor-pointer text-xs bg-muted border border-border px-3 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploadingImage ? 'opacity-60 pointer-events-none' : ''}`}>
+                      <ImagePlus className="w-3.5 h-3.5" />
+                      {uploadingImage ? 'Uploading…' : 'Replace Image'}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleBoothImageUpload} disabled={uploadingImage} />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { setPositionDraft(myBooth.booth_image_position || { x: 50, y: 50 }); setPositionEditOpen(true); }}
+                      className="flex items-center gap-2 text-xs border border-border px-3 py-2 rounded-lg font-medium hover:bg-muted transition-colors"
+                    >
+                      <Move className="w-3.5 h-3.5" /> Adjust Position
+                    </button>
+                    <button
+                      onClick={handleRemoveBoothImage}
+                      className="flex items-center gap-2 text-xs text-red-600 border border-red-200 px-3 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <label className={`flex flex-col items-center justify-center gap-3 cursor-pointer border-2 border-dashed border-border rounded-xl p-8 hover:bg-muted/40 transition-colors ${uploadingImage ? 'opacity-60 pointer-events-none' : ''}`}>

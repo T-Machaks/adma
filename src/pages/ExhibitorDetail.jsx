@@ -204,11 +204,14 @@ export default function ExhibitorDetail() {
               <ImagePlus className="w-4 h-4 text-amber" />
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Booth Stand</h2>
             </div>
-            <img
-              src={ex.booth_image_url}
-              alt={`${ex.name} booth stand`}
-              className="w-full object-cover max-h-72"
-            />
+            <div className="relative w-full aspect-video">
+              <img
+                src={ex.booth_image_url}
+                alt={`${ex.name} booth stand`}
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ objectPosition: `${ex.booth_image_position?.x ?? 50}% ${ex.booth_image_position?.y ?? 50}%` }}
+              />
+            </div>
           </div>
         </div>
       )}
