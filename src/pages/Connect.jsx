@@ -15,10 +15,10 @@ const MODULES = [
     ],
   },
   {
-    section: 'Exhibitors & Partners',
+    section: 'Exhibitors & Members',
     items: [
       { label: 'Exhibitor Directory', desc: 'Browse all exhibitors with filters, contacts, and meeting booking', path: '/exhibitors', icon: FileText, color: 'bg-emerald-500' },
-      { label: 'Partners', desc: 'Partner profiles, banner ads, and tier placements', path: '/partners', icon: Star, color: 'bg-yellow-500' },
+      { label: 'Members', desc: 'ADMA member exhibitors, partner profiles, banner ads, and tier placements', path: '/partners', icon: Star, color: 'bg-yellow-500' },
       { label: 'Book a Meeting', desc: 'Schedule one-on-one meetings with exhibitors at the show', path: '/meetings', icon: Calendar, color: 'bg-violet-500' },
     ],
   },
@@ -34,7 +34,7 @@ const MODULES = [
     section: 'Communications & Content',
     items: [
       { label: 'Communications Hub', desc: 'Countdown, announcements, venue notices, and campaign messaging', path: '/communications', icon: MessageSquare, color: 'bg-orange-500', consoleOnly: true },
-      { label: 'Publications', desc: 'Interactive exhibition guide with product spotlights, sponsor ads and videos', path: '/magazine', icon: BookOpen, color: 'bg-indigo-500' },
+      { label: 'Digital Magazine', desc: 'Interactive exhibition guide with product spotlights, sponsor ads and videos', path: '/magazine', icon: BookOpen, color: 'bg-indigo-500' },
       { label: 'QR Resources', desc: 'How to use QR codes to access brochures, videos, and contacts', path: '/qr-resources', icon: Zap, color: 'bg-lime-600' },
     ],
   },

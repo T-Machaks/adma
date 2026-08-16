@@ -19,7 +19,7 @@ const navGroups = [
     items: [
       { path: '/',            label: 'Home',            icon: Home },
       { path: '/exhibitors',  label: 'Exhibitors',      icon: Users },
-      { path: '/partners',    label: 'Partners', icon: Star },
+      { path: '/partners',    label: 'Members', icon: Star },
       { path: '/site-plan',   label: 'Site Plan',       icon: Map },
       { path: '/schedule',    label: 'Schedule',        icon: Clock, settingsKey: 'showSchedule' },
       { path: '/meetings',    label: 'Meetings',        icon: Calendar },
@@ -49,7 +49,7 @@ const navGroups = [
     label: 'Content & Info',
     items: [
       { path: '/sessions',      label: 'Live Sessions',      icon: Video },
-      { path: '/magazine',      label: 'Publications',       icon: BookOpen },
+      { path: '/magazine',      label: 'Digital Magazine',   icon: BookOpen },
       { path: '/announcements', label: 'Updates',            icon: Bell, settingsKey: 'showUpdates' },
       { path: '/event-info',    label: 'Event Info',         icon: Info, settingsKey: 'showEventInfo' },
     ],
@@ -61,7 +61,7 @@ const bottomNav = [
   { path: '/exhibitors',          label: 'Exhibitors', icon: Users },
   { path: '/attendee-dashboard',  label: EVENT_CONFIG.nav.myEventLabel, icon: LayoutDashboard },
   { path: '/marketplace',         label: 'Marketplace', icon: Store },
-  { path: '/magazine',            label: 'Publications', icon: BookOpen },
+  { path: '/magazine',            label: 'Digital Magazine', icon: BookOpen },
 ];
 
 export default function AppShell({ children }) {

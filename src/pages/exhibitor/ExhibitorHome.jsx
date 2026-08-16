@@ -30,8 +30,8 @@ const STATUS_STYLES = {
 
 const PACKAGE_NEXT = { Basic: 'Enhanced', Enhanced: 'Premium' };
 const UPGRADE_PERKS = {
-  Enhanced: ['Full company profile & products', 'Live chat with attendees', 'Gallery of 6 scrolling images', 'Booth analytics dashboard'],
-  Premium:  ['Everything in Enhanced', 'AI-referenceable full profile', 'Gallery of 9 scrolling images', 'Digital magazine ads', 'Ad carousel slot'],
+  Enhanced: ['Full company profile & products', 'Live chat with attendees', 'Gallery of 6 scrolling images with captions', 'Booth analytics dashboard'],
+  Premium:  ['Everything in Enhanced', 'AI-referenceable full profile', 'Gallery of 9 scrolling images with captions', 'Digital magazine ads', 'Ad carousel slot'],
 };
 
 export default function ExhibitorHome() {

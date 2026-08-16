@@ -719,7 +719,7 @@ export default function ExhibitorAnalytics() {
             </p>
             <div className="space-y-2">
               {[
-                { pkg: 'Enhanced', color: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20', perks: ['Full profile, chat & analytics', 'Gallery of 6 scrolling images', 'Meeting request boost'] },
+                { pkg: 'Enhanced', color: 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20', perks: ['Full profile, chat & analytics', 'Gallery of 6 scrolling images with captions', 'Meeting request boost'] },
                 { pkg: 'Premium', color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20', perks: ['AI-referenceable profile', 'Lead capture form & CSV export', 'Home page featured listing', 'Ad banner carousel slot'] },
               ].map(({ pkg, color, perks }) => (
                 <div key={pkg} className={`border rounded-xl p-4 ${color}`}>

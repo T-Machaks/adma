@@ -14,8 +14,8 @@ export function standTierAtLeast(exhibitor, min) {
 
 export const STAND_TIER_PERKS = {
   Basic:    ['Logo display', 'Brief company profile (up to 250 characters)', 'Contact form'],
-  Enhanced: ['Everything in Basic', 'Full company profile & products', 'Gallery of 6 scrolling images', 'Quote enquiries', 'Analytics'],
-  Premium:  ['Everything in Enhanced', 'Full profile featured on entire page', 'Gallery of 9 scrolling images', 'Brochure downloads & video clips', 'Digital magazine ads', 'Full analytics dashboard'],
+  Enhanced: ['Everything in Basic', 'Full company profile & products', 'Gallery of 6 scrolling images with captions', 'Quote enquiries', 'Analytics'],
+  Premium:  ['Everything in Enhanced', 'Full profile featured on entire page', 'Gallery of 9 scrolling images with captions', 'Brochure downloads & video clips', 'Digital magazine ads', 'Full analytics dashboard'],
 };
 
 // Item 9 — package feature limits, enforced in both the exhibitor portal and public display.

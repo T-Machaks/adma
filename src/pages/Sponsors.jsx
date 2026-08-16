@@ -48,10 +48,12 @@ export default function Sponsors() {
 
   return (
     <div className="pb-24 max-w-2xl lg:max-w-5xl mx-auto px-4 pt-5">
-      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Partners</h1>
-      <p className="text-muted-foreground text-sm mb-5">{EVENT_CONFIG.eventFullName} is made possible by the support of our valued partners and registered ADMA member companies.</p>
+      <h1 className="font-heading text-2xl font-bold uppercase tracking-wide mb-1">Members</h1>
+      <p className="text-muted-foreground text-sm mb-5">Registered ADMA member companies, and the partners whose support makes {EVENT_CONFIG.eventFullName} possible.</p>
 
-      {/* ADMA Members — Platinum-tier exhibitor companies, visually distinct from partners */}
+      {/* ADMA Members — Platinum-tier exhibitor companies, leads the page. Kept visually
+          and structurally distinct from the Partners section below: members are
+          exhibiting companies, partners are separate sponsor/funding organisations. */}
       {members.length > 0 && (
         <div className="mb-7">
           <div className="flex items-center gap-2 mb-3">
@@ -89,6 +91,14 @@ export default function Sponsors() {
           </div>
         </div>
       )}
+
+      {/* Partners — sponsor/funding organisations, separate from ADMA member exhibitors above */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber/15 text-amber flex items-center gap-1.5">
+          <Star className="w-3 h-3" /> Partners
+        </span>
+        <div className="flex-1 h-px bg-amber/30" />
+      </div>
 
       {/* Partner tier legend */}
       <div className="flex gap-2 flex-wrap mb-6">

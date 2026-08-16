@@ -788,7 +788,7 @@ function GuideViewer({ onBack, isMobile }) {
     <div className="pb-24 pt-2 lg:py-8">
       <div className="px-4 mb-3 flex items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Publications
+          <ArrowLeft className="w-4 h-4" /> Digital Magazine
         </button>
         <span className="text-muted-foreground">/</span>
         <span className="text-sm font-semibold">{EVENT_CONFIG.eventFullName} Exhibition Guide</span>
@@ -1191,7 +1191,7 @@ function ADMAFlipBook({ onBack, isMobile }) {
     <div className="pb-24 pt-2 lg:py-8">
       <div className="px-4 mb-3 flex items-center gap-3">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Publications
+          <ArrowLeft className="w-4 h-4" /> Digital Magazine
         </button>
         <span className="text-muted-foreground">/</span>
         <span className="text-sm font-semibold">ADMA 2026 Agricultural Show Magazine</span>
@@ -1338,7 +1338,7 @@ function MagazineLibrary({ onSelect, showGuide }) {
   return (
     <div className="pb-24 pt-2 px-4">
       <div className="mb-5">
-        <h1 className="font-heading text-xl font-black uppercase tracking-wide">Publications</h1>
+        <h1 className="font-heading text-xl font-black uppercase tracking-wide">Digital Magazine</h1>
         <p className="text-sm text-muted-foreground">Industry publications, event guides and magazines</p>
       </div>
 
