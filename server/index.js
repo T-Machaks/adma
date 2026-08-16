@@ -38,6 +38,7 @@ import lots from './routes/lots.js';
 import bids from './routes/bids.js';
 import collaborations from './routes/collaborations.js';
 import cspReport from './routes/csp-report.js';
+import og from './routes/og.js';
 
 const app = express();
 
@@ -172,6 +173,11 @@ app.use('/api/lots',                   lots);
 app.use('/api/bids',                   bids);
 app.use('/api/collaborations',         collaborations);
 app.use('/api/csp-report',             cspReport);
+
+// Not under /api — this serves real HTML pages (Open Graph meta injection for exhibitor
+// link previews), reached only via an nginx location that proxies GET /exhibitors/:id
+// here instead of the static dist/ files. See server/routes/og.js.
+app.use(og);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
