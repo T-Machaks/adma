@@ -160,6 +160,13 @@ router.put('/:id/approve', requireRole('organizer', 'superadmin'), async (req, r
         created_date: new Date().toISOString(),
         name: app.company,
         user_id: userId,
+        // Every other path that links a user to an exhibitor (set-exhibitor-email,
+        // invite-team-member) sets contact_email alongside user_id — approval was the one
+        // place that didn't, which left ExhibitorAnalytics/AdminPanel's booth lookups (both
+        // match on contact_email first) resolving purely on a company-name fallback for any
+        // exhibitor approved straight from the organizer console, until someone manually
+        // re-saved their login email.
+        contact_email: app.email,
         tier,
         package: pkg,
         subscription_expires_at: nextMay30ISO(),

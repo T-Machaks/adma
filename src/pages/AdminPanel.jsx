@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Registration, Exhibitor } from '@/api/entities';
+import { Registration, Exhibitor, User as UserEntity } from '@/api/entities';
 import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
@@ -147,6 +147,61 @@ export default function AdminPanel() {
       setSaveError(err.message);
     } finally {
       setRestoringId(null);
+    }
+  };
+
+  // Platform user accounts — search-driven (the table holds every attendee too, so we
+  // don't dump the whole thing by default, only once someone types a query) delete/
+  // restore, separate from exhibitor booths above. See server/routes/users.js.
+  const [userSearch, setUserSearch] = useState('');
+  const [userError, setUserError] = useState(null);
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['users-all'],
+    queryFn: () => UserEntity.list(),
+    enabled: userSearch.trim().length >= 2,
+  });
+  const matchingUsers = userSearch.trim().length < 2 ? [] : allUsers.filter(u =>
+    u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.email?.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.company?.toLowerCase().includes(userSearch.toLowerCase())
+  ).slice(0, 20);
+
+  const [deletingUserId, setDeletingUserId] = useState(null);
+  const deleteUser = async (u) => {
+    if (!window.confirm(
+      `Delete the account for "${u.full_name || u.email}"? This signs them out everywhere immediately. It can be undone from "Deleted Accounts" below.`
+    )) return;
+    setDeletingUserId(u.id);
+    setUserError(null);
+    try {
+      await UserEntity.delete(u.id);
+      queryClient.invalidateQueries({ queryKey: ['users-all'] });
+      queryClient.invalidateQueries({ queryKey: ['users-deleted'] });
+    } catch (err) {
+      setUserError(err.message);
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  const [showDeletedUsers, setShowDeletedUsers] = useState(false);
+  const { data: deletedUsers = [], isLoading: loadingDeletedUsers } = useQuery({
+    queryKey: ['users-deleted'],
+    queryFn: () => UserEntity.listDeleted(),
+    enabled: showDeletedUsers,
+  });
+  const [restoringUserId, setRestoringUserId] = useState(null);
+  const restoreUser = async (u) => {
+    setRestoringUserId(u.id);
+    setUserError(null);
+    try {
+      await UserEntity.restore(u.id);
+      queryClient.invalidateQueries({ queryKey: ['users-all'] });
+      queryClient.invalidateQueries({ queryKey: ['users-deleted'] });
+    } catch (err) {
+      setUserError(err.message);
+    } finally {
+      setRestoringUserId(null);
     }
   };
 
@@ -419,6 +474,106 @@ export default function AdminPanel() {
                     className="flex-shrink-0 text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors disabled:opacity-60"
                   >
                     {restoringId === e.id ? 'Restoring…' : 'Restore'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
+
+      {/* Platform User Accounts — search, delete/restore. Any account (attendee,
+          exhibitor, or console), not the exhibitor booths above — those are separate
+          records even for an exhibitor's own login. */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+        <div className="px-4 py-3 border-b border-border">
+          <p className="font-heading text-sm font-bold uppercase tracking-wide">Platform User Accounts</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Search by name, email, or company to delete or restore an account. Deleting signs them out everywhere immediately and can be undone below.</p>
+        </div>
+        <div className="px-4 py-3 border-b border-border">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search accounts by name, email, or company…"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+            />
+          </div>
+        </div>
+
+        {userError && (
+          <div className="mx-4 mt-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{userError}</div>
+        )}
+
+        {userSearch.trim().length < 2 ? (
+          <div className="px-4 py-6 text-center text-xs text-muted-foreground">Type at least 2 characters to search.</div>
+        ) : matchingUsers.length === 0 ? (
+          <div className="px-4 py-6 text-center text-xs text-muted-foreground">No matching accounts.</div>
+        ) : (
+          <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+            {matchingUsers.map(u => (
+              <div key={u.id} className="px-4 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">{u.full_name || '(no name)'}</p>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0 uppercase">
+                      {ROLE_LABELS[u.role] || u.role}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{u.email}{u.company ? ` · ${u.company}` : ''}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={deletingUserId === u.id || u.id === user?.id}
+                  onClick={() => deleteUser(u)}
+                  title={u.id === user?.id ? "You can't delete your own account" : 'Delete account'}
+                  className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-40"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Deleted User Accounts — restore */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
+        <button
+          type="button"
+          onClick={() => setShowDeletedUsers(s => !s)}
+          className="w-full px-4 py-3 border-b border-border flex items-center justify-between text-left hover:bg-muted/40 transition-colors"
+        >
+          <div>
+            <p className="font-heading text-sm font-bold uppercase tracking-wide">Deleted User Accounts</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Restore an account that was deleted by mistake.</p>
+          </div>
+          <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${showDeletedUsers ? 'rotate-90' : ''}`} />
+        </button>
+        {showDeletedUsers && (
+          loadingDeletedUsers ? (
+            <div className="px-4 py-6 text-center text-xs text-muted-foreground">Loading…</div>
+          ) : deletedUsers.length === 0 ? (
+            <div className="px-4 py-6 text-center text-xs text-muted-foreground">No deleted accounts.</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {deletedUsers.map(u => (
+                <div key={u.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{u.full_name || u.email}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Deleted {u.deleted_at ? new Date(u.deleted_at).toLocaleString() : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={restoringUserId === u.id}
+                    onClick={() => restoreUser(u)}
+                    className="flex-shrink-0 text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors disabled:opacity-60"
+                  >
+                    {restoringUserId === u.id ? 'Restoring…' : 'Restore'}
                   </button>
                 </div>
               ))}

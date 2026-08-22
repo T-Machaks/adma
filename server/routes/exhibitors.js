@@ -186,53 +186,70 @@ export default crudRouter('adma_exhibitors', {
     // Logs lock/unlock separately before falling through to crudRouter's own generic
     // PUT /:id handler (registered after extraRoutes runs) — Express runs both handlers
     // in registration order for the same method+path as long as this one calls next().
+    //
+    // Wrapped in try/catch: this used to let any thrown error (a Dynamo scan blip, etc.)
+    // become an unhandled rejection — Express doesn't catch those from an async handler,
+    // so next() never ran, no response was ever sent, and the request just hung until
+    // something upstream (a reverse proxy) finally gave up, which the browser reports as
+    // a bare "Failed to fetch" with no useful error text. Every await below now always
+    // ends in either next() or a real error response.
     r.put('/:id', async (req, res, next) => {
-      if ('portal_locked' in req.body) {
-        logSecurityEvent('exhibitor_lock_changed', {
-          exhibitorId: req.params.id,
-          locked: !!req.body.portal_locked,
-          ip: req.ip,
-        });
-        // Locking should take effect immediately, not just block the next login attempt —
-        // kill any session the exhibitor is actively using right now.
-        if (req.body.portal_locked) {
-          const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
-          await revokeAllSessionsForExhibitor(req.params.id, result.Item?.user_id);
+      try {
+        // Only an organizer/superadmin session can legitimately set portal_locked at all
+        // (ORGANIZER_ONLY_FIELDS + ownsBooth below reject anyone else's write) — gate the
+        // side effects here on the same check, not just the eventual field write. Without
+        // this, any authenticated caller (e.g. an exhibitor PUTting a different booth's id)
+        // could trigger a real session-revoke before the ownership check downstream ever
+        // gets a chance to 403 the request.
+        if ('portal_locked' in req.body && (req.user?.role === 'organizer' || req.user?.role === 'superadmin')) {
+          logSecurityEvent('exhibitor_lock_changed', {
+            exhibitorId: req.params.id,
+            locked: !!req.body.portal_locked,
+            ip: req.ip,
+          });
+          // Locking should take effect immediately, not just block the next login attempt —
+          // kill any session the exhibitor is actively using right now.
+          if (req.body.portal_locked) {
+            const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+            await revokeAllSessionsForExhibitor(req.params.id, result.Item?.user_id);
+          }
         }
-      }
 
-      // Renaming the company was previously a dead end: `adma_exhibitors.name` updated
-      // fine, but `adma_users.company` (copied once at exhibitor-approval time onto the
-      // owner's account and again onto every team member added afterward, since
-      // ExhibitorTeam.jsx seeds new members from that same stale field) never got
-      // touched again — so the old name kept showing up everywhere that reads `company`
-      // off a user record. Cascade the rename to every user record carrying the old
-      // name so it actually propagates instead of leaving orphaned copies behind.
-      if (typeof req.body.name === 'string' && req.body.name.trim()) {
-        const current = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
-        const oldName = current.Item?.name;
-        // Deliberately NOT trimmed — must be byte-identical to what crudRouter's generic
-        // PUT handler is about to write to adma_exhibitors.name itself (untrimmed), or
-        // the two fields end up mismatched again the moment either side has stray
-        // whitespace (confirmed this the hard way: an existing record's name already
-        // carries a trailing space, and a trimmed cascade silently diverged from it).
-        const newName = req.body.name;
-        if (oldName && oldName.toLowerCase() !== newName.toLowerCase()) {
-          const usersResult = await ddb.send(new ScanCommand({
-            TableName: 'adma_users',
-            FilterExpression: 'company = :old',
-            ExpressionAttributeValues: { ':old': oldName },
-          }));
-          await Promise.all((usersResult.Items || []).map(u => ddb.send(new UpdateCommand({
-            TableName: 'adma_users',
-            Key: { id: u.id },
-            UpdateExpression: 'SET company = :new',
-            ExpressionAttributeValues: { ':new': newName },
-          }))));
+        // Renaming the company was previously a dead end: `adma_exhibitors.name` updated
+        // fine, but `adma_users.company` (copied once at exhibitor-approval time onto the
+        // owner's account and again onto every team member added afterward, since
+        // ExhibitorTeam.jsx seeds new members from that same stale field) never got
+        // touched again — so the old name kept showing up everywhere that reads `company`
+        // off a user record. Cascade the rename to every user record carrying the old
+        // name so it actually propagates instead of leaving orphaned copies behind.
+        if (typeof req.body.name === 'string' && req.body.name.trim()) {
+          const current = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+          const oldName = current.Item?.name;
+          // Deliberately NOT trimmed — must be byte-identical to what crudRouter's generic
+          // PUT handler is about to write to adma_exhibitors.name itself (untrimmed), or
+          // the two fields end up mismatched again the moment either side has stray
+          // whitespace (confirmed this the hard way: an existing record's name already
+          // carries a trailing space, and a trimmed cascade silently diverged from it).
+          const newName = req.body.name;
+          if (oldName && oldName.toLowerCase() !== newName.toLowerCase()) {
+            const usersResult = await ddb.send(new ScanCommand({
+              TableName: 'adma_users',
+              FilterExpression: 'company = :old',
+              ExpressionAttributeValues: { ':old': oldName },
+            }));
+            await Promise.all((usersResult.Items || []).map(u => ddb.send(new UpdateCommand({
+              TableName: 'adma_users',
+              Key: { id: u.id },
+              UpdateExpression: 'SET company = :new',
+              ExpressionAttributeValues: { ':new': newName },
+            }))));
+          }
         }
-      }
 
-      next();
+        next();
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
     });
 
     // POST /api/exhibitors/upgrade-enquiry — exhibitor asks about upgrading their

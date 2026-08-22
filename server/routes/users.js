@@ -3,8 +3,10 @@ import { GetCommand, PutCommand, UpdateCommand, ScanCommand, QueryCommand } from
 import { ddb } from '../lib/dynamo.js';
 import { generateId } from '../lib/idgen.js';
 import { crudRouter } from '../lib/crudRouter.js';
-import { requireAuth } from '../lib/authMiddleware.js';
-import { getMyExhibitorId } from '../lib/ownership.js';
+import { requireAuth, requireRole } from '../lib/authMiddleware.js';
+import { getMyExhibitorId, CONSOLE_ROLES } from '../lib/ownership.js';
+import { revokeAllSessionsForUser } from '../lib/session.js';
+import { logSecurityEvent } from '../lib/securityLog.js';
 
 const TABLE = 'adma_users';
 
@@ -30,6 +32,11 @@ function sanitize(user) {
 
 export default crudRouter(TABLE, {
   defaults: () => ({ role: 'attendee', status: 'active' }),
+  // Belt-and-braces only — every verb crudRouter would otherwise generate itself is
+  // already overridden above with its own explicit auth, so these generic handlers are
+  // never actually reached. Set anyway so a future removed override doesn't silently
+  // reopen an unauthenticated route the way DELETE /:id did.
+  auth: { read: 'auth', write: ['organizer', 'superadmin'] },
   extraRoutes(r) {
     // These are registered before crudRouter's own generic handlers for the
     // same paths, so they take priority -- strips password_hash/totp_secret
@@ -170,6 +177,10 @@ export default crudRouter(TABLE, {
           const result = await ddb.send(new ScanCommand({ TableName: TABLE }));
           items = result.Items || [];
         }
+        // Soft-deleted accounts (see DELETE /:id below) stay out of every listing —
+        // same "invisible unless you go looking in Deleted Accounts" behavior as
+        // exhibitors.js.
+        items = items.filter(u => !u.deleted);
         if (sortBy) {
           const desc = sortBy.startsWith('-');
           const field = desc ? sortBy.slice(1) : sortBy;
@@ -185,10 +196,25 @@ export default crudRouter(TABLE, {
       }
     });
 
+    // GET /api/users/deleted — organizer/superadmin only. Registered ahead of
+    // GET /:id below, or "deleted" would get matched as an :id instead.
+    r.get('/deleted', requireRole('organizer', 'superadmin'), async (req, res) => {
+      try {
+        const result = await ddb.send(new ScanCommand({
+          TableName: TABLE,
+          FilterExpression: 'deleted = :t',
+          ExpressionAttributeValues: { ':t': true },
+        }));
+        res.json((result.Items || []).map(sanitize));
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
     r.get('/:id', requireAuth, async (req, res) => {
       try {
         const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
-        if (!result.Item) return res.status(404).json({ error: 'Not found' });
+        if (!result.Item || result.Item.deleted) return res.status(404).json({ error: 'Not found' });
         res.json(sanitize(result.Item));
       } catch (e) {
         res.status(500).json({ error: e.message });
@@ -223,6 +249,66 @@ export default crudRouter(TABLE, {
           ReturnValues: 'ALL_NEW',
         }));
         res.json(sanitize(result.Attributes));
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    // DELETE /api/users/:id — organizer/superadmin only, soft-delete (recoverable via
+    // restore below). Registered here so it takes priority over crudRouter's own generic
+    // DELETE — which, for this table, had no auth wired up at all (this router never
+    // passed an `auth` option to crudRouter, and every other verb was already
+    // individually overridden above with its own requireAuth, so the plain hard-delete
+    // was reachable by anyone, logged in or not).
+    r.delete('/:id', requireRole('organizer', 'superadmin'), async (req, res) => {
+      try {
+        const userId = req.params.id;
+        if (userId === req.user.id) return res.status(400).json({ error: "You can't delete your own account." });
+
+        const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: userId } }));
+        const target = result.Item;
+        if (!target) return res.status(404).json({ error: 'Not found' });
+        if (target.deleted) return res.status(400).json({ error: 'This account has already been deleted.' });
+        // Only a superadmin may delete another console account (organizer/superadmin/
+        // marketing_partner) — same reasoning as add-organizer in auth.js: an organizer
+        // deleting a peer (or the last superadmin) is exactly how you silently lock a
+        // team out of its own console.
+        if (CONSOLE_ROLES.includes(target.role) && req.user.role !== 'superadmin') {
+          return res.status(403).json({ error: 'Only a superadmin can delete a console account.' });
+        }
+
+        await ddb.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { id: userId },
+          UpdateExpression: 'SET deleted = :t, deleted_at = :now, deleted_by = :u',
+          ExpressionAttributeValues: { ':t': true, ':now': new Date().toISOString(), ':u': req.user.id },
+        }));
+        await revokeAllSessionsForUser(userId);
+
+        logSecurityEvent('user_deleted', { userId, userEmail: target.email, deletedBy: req.user.id, ip: req.ip });
+        res.json({ ok: true });
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    // POST /api/users/:id/restore — undoes DELETE /:id above.
+    r.post('/:id/restore', requireRole('organizer', 'superadmin'), async (req, res) => {
+      try {
+        const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
+        const target = result.Item;
+        if (!target) return res.status(404).json({ error: 'Not found' });
+        if (!target.deleted) return res.status(400).json({ error: 'This account is not deleted.' });
+
+        const updated = await ddb.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { id: req.params.id },
+          UpdateExpression: 'REMOVE deleted, deleted_at, deleted_by',
+          ReturnValues: 'ALL_NEW',
+        }));
+
+        logSecurityEvent('user_restored', { userId: req.params.id, userEmail: target.email, restoredBy: req.user.id, ip: req.ip });
+        res.json(sanitize(updated.Attributes));
       } catch (e) {
         res.status(500).json({ error: e.message });
       }
