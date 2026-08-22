@@ -13,7 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // matching pm2 restart.
 const DIST_INDEX = path.join(__dirname, '../../dist/index.html');
 const APP_URL = 'https://admadigital.co.zw';
-const FALLBACK_IMAGE = 'https://adma-zw.s3.af-south-1.amazonaws.com/brand/adma-logo.png';
+const FALLBACK_IMAGE = 'https://adma-zw.s3.af-south-1.amazonaws.com/marketing-images/adma-logo-500x500.png';
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
