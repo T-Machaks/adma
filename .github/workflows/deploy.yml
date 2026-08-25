@@ -1,0 +1,98 @@
+name: Deploy to production
+
+# Deliberately manual (workflow_dispatch), not on every push to main — this is a
+# security-sensitive production app (see the CAIQ assessment docs at the repo root),
+# so a deploy should be a deliberate, auditable action, not implicit continuous
+# deployment. Trigger it from the Actions tab, or `gh workflow run deploy.yml`.
+#
+# Runs the exact same sequence proven by hand all along — cd, git pull (as ec2-user),
+# npm run build (as ec2-user), pm2 restart, health check — on BOTH EC2 instances
+# (primary + warm-standby backup) via a single AWS SSM Send-Command call, so they
+# can never drift out of sync with each other the way a manual per-instance process
+# risks.
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: af-south-1
+  PRIMARY_INSTANCE_ID: i-0a3174c66880b0e04
+  BACKUP_INSTANCE_ID: i-0b3233db9d8a576e6
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ADMA_DEPLOY_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ADMA_DEPLOY_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Written to a file (not passed as a CLI argument) so there is zero shell-quoting
+      # to get wrong — the heredoc's quoted delimiter ('EOF') means this is copied
+      # completely literally, no expansion of any kind.
+      - name: Write SSM command parameters
+        run: |
+          cat > ssm-params.json <<'EOF'
+          {
+            "commands": [
+              "set -e",
+              "cd /home/ec2-user/adma",
+              "sudo -u ec2-user git pull",
+              "sudo -u ec2-user npm run build",
+              "sudo -u ec2-user pm2 restart adma-api",
+              "sleep 2",
+              "curl -sf localhost:3001/api/health"
+            ]
+          }
+          EOF
+
+      - name: Deploy via SSM Send-Command
+        id: send
+        run: |
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$PRIMARY_INSTANCE_ID" "$BACKUP_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "adma deploy triggered by GitHub Actions (${{ github.sha }})" \
+            --parameters file://ssm-params.json \
+            --query "Command.CommandId" --output text)
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+          echo "SSM Command ID: $COMMAND_ID"
+
+      - name: Wait for completion
+        run: |
+          aws ssm wait command-executed \
+            --command-id "${{ steps.send.outputs.command_id }}" \
+            --instance-id "$PRIMARY_INSTANCE_ID" || true
+          aws ssm wait command-executed \
+            --command-id "${{ steps.send.outputs.command_id }}" \
+            --instance-id "$BACKUP_INSTANCE_ID" || true
+
+      - name: Report result — primary
+        run: |
+          aws ssm get-command-invocation \
+            --command-id "${{ steps.send.outputs.command_id }}" \
+            --instance-id "$PRIMARY_INSTANCE_ID" \
+            --query "{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}" \
+            --output text
+
+      - name: Report result — backup
+        run: |
+          aws ssm get-command-invocation \
+            --command-id "${{ steps.send.outputs.command_id }}" \
+            --instance-id "$BACKUP_INSTANCE_ID" \
+            --query "{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}" \
+            --output text
+
+      - name: Fail the workflow if either instance failed
+        run: |
+          PRIMARY_STATUS=$(aws ssm get-command-invocation --command-id "${{ steps.send.outputs.command_id }}" --instance-id "$PRIMARY_INSTANCE_ID" --query "Status" --output text)
+          BACKUP_STATUS=$(aws ssm get-command-invocation --command-id "${{ steps.send.outputs.command_id }}" --instance-id "$BACKUP_INSTANCE_ID" --query "Status" --output text)
+          echo "Primary: $PRIMARY_STATUS · Backup: $BACKUP_STATUS"
+          if [ "$PRIMARY_STATUS" != "Success" ] || [ "$BACKUP_STATUS" != "Success" ]; then
+            echo "::error::Deploy failed on at least one instance — see the 'Report result' steps above for output/error detail."
+            exit 1
+          fi
