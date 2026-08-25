@@ -863,7 +863,7 @@ function GuideViewer({ onBack, isMobile }) {
 function stopPropagation(e) { e.stopPropagation(); e.preventDefault?.(); }
 
 function ImageAdSection({ config }) {
-  const { image_url, click_url, advertiser, fit = 'cover', cropSide = 'center' } = config || {};
+  const { image_url, click_url, advertiser, exhibitor_id, fit = 'cover', cropSide = 'center' } = config || {};
   if (!image_url) return null;
   const objectPosition = cropSide === 'left' ? 'left center' : cropSide === 'right' ? 'right center' : 'center';
   const img = (
@@ -884,7 +884,7 @@ function ImageAdSection({ config }) {
       className="relative block w-full h-full bg-white"
       onMouseDown={stopPropagation}
       onTouchStart={stopPropagation}
-      onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+      onClick={e => { stopPropagation(e); track(exhibitor_id || '', advertiser || '', 'ad_click', 'magazine'); }}
     >
       {img}
     </a>
@@ -892,12 +892,12 @@ function ImageAdSection({ config }) {
 }
 
 function VideoAdSection({ config }) {
-  const { video_url, click_url, advertiser } = config || {};
+  const { video_url, click_url, advertiser, exhibitor_id } = config || {};
   const playTracked = useRef(false);
   const handlePlay = () => {
     if (playTracked.current) return;
     playTracked.current = true;
-    track('', advertiser || '', 'video_play', 'magazine');
+    track(exhibitor_id || '', advertiser || '', 'video_play', 'magazine');
   };
   if (!video_url) return null;
   const embed = isEmbedVideoUrl(video_url) ? video_url : toEmbedUrl(video_url);
@@ -926,7 +926,7 @@ function VideoAdSection({ config }) {
           style={{ background: 'rgba(0,0,0,0.6)', fontSize: 8 }}
           onMouseDown={stopPropagation}
           onTouchStart={stopPropagation}
-          onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+          onClick={e => { stopPropagation(e); track(exhibitor_id || '', advertiser || '', 'ad_click', 'magazine'); }}
         >
           Visit Website ↗
         </a>
@@ -936,6 +936,7 @@ function VideoAdSection({ config }) {
 }
 
 function CarouselAdSection({ config }) {
+  const exhibitor_id = config?.exhibitor_id;
   const slides = (config?.slides || []).filter(s => s?.image_url);
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -985,7 +986,7 @@ function CarouselAdSection({ config }) {
           style={{ background: 'rgba(0,0,0,0.6)', fontSize: 8 }}
           onMouseDown={stopPropagation}
           onTouchStart={stopPropagation}
-          onClick={e => { stopPropagation(e); track('', s.label || '', 'ad_click', 'magazine'); }}
+          onClick={e => { stopPropagation(e); track(exhibitor_id || '', s.label || '', 'ad_click', 'magazine'); }}
         >
           Visit Website ↗
         </a>
@@ -995,7 +996,7 @@ function CarouselAdSection({ config }) {
 }
 
 function AdvertorialSection({ config }) {
-  const { image_url, heading, body, click_url, advertiser } = config || {};
+  const { image_url, heading, body, click_url, advertiser, exhibitor_id } = config || {};
   return (
     <div className="relative w-full h-full flex overflow-hidden bg-white">
       {image_url && (
@@ -1015,7 +1016,7 @@ function AdvertorialSection({ config }) {
             style={{ fontSize: 9 }}
             onMouseDown={stopPropagation}
             onTouchStart={stopPropagation}
-            onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+            onClick={e => { stopPropagation(e); track(exhibitor_id || '', advertiser || '', 'ad_click', 'magazine'); }}
           >
             Learn more ↗
           </a>
@@ -1026,7 +1027,7 @@ function AdvertorialSection({ config }) {
 }
 
 function TextStripSection({ config }) {
-  const { text, bg = '#0f2e1c', color = '#fff', click_url, advertiser } = config || {};
+  const { text, bg = '#0f2e1c', color = '#fff', click_url, advertiser, exhibitor_id } = config || {};
   if (!text) return null;
   const content = (
     <div className="w-full h-full flex items-center justify-center px-3 text-center font-bold" style={{ background: bg, color, fontSize: 10 }}>
@@ -1042,7 +1043,7 @@ function TextStripSection({ config }) {
       className="block w-full h-full"
       onMouseDown={stopPropagation}
       onTouchStart={stopPropagation}
-      onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+      onClick={e => { stopPropagation(e); track(exhibitor_id || '', advertiser || '', 'ad_click', 'magazine'); }}
     >
       {content}
     </a>
@@ -1051,7 +1052,7 @@ function TextStripSection({ config }) {
 
 function AnimatedSection({ config }) {
   const {
-    style = 'ticker', text, image_url, click_url, advertiser,
+    style = 'ticker', text, image_url, click_url, advertiser, exhibitor_id,
     bg = '#0f2e1c', color = '#ffffff', accent = '#eab308',
   } = config || {};
   if (!text) return null;
@@ -1102,7 +1103,7 @@ function AnimatedSection({ config }) {
       className="block w-full h-full"
       onMouseDown={stopPropagation}
       onTouchStart={stopPropagation}
-      onClick={e => { stopPropagation(e); track('', advertiser || '', 'ad_click', 'magazine'); }}
+      onClick={e => { stopPropagation(e); track(exhibitor_id || '', advertiser || '', 'ad_click', 'magazine'); }}
     >
       {content}
     </a>

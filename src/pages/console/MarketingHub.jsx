@@ -1217,6 +1217,27 @@ export default function MarketingHub() {
                 </Select>
               </div>
               <div className="col-span-2">
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">
+                  Link to Exhibitor <span className="normal-case font-normal text-muted-foreground/70">(so it shows as active on their own portal — leave as None for a house/sponsor ad)</span>
+                </label>
+                <Select
+                  value={slotForm.exhibitor_id || '__none__'}
+                  onValueChange={v => {
+                    if (v === '__none__') return setSlotForm(f => ({ ...f, exhibitor_id: '' }));
+                    const ex = exhibitors.find(e => e.id === v);
+                    setSlotForm(f => ({ ...f, exhibitor_id: v, company: ex?.name || f.company, exhibitor_name: ex?.name || f.exhibitor_name }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None (house/sponsor ad) —</SelectItem>
+                    {exhibitors.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2">
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company Name</label>
                 <Input
                   placeholder="e.g. SANY Group"
@@ -1340,6 +1361,27 @@ export default function MarketingHub() {
             className="space-y-3 pt-1"
           >
             <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">
+                  Link to Exhibitor <span className="normal-case font-normal text-muted-foreground/70">(so it shows as active on their own portal — leave as None for a house/sponsor ad)</span>
+                </label>
+                <Select
+                  value={videoSlotForm.exhibitor_id || '__none__'}
+                  onValueChange={v => {
+                    if (v === '__none__') return setVideoSlotForm(f => ({ ...f, exhibitor_id: '' }));
+                    const ex = exhibitors.find(e => e.id === v);
+                    setVideoSlotForm(f => ({ ...f, exhibitor_id: v, company: ex?.name || f.company, exhibitor_name: ex?.name || f.exhibitor_name }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— None (house/sponsor ad) —</SelectItem>
+                    {exhibitors.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="col-span-2">
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company Name</label>
                 <Input

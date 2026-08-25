@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MagazinePage } from '@/api/entities';
+import { MagazinePage, Exhibitor } from '@/api/entities';
 import { AdSectionPage } from '@/pages/Magazine';
 import {
   Image as ImageIcon, Video, Images, FileEdit, Type, Plus, Trash2,
@@ -395,10 +395,11 @@ function PagePreview({ slot, sections }) {
   );
 }
 
-function SectionRow({ section, index, total, pageKey, onChange, onRemove, onMove, onChangeType }) {
+function SectionRow({ section, index, total, pageKey, exhibitors, onChange, onRemove, onMove, onChangeType }) {
   const meta = SECTION_TYPE_META[section.type];
   const Icon = meta?.icon || ImageIcon;
   const Form = SECTION_FORMS[section.type];
+  const setExhibitorId = (id) => onChange({ ...section, config: { ...(section.config || {}), exhibitor_id: id } });
 
   return (
     <div className="rounded-xl border border-border overflow-hidden">
@@ -441,7 +442,22 @@ function SectionRow({ section, index, total, pageKey, onChange, onRemove, onMove
           <button type="button" onClick={onRemove} className="p-1 rounded text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
-      <div className="p-3">
+      <div className="p-3 space-y-3">
+        <div>
+          <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">
+            Link to Exhibitor <span className="normal-case font-normal text-muted-foreground/70">(so it shows as active on their own portal, and clicks/views are attributed to them)</span>
+          </label>
+          <select
+            value={section.config?.exhibitor_id || '__none__'}
+            onChange={e => setExhibitorId(e.target.value === '__none__' ? '' : e.target.value)}
+            className="w-full text-sm bg-background border border-border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber"
+          >
+            <option value="__none__">— None (house/editorial content) —</option>
+            {(exhibitors || []).map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        </div>
         {Form && <Form config={section.config || {}} pageKey={pageKey} onChange={cfg => onChange({ ...section, config: cfg })} />}
       </div>
     </div>
@@ -463,6 +479,14 @@ export default function MagazineSectionBuilder() {
     queryKey: ['magazine-pages'],
     queryFn: () => MagazinePage.list(),
     staleTime: 30_000,
+  });
+
+  // For linking a section to a real exhibitor (config.exhibitor_id) — without this, a
+  // magazine ad about an exhibitor has no way to signal "active" on that exhibitor's own
+  // portal, and every click/view on it is tracked as belonging to no exhibitor at all.
+  const { data: exhibitors = [] } = useQuery({
+    queryKey: ['exhibitors-all'],
+    queryFn: () => Exhibitor.list(null),
   });
   const pageMap = Object.fromEntries(pages.map(p => [p.page_num, p]));
 
@@ -676,6 +700,7 @@ export default function MagazineSectionBuilder() {
                       index={i}
                       total={draftSections.length}
                       pageKey={selectedKey}
+                      exhibitors={exhibitors}
                       onChange={next => updateSection(section.id, next)}
                       onRemove={() => removeSection(section.id)}
                       onMove={dir => moveSection(section.id, dir)}

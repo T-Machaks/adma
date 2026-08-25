@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { JobListing, TenderListing, Collaboration, JobApplication, VirtualEnquiry, EngagementEvent } from '@/api/entities';
+import { JobListing, TenderListing, Collaboration, JobApplication, VirtualEnquiry, EngagementEvent, Exhibitor } from '@/api/entities';
 import {
   Briefcase, FileText, Handshake, Plus, Edit2, Trash2, MapPin, Clock, ExternalLink, Download, UploadCloud,
   Eye, Send, FileDown,
@@ -25,17 +25,17 @@ import { Switch } from '@/components/ui/switch';
 const TENDER_CATEGORIES = EVENT_CONFIG.exhibitorCategories;
 
 const EMPTY_JOB = {
-  title: '', company_name: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0],
+  title: '', company_name: '', exhibitor_id: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0],
   description: '', requirements: '', closing_date: '', source_url: '', status: 'Open',
   display_format: 'text', display_image_url: '', video_url: '', contact_email: '', accept_submissions: true,
 };
 const EMPTY_TENDER = {
-  title: '', company_name: '', category: TENDER_CATEGORIES[0], description: '', closing_date: '',
+  title: '', company_name: '', exhibitor_id: '', category: TENDER_CATEGORIES[0], description: '', closing_date: '',
   source_url: '', status: 'Open', display_format: 'text', display_image_url: '', document_url: '', video_url: '',
   contact_email: '', accept_submissions: true,
 };
 const EMPTY_COLLAB = {
-  title: '', company_name: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '',
+  title: '', company_name: '', exhibitor_id: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '',
   source_url: '', status: 'Open', display_format: 'text', display_image_url: '', video_url: '', contact_email: '',
   accept_submissions: true,
 };
@@ -49,10 +49,19 @@ export default function MarketplaceListings() {
   const { data: allApplications = [] } = useQuery({ queryKey: ['job-applications-all'], queryFn: () => JobApplication.list() });
   const { data: allEnquiries = [] } = useQuery({ queryKey: ['virtual-enquiries-all'], queryFn: () => VirtualEnquiry.list() });
   const { data: allEngagements = [] } = useQuery({ queryKey: ['engagements-all'], queryFn: () => EngagementEvent.list() });
+  // For linking a listing to a real exhibitor when posting on their behalf — without
+  // this, a listing an organizer creates "for" an exhibitor never appears on that
+  // exhibitor's own portal, since the exhibitor's own pages filter strictly by
+  // exhibitor_id, not by company_name text matching.
+  const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors-all'], queryFn: () => Exhibitor.list(null) });
+  const exhibitorById = Object.fromEntries(exhibitors.map(e => [e.id, e]));
 
-  const jobs = allJobs.filter(j => !j.exhibitor_id);
-  const tenders = allTenders.filter(t => !t.exhibitor_id);
-  const collabs = allCollabs.filter(c => !c.exhibitor_id);
+  // Shows every listing now, exhibitor-linked or not — previously this page only ever
+  // showed "house" listings (no exhibitor_id) and had no way to create or edit an
+  // exhibitor-linked one at all, even though the backend already allowed it.
+  const jobs = allJobs;
+  const tenders = allTenders;
+  const collabs = allCollabs;
 
   // Per-listing analytics — views/clicks from engagement events, submissions from
   // applications (jobs) or enquiries (tenders/collabs), keyed by listing id.
@@ -127,7 +136,7 @@ export default function MarketplaceListings() {
   const openEditJob = (j) => {
     setEditJobId(j.id);
     setJobForm({
-      title: j.title || '', company_name: j.company_name || '', category: j.category || JOB_CATEGORIES[0],
+      title: j.title || '', company_name: j.company_name || '', exhibitor_id: j.exhibitor_id || '', category: j.category || JOB_CATEGORIES[0],
       location: j.location || '', type: j.type || JOB_TYPES[0], description: j.description || '',
       requirements: j.requirements || '', closing_date: j.closing_date || '', source_url: j.source_url || '',
       status: j.status || 'Open', display_format: j.display_format || 'text', display_image_url: j.display_image_url || '',
@@ -145,7 +154,7 @@ export default function MarketplaceListings() {
   const openEditTender = (t) => {
     setEditTenderId(t.id);
     setTenderForm({
-      title: t.title || '', company_name: t.company_name || '', category: t.category || TENDER_CATEGORIES[0],
+      title: t.title || '', company_name: t.company_name || '', exhibitor_id: t.exhibitor_id || '', category: t.category || TENDER_CATEGORIES[0],
       description: t.description || '', closing_date: t.closing_date || '', source_url: t.source_url || '',
       status: t.status || 'Open', display_format: t.display_format || 'text', display_image_url: t.display_image_url || '',
       document_url: t.document_url || '', video_url: t.video_url || '', contact_email: t.contact_email || '',
@@ -163,7 +172,7 @@ export default function MarketplaceListings() {
   const openEditCollab = (c) => {
     setEditCollabId(c.id);
     setCollabForm({
-      title: c.title || '', company_name: c.company_name || '', type: c.type || COLLABORATION_TYPES[0],
+      title: c.title || '', company_name: c.company_name || '', exhibitor_id: c.exhibitor_id || '', type: c.type || COLLABORATION_TYPES[0],
       description: c.description || '', closing_date: c.closing_date || '', source_url: c.source_url || '',
       status: c.status || 'Open', display_format: c.display_format || 'text', display_image_url: c.display_image_url || '',
       video_url: c.video_url || '', contact_email: c.contact_email || '', accept_submissions: c.accept_submissions !== false,
@@ -194,9 +203,10 @@ export default function MarketplaceListings() {
       <div>
         <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Marketplace Listings</h1>
         <p className="text-muted-foreground text-sm mt-0.5 max-w-2xl">
-          Post job openings, tenders and collaboration opportunities sourced from public platforms that aren't tied to a
-          specific exhibitor's booth. Listings posted by exhibitors themselves are managed from their own portal — this
-          page is for generic, organizer-posted content only.
+          Post job openings, tenders and collaboration opportunities — sourced from public platforms, or on behalf of a
+          specific exhibitor (link it via "Link to Exhibitor" below so it also shows as active on their own portal).
+          Exhibitors can still post their own listings directly from their portal too; edits either side make are all
+          managed here.
         </p>
       </div>
 
@@ -208,7 +218,7 @@ export default function MarketplaceListings() {
         </div>
         {jobs.length === 0 ? (
           <div className="border border-dashed border-border rounded-2xl p-8 text-center">
-            <p className="text-sm text-muted-foreground">No generic job listings yet.</p>
+            <p className="text-sm text-muted-foreground">No job listings yet.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -219,7 +229,14 @@ export default function MarketplaceListings() {
                     <p className="font-semibold text-sm">{j.title}</p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${j.status === 'Open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{j.status || 'Open'}</span>
                   </div>
-                  <p className="text-xs text-amber font-medium mt-0.5">{j.company_name}</p>
+                  <p className="text-xs text-amber font-medium mt-0.5 flex items-center gap-1.5">
+                    {j.company_name}
+                    {j.exhibitor_id && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-steel/10 text-steel" title="Shows as active on this exhibitor's own portal">
+                        {exhibitorById[j.exhibitor_id]?.name || 'Linked exhibitor'}
+                      </span>
+                    )}
+                  </p>
                   <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     {j.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {j.location}</span>}
                     {j.type && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {j.type}</span>}
@@ -254,7 +271,7 @@ export default function MarketplaceListings() {
         </div>
         {tenders.length === 0 ? (
           <div className="border border-dashed border-border rounded-2xl p-8 text-center">
-            <p className="text-sm text-muted-foreground">No generic tender listings yet.</p>
+            <p className="text-sm text-muted-foreground">No tender listings yet.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -267,7 +284,14 @@ export default function MarketplaceListings() {
                       t.status === 'Awarded' ? 'bg-blue-100 text-blue-700' : t.status === 'Closed' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'
                     }`}>{t.status || 'Open'}</span>
                   </div>
-                  <p className="text-xs text-amber font-medium mt-0.5">{t.company_name}</p>
+                  <p className="text-xs text-amber font-medium mt-0.5 flex items-center gap-1.5">
+                    {t.company_name}
+                    {t.exhibitor_id && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-steel/10 text-steel" title="Shows as active on this exhibitor's own portal">
+                        {exhibitorById[t.exhibitor_id]?.name || 'Linked exhibitor'}
+                      </span>
+                    )}
+                  </p>
                   <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     {t.category && <span className="bg-muted px-2 py-0.5 rounded font-medium">{t.category}</span>}
                     {t.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {t.closing_date}</span>}
@@ -306,7 +330,7 @@ export default function MarketplaceListings() {
         </div>
         {collabs.length === 0 ? (
           <div className="border border-dashed border-border rounded-2xl p-8 text-center">
-            <p className="text-sm text-muted-foreground">No generic collaboration listings yet.</p>
+            <p className="text-sm text-muted-foreground">No collaboration listings yet.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -317,7 +341,14 @@ export default function MarketplaceListings() {
                     <p className="font-semibold text-sm">{c.title}</p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.status === 'Open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{c.status || 'Open'}</span>
                   </div>
-                  <p className="text-xs text-amber font-medium mt-0.5">{c.company_name}</p>
+                  <p className="text-xs text-amber font-medium mt-0.5 flex items-center gap-1.5">
+                    {c.company_name}
+                    {c.exhibitor_id && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-steel/10 text-steel" title="Shows as active on this exhibitor's own portal">
+                        {exhibitorById[c.exhibitor_id]?.name || 'Linked exhibitor'}
+                      </span>
+                    )}
+                  </p>
                   <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     {c.type && <span className="bg-muted px-2 py-0.5 rounded font-medium">{c.type}</span>}
                     {c.closing_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Closes {c.closing_date}</span>}
@@ -351,6 +382,27 @@ export default function MarketplaceListings() {
             <div>
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Job Title *</label>
               <Input value={jobForm.title} onChange={e => setJobForm(f => ({ ...f, title: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">
+                Link to Exhibitor <span className="normal-case font-normal text-muted-foreground/70">(so it shows on their own portal — leave as None for a generic/sourced listing)</span>
+              </label>
+              <Select
+                value={jobForm.exhibitor_id || '__none__'}
+                onValueChange={v => {
+                  if (v === '__none__') return setJobForm(f => ({ ...f, exhibitor_id: '' }));
+                  const ex = exhibitors.find(e => e.id === v);
+                  setJobForm(f => ({ ...f, exhibitor_id: v, company_name: ex?.name || f.company_name }));
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None (generic listing) —</SelectItem>
+                  {exhibitors.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company / Organization *</label>
@@ -471,6 +523,27 @@ export default function MarketplaceListings() {
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company / Organization *</label>
               <Input value={tenderForm.company_name} onChange={e => setTenderForm(f => ({ ...f, company_name: e.target.value }))} placeholder="e.g. ZimTenders / Government of Zimbabwe" required />
             </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">
+                Link to Exhibitor <span className="normal-case font-normal text-muted-foreground/70">(so it shows on their own portal — leave as None for a generic/sourced listing)</span>
+              </label>
+              <Select
+                value={tenderForm.exhibitor_id || '__none__'}
+                onValueChange={v => {
+                  if (v === '__none__') return setTenderForm(f => ({ ...f, exhibitor_id: '' }));
+                  const ex = exhibitors.find(e => e.id === v);
+                  setTenderForm(f => ({ ...f, exhibitor_id: v, company_name: ex?.name || f.company_name }));
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None (generic listing) —</SelectItem>
+                  {exhibitors.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Category</label>
@@ -585,6 +658,27 @@ export default function MarketplaceListings() {
             <div>
               <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Company / Organization *</label>
               <Input value={collabForm.company_name} onChange={e => setCollabForm(f => ({ ...f, company_name: e.target.value }))} placeholder="e.g. Zimbabwe Farmers Union" required />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">
+                Link to Exhibitor <span className="normal-case font-normal text-muted-foreground/70">(so it shows on their own portal — leave as None for a generic/sourced listing)</span>
+              </label>
+              <Select
+                value={collabForm.exhibitor_id || '__none__'}
+                onValueChange={v => {
+                  if (v === '__none__') return setCollabForm(f => ({ ...f, exhibitor_id: '' }));
+                  const ex = exhibitors.find(e => e.id === v);
+                  setCollabForm(f => ({ ...f, exhibitor_id: v, company_name: ex?.name || f.company_name }));
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None (generic listing) —</SelectItem>
+                  {exhibitors.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
