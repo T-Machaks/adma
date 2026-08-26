@@ -1,16 +1,23 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
 
-// Same "read from process.env, set via pm2 on the server, never committed" pattern
-// as MAILER_*/OMNIFLEX_* (see server/lib/mailer.js, server/lib/omniflex.js) — no key
-// present just means the feature is off (see the guard below), not a startup crash.
-const apiKey = process.env.ANTHROPIC_API_KEY;
-const client = apiKey ? new Anthropic({ apiKey }) : null;
+// AWS Bedrock (partner-operated), not the direct Anthropic API — no API key here.
+// Credentials come from the standard AWS SDK chain (the EC2 instance's IAM role in
+// production; AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY locally), the same way
+// server/lib/s3.js's S3Client picks up credentials with no explicit config. Region
+// has no default and must be set explicitly — pick one where Claude models are
+// actually enabled in the Bedrock console's "Model access" page (that's a separate,
+// one-time per-account/region toggle — an IAM policy alone isn't enough).
+const awsRegion = process.env.AWS_BEDROCK_REGION;
+const client = awsRegion ? new AnthropicBedrockMantle({ awsRegion }) : null;
 
-// Haiku 4.5 — this is a short, structured, low-stakes generation task (a handful of
-// FAQ pairs from a paragraph of context), not something that benefits from a larger
-// model's extra reasoning, and it's an exhibitor-triggered on-demand call that should
-// stay fast and cheap.
-const MODEL = 'claude-haiku-4-5-20251001';
+// Bedrock model IDs take an `anthropic.` prefix instead of the first-party
+// `claude-haiku-4-5` string. Haiku because this is a short, structured, low-stakes
+// generation task (a handful of FAQ pairs from a paragraph of context) triggered
+// on-demand by an exhibitor — no need for a larger model's extra reasoning, and it
+// should stay fast and cheap. Verify this exact string in Bedrock's "Model access"
+// page if requests fail with a model-not-found error — exact availability/naming
+// can vary by AWS account and region.
+const MODEL = 'anthropic.claude-haiku-4-5';
 
 // Generates candidate FAQ question/answer pairs for an exhibitor's public profile,
 // grounded in whatever they've written as their company description. Purely
