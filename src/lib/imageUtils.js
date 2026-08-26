@@ -61,6 +61,33 @@ export const MAX_IMAGE_MB = 10;
 // are visible at once.
 export const IMAGE_INPUT_HINT = `JPG, PNG or WEBP · up to ${MAX_IMAGE_MB}MB`;
 
+// Crops a loaded <img> to an exact target size using the same "object-fit: cover +
+// object-position" math the browser itself uses — this is what turns
+// ImagePositioner's non-destructive on-screen pan (a display-time CSS trick) into an
+// ACTUAL cropped file, for the pre-upload "pick which part of the photo to keep" step
+// (ImageCropModal.jsx) rather than standardizeImage's fixed always-centered crop.
+export function cropImageToBlob(imgEl, targetW, targetH, posXPercent, posYPercent, format = 'image/jpeg', quality = 0.85) {
+  const scale = Math.max(targetW / imgEl.naturalWidth, targetH / imgEl.naturalHeight);
+  const scaledW = imgEl.naturalWidth * scale;
+  const scaledH = imgEl.naturalHeight * scale;
+  // How far the (larger, scaled) image extends past the frame on each axis — object-
+  // position picks where within that overflow the frame sits, same as CSS.
+  const overflowX = scaledW - targetW;
+  const overflowY = scaledH - targetH;
+  // Convert back into the original image's own pixel space for the actual crop rect.
+  const sx = (overflowX * (posXPercent / 100)) / scale;
+  const sy = (overflowY * (posYPercent / 100)) / scale;
+  const sw = targetW / scale;
+  const sh = targetH / scale;
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  canvas.getContext('2d').drawImage(imgEl, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))), format, quality);
+  });
+}
+
 export function standardizeImage(file, presetKey = 'banner') {
   const preset = IMAGE_PRESETS[presetKey] || IMAGE_PRESETS.banner;
   if (preset.maxDim) return resizeImageToBlob(file, preset.maxDim, preset.quality);

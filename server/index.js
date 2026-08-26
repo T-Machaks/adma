@@ -39,6 +39,7 @@ import bids from './routes/bids.js';
 import collaborations from './routes/collaborations.js';
 import cspReport from './routes/csp-report.js';
 import og from './routes/og.js';
+import ai from './routes/ai.js';
 
 const app = express();
 
@@ -125,6 +126,18 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/', authLimiter);
 
+// Tighter limiter on the AI endpoints — each call hits a paid external API, unlike
+// everything else the global limiter below already covers, so this needs a much
+// lower ceiling to bound worst-case cost from a single abusive/looping client.
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI requests. Please try again in a few minutes.' },
+});
+app.use('/api/ai/', aiLimiter);
+
 // Lighter global limiter on everything else — high enough not to disrupt normal PWA
 // polling (the service worker's 60s update check, react-query refetches) but blocks
 // scripted abuse.
@@ -173,6 +186,7 @@ app.use('/api/lots',                   lots);
 app.use('/api/bids',                   bids);
 app.use('/api/collaborations',         collaborations);
 app.use('/api/csp-report',             cspReport);
+app.use('/api/ai',                     ai);
 
 // Not under /api — this serves real HTML pages (Open Graph meta injection for exhibitor
 // link previews), reached only via an nginx location that proxies GET /exhibitors/:id

@@ -915,7 +915,10 @@ function VideoAdSection({ config }) {
           onLoad={handlePlay}
         />
       ) : (
-        <video key={embed} src={embed} controls muted playsInline preload="none" className="absolute inset-0 w-full h-full object-contain" onPlay={handlePlay} />
+        // preload="metadata" (not "none") — this is a video AD slot people scroll/flip
+        // past, not a static profile page, so it needs a visible first-frame preview
+        // and a primed connection the moment it's on screen, not only once tapped.
+        <video key={embed} src={embed} controls muted playsInline preload="metadata" className="absolute inset-0 w-full h-full object-contain" onPlay={handlePlay} />
       )}
       {click_url && (
         <a

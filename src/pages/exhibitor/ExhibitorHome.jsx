@@ -9,15 +9,17 @@ import {
   Store, Calendar, CheckCircle, XCircle, Clock,
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
-  Images, MessageCircle, Award, Plus, Video, Move,
+  Images, MessageCircle, Award, Plus, Video, Move, Sparkles, Check,
 } from 'lucide-react';
+import { apiFetch } from '@/api/client';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AdSlotCard from '@/components/exhibitor/AdSlotCard';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import ImagePositioner from '@/components/shared/ImagePositioner';
-import { resizeImageToBlob, normalizeGalleryItem } from '@/lib/imageUtils';
+import { normalizeGalleryItem } from '@/lib/imageUtils';
+import ImageCropModal from '@/components/shared/ImageCropModal';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { isEmbedVideoUrl } from '@/lib/videoUtils';
@@ -145,20 +147,30 @@ export default function ExhibitorHome() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
 
-  const handleGalleryUpload = async (e) => {
+  // Picking a file doesn't upload it directly any more — it opens the crop modal
+  // (rendered near the bottom of this component) first, so the exhibitor chooses
+  // which part of the photo to keep before it's compressed and sent to S3, rather
+  // than every upload getting an uncontrolled centered crop. { file, kind } shared
+  // with the booth image picker below so only one crop modal instance is needed.
+  const [cropTarget, setCropTarget] = useState(null);
+
+  const handleGalleryUpload = (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    if ((myBooth.gallery || []).length >= limits.galleryMax) return;
+    setCropTarget({ file, kind: 'gallery' });
+  };
+
+  const uploadCroppedGalleryImage = async (blob) => {
     const current = myBooth.gallery || [];
-    if (current.length >= limits.galleryMax) { e.target.value = ''; return; }
     setGalleryUploadProgress(0);
     try {
-      const blob = await resizeImageToBlob(file);
       const { uploadUrl, publicUrl } = await Exhibitor.getGalleryUploadUrl(myBooth.id);
       await uploadFileToS3(uploadUrl, blob, { contentType: 'image/jpeg', onProgress: setGalleryUploadProgress });
       await updateGallery.mutateAsync([...current, { url: publicUrl, caption: '' }]);
     } finally {
       setGalleryUploadProgress(null);
-      e.target.value = '';
     }
   };
 
@@ -210,6 +222,8 @@ export default function ExhibitorHome() {
       certifications: (myBooth.certifications || []).join(', '),
       faq: myBooth.faq?.length ? myBooth.faq : [],
     });
+    setFaqSuggestions([]);
+    setFaqSuggestError('');
     setEditOpen(o => !o);
   };
 
@@ -229,12 +243,45 @@ export default function ExhibitorHome() {
   }));
   const removeFaqRow = (i) => setEditForm(f => ({ ...f, faq: f.faq.filter((_, idx) => idx !== i) }));
 
-  const handleBoothImageUpload = async (e) => {
+  // AI-drafted FAQ candidates — kept separate from editForm.faq until the exhibitor
+  // explicitly accepts one, so nothing gets added to their actual profile without a
+  // deliberate action on each suggestion.
+  const [faqSuggestions, setFaqSuggestions] = useState([]);
+  const [suggestingFaqs, setSuggestingFaqs] = useState(false);
+  const [faqSuggestError, setFaqSuggestError] = useState('');
+
+  const handleSuggestFaqs = async () => {
+    setSuggestingFaqs(true);
+    setFaqSuggestError('');
+    try {
+      const { suggestions } = await apiFetch('/api/ai/suggest-faq', {
+        method: 'POST',
+        body: { name: editForm.name, description: editForm.description, categories: editForm.categories },
+      });
+      setFaqSuggestions(suggestions || []);
+    } catch (err) {
+      setFaqSuggestError(err.message);
+    } finally {
+      setSuggestingFaqs(false);
+    }
+  };
+  const acceptFaqSuggestion = (i) => {
+    const row = faqSuggestions[i];
+    setEditForm(f => ({ ...f, faq: [...(f.faq || []), row] }));
+    setFaqSuggestions(s => s.filter((_, idx) => idx !== i));
+  };
+  const discardFaqSuggestion = (i) => setFaqSuggestions(s => s.filter((_, idx) => idx !== i));
+
+  const handleBoothImageUpload = (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
+    setCropTarget({ file, kind: 'booth' });
+  };
+
+  const uploadCroppedBoothImage = async (blob) => {
     setImageUploadProgress(0);
     try {
-      const blob = await resizeImageToBlob(file);
       const { uploadUrl, publicUrl } = await Exhibitor.getBoothImageUploadUrl(
         myBooth.id,
         myBooth.booth_image_url || null
@@ -243,8 +290,14 @@ export default function ExhibitorHome() {
       await updateBoothImage.mutateAsync(publicUrl);
     } finally {
       setImageUploadProgress(null);
-      e.target.value = '';
     }
+  };
+
+  const handleCropConfirm = async (blob) => {
+    const kind = cropTarget?.kind;
+    setCropTarget(null);
+    if (kind === 'gallery') await uploadCroppedGalleryImage(blob);
+    else if (kind === 'booth') await uploadCroppedBoothImage(blob);
   };
 
   const handleRemoveBoothImage = async () => {
@@ -469,10 +522,21 @@ export default function ExhibitorHome() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs text-muted-foreground font-medium">FAQ</label>
-                    <button type="button" onClick={addFaqRow} className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline">
-                      <Plus className="w-3 h-3" /> Add question
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleSuggestFaqs}
+                        disabled={suggestingFaqs}
+                        className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline disabled:opacity-60"
+                      >
+                        <Sparkles className="w-3 h-3" /> {suggestingFaqs ? 'Thinking…' : 'Suggest with AI'}
+                      </button>
+                      <button type="button" onClick={addFaqRow} className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline">
+                        <Plus className="w-3 h-3" /> Add question
+                      </button>
+                    </div>
                   </div>
+                  {faqSuggestError && <p className="text-[11px] text-red-500 mb-1.5">{faqSuggestError}</p>}
                   <div className="space-y-2">
                     {(editForm.faq || []).map((row, i) => (
                       <div key={i} className="flex gap-1.5 items-start bg-muted/40 rounded-lg p-2">
@@ -498,6 +562,33 @@ export default function ExhibitorHome() {
                       </div>
                     ))}
                   </div>
+
+                  {/* AI-drafted candidates — each needs an explicit Add or Discard;
+                      nothing here is part of editForm.faq (and so won't get saved)
+                      until the exhibitor accepts it. */}
+                  {faqSuggestions.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[10px] text-amber font-semibold uppercase tracking-wide flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> AI suggestions — review before adding
+                      </p>
+                      {faqSuggestions.map((row, i) => (
+                        <div key={i} className="flex gap-1.5 items-start bg-amber/5 border border-amber/20 rounded-lg p-2">
+                          <div className="flex-1 space-y-0.5">
+                            <p className="text-xs font-semibold">{row.question}</p>
+                            <p className="text-xs text-muted-foreground">{row.answer}</p>
+                          </div>
+                          <div className="flex flex-col gap-1 flex-shrink-0">
+                            <button type="button" onClick={() => acceptFaqSuggestion(i)} title="Add to FAQ" className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-md">
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button type="button" onClick={() => discardFaqSuggestion(i)} title="Discard" className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1063,6 +1154,16 @@ export default function ExhibitorHome() {
             </div>
           </div>
         </div>
+      )}
+
+      {cropTarget && (
+        <ImageCropModal
+          file={cropTarget.file}
+          targetWidth={1200}
+          targetHeight={675}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropTarget(null)}
+        />
       )}
     </div>
   );
