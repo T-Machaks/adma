@@ -6,6 +6,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { Users, Plus, Trash2, Edit2, Building2, CheckCircle, X, Mail, Send } from 'lucide-react';
 
 const EMPTY_FORM = { full_name: '', email: '', company: '' };
+// Keeps exhibitor portal team size in the range typical for a booth-staff seat
+// allowance on B2B event platforms (most cap SMB/exhibitor tiers well under 10
+// seats) — also enforced server-side in server/routes/auth.js's
+// invite-team-member route, which is the actual source of truth.
+const MAX_TEAM_SIZE = 5;
 
 export default function ExhibitorTeam() {
   const { user } = useAuth();
@@ -49,6 +54,10 @@ export default function ExhibitorTeam() {
   const team = isOrganizer
     ? allUsers
     : allUsers.filter(u => u.company && companyName && normCompany(u.company) === normCompany(companyName));
+  // Only meaningful for the exhibitor's own view — `team` for an organizer is every
+  // exhibitor-role user platform-wide, not one company's roster, so the cap doesn't
+  // apply to that count. The server enforces this regardless of what the UI shows.
+  const atTeamLimit = !isOrganizer && team.length >= MAX_TEAM_SIZE;
 
   const createMutation = useMutation({
     mutationFn: (data) => User.inviteTeamMember(data),
@@ -80,6 +89,7 @@ export default function ExhibitorTeam() {
   });
 
   const openAdd = () => {
+    if (atTeamLimit) return;
     setEditUser(null);
     setForm({ ...EMPTY_FORM, company: companyName });
     setFormError('');
@@ -113,8 +123,8 @@ export default function ExhibitorTeam() {
             {isOrganizer ? 'All exhibitor portal users' : `Team members for ${companyName || 'your company'}`}
           </p>
         </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-amber text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">
+        <button onClick={openAdd} disabled={atTeamLimit} title={atTeamLimit ? `Team limit reached (max ${MAX_TEAM_SIZE})` : undefined}
+          className="flex items-center gap-2 px-4 py-2 bg-amber text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:opacity-50">
           <Plus className="w-4 h-4" />
           Add Member
         </button>
@@ -127,9 +137,17 @@ export default function ExhibitorTeam() {
         </div>
         <div className="flex-1">
           <p className="font-semibold text-sm">{companyName || 'Your Company'}</p>
-          <p className="text-slate-300 text-xs">{team.length} team member{team.length !== 1 ? 's' : ''} with exhibitor portal access</p>
+          <p className="text-slate-300 text-xs">
+            {team.length} team member{team.length !== 1 ? 's' : ''} with exhibitor portal access
+            {!isOrganizer && ` (max ${MAX_TEAM_SIZE})`}
+          </p>
         </div>
       </div>
+      {atTeamLimit && (
+        <div className="mb-5 p-3 rounded-xl bg-amber/10 border border-amber/20 text-amber-700 dark:text-amber-400 text-xs">
+          You've reached the {MAX_TEAM_SIZE}-member team limit. Remove someone first, or contact the organiser if you need more seats.
+        </div>
+      )}
 
       {/* Team list */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">

@@ -52,6 +52,15 @@ export const IMAGE_PRESET_LABELS = {
   flexible: 'Any shape or size · JPG (capped to 1600px on the longest side)',
 };
 
+// Every preset auto-crops/resizes the OUTPUT client-side regardless of source size, so
+// this only guards against an oversized source file being slow to decode on-device
+// (a phone photo at full RAW-ish resolution can be 30-50MB+) — it's not a quality cap.
+export const MAX_IMAGE_MB = 10;
+// What the upload buttons tell people they can pick, shown alongside the preset's
+// output spec (IMAGE_PRESET_LABELS) so both "what you can upload" and "what you'll get"
+// are visible at once.
+export const IMAGE_INPUT_HINT = `JPG, PNG or WEBP · up to ${MAX_IMAGE_MB}MB`;
+
 export function standardizeImage(file, presetKey = 'banner') {
   const preset = IMAGE_PRESETS[presetKey] || IMAGE_PRESETS.banner;
   if (preset.maxDim) return resizeImageToBlob(file, preset.maxDim, preset.quality);

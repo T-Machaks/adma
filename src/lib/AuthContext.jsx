@@ -60,9 +60,11 @@ export const AuthProvider = ({ children }) => {
       const found = await res.json();
       if (!res.ok) return { success: false, error: found.error || 'Login failed.' };
 
-      // Forced password change (first login)
+      // Forced password change — either a first-login temporary password, or the
+      // 6-month rotation window has passed (passwordExpired distinguishes the two
+      // for messaging; the server-side flow itself is identical either way).
       if (found.must_change_password) {
-        return { success: true, mustChangePassword: true, changeToken: found.change_token };
+        return { success: true, mustChangePassword: true, changeToken: found.change_token, passwordExpired: !!found.password_expired };
       }
 
       // Email OTP required

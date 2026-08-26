@@ -13,7 +13,10 @@ const TABLE = 'adma_users';
 // Fields that must never be settable through this generic endpoint at all —
 // password_hash/totp_secret are only ever written by the dedicated flows in
 // auth.js (bcrypt hashing, TOTP verification), never as a raw client value.
-const NEVER_CLIENT_SETTABLE = ['password_hash', 'totp_secret'];
+// password_history/password_changed_at drive the 6-month password-expiry check
+// there too — letting a client PUT reset password_changed_at would be a way to
+// dodge the expiry entirely without actually changing the password.
+const NEVER_CLIENT_SETTABLE = ['password_hash', 'totp_secret', 'password_history', 'password_changed_at'];
 // Fields that change what an account can do — only an organizer/superadmin
 // session may set these; a self-service PUT (e.g. a user editing their own
 // name) or an exhibitor inviting a team member must not be able to touch them.
@@ -26,7 +29,7 @@ function isOrganizerSession(req) {
 
 function sanitize(user) {
   if (!user) return user;
-  const { password_hash, totp_secret, ...rest } = user;
+  const { password_hash, totp_secret, password_history, ...rest } = user;
   return rest;
 }
 

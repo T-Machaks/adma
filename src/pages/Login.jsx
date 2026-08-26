@@ -63,6 +63,7 @@ export default function Login() {
   const [step, setStep]           = useState('credentials');
   const [mfaToken, setMfaToken]   = useState('');
   const [changeToken, setChangeToken] = useState('');
+  const [passwordExpired, setPasswordExpired] = useState(false);
   const [emailHint, setEmailHint] = useState('');
   const [phoneHint, setPhoneHint] = useState('');
   const [otpMethod, setOtpMethod] = useState('email');
@@ -131,6 +132,7 @@ export default function Login() {
 
       if (result.mustChangePassword) {
         setChangeToken(result.changeToken);
+        setPasswordExpired(result.passwordExpired);
         setStep('change_password');
         return;
       }
@@ -268,11 +270,15 @@ export default function Login() {
       <AuthLayout
         icon={KeyRound}
         title="Set your password"
-        subtitle="Your account uses a temporary password. Please set a permanent one to continue."
+        subtitle={passwordExpired
+          ? "It's been 6 months since your password was last changed. Please set a new one to continue."
+          : "Your account uses a temporary password. Please set a permanent one to continue."}
         footer={<button type="button" onClick={resetToCredentials} className="text-primary font-medium hover:underline">← Back to login</button>}
       >
         <div className="mb-5 p-3 rounded-lg bg-amber/10 border border-amber/20 text-amber-700 dark:text-amber-400 text-sm">
-          For security, you must change the default password before accessing your account.
+          {passwordExpired
+            ? 'For security, passwords must be renewed every 6 months. Choose a new password that you haven\'t used before and that doesn\'t contain your name.'
+            : 'For security, you must change the default password before accessing your account. Choose one that doesn\'t contain your name.'}
         </div>
 
         {error && <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>}

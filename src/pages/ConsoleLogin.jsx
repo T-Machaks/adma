@@ -39,6 +39,7 @@ export default function ConsoleLogin() {
   const [step, setStep]             = useState('credentials');
   const [mfaToken, setMfaToken]     = useState('');
   const [changeToken, setChangeToken] = useState('');
+  const [passwordExpired, setPasswordExpired] = useState(false);
   const [otp, setOtp]               = useState('');
   const [totpCode, setTotpCode]     = useState('');
   const [qrCode, setQrCode]         = useState('');
@@ -61,6 +62,7 @@ export default function ConsoleLogin() {
           setMfaToken(s.mfaToken || '');
           setChangeToken(s.changeToken || '');
           setQrCode(s.qrCode || '');
+          setPasswordExpired(!!s.passwordExpired);
         }
       }
     } catch {}
@@ -71,10 +73,10 @@ export default function ConsoleLogin() {
       sessionStorage.removeItem(OTP_SESSION_KEY);
     } else {
       try {
-        sessionStorage.setItem(OTP_SESSION_KEY, JSON.stringify({ step, mfaToken, changeToken, qrCode }));
+        sessionStorage.setItem(OTP_SESSION_KEY, JSON.stringify({ step, mfaToken, changeToken, qrCode, passwordExpired }));
       } catch {}
     }
-  }, [step, mfaToken, changeToken, qrCode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, mfaToken, changeToken, qrCode, passwordExpired]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -83,7 +85,7 @@ export default function ConsoleLogin() {
     try {
       const result = await login(email, password);
       if (!result.success) { setError(result.error); return; }
-      if (result.mustChangePassword) { setChangeToken(result.changeToken); setStep('change_password'); return; }
+      if (result.mustChangePassword) { setChangeToken(result.changeToken); setPasswordExpired(result.passwordExpired); setStep('change_password'); return; }
       if (result.mfaRequired) { setMfaToken(result.mfaToken); setOtp(''); setStep('email_otp'); focusAfter(otpRef); return; }
       if (result.totpRequired) {
         setMfaToken(result.mfaToken);
@@ -253,7 +255,9 @@ export default function ConsoleLogin() {
           {step === 'change_password' && (
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <div className="p-3 rounded-lg bg-amber/10 border border-amber/20 text-amber text-xs">
-                You must set a permanent password before accessing the console.
+                {passwordExpired
+                  ? "It's been 6 months since your password was last changed. Set a new one — it can't repeat a previous password or contain your name."
+                  : "You must set a permanent password before accessing the console — it can't contain your name."}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">New password</label>

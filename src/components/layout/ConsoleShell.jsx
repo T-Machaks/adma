@@ -129,10 +129,10 @@ export default function ConsoleShell() {
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="w-64 bg-steel flex flex-col h-full shadow-xl">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <div>
+              <Link to="/" onClick={() => setMobileOpen(false)}>
                 <EventLogo />
                 <p className="text-[10px] text-amber font-bold uppercase tracking-widest mt-1">Console</p>
-              </div>
+              </Link>
               <button onClick={() => setMobileOpen(false)} className="text-slate-400 hover:text-white p-1">
                 <X className="w-5 h-5" />
               </button>
@@ -163,7 +163,9 @@ export default function ConsoleShell() {
               <Menu className="w-5 h-5" />
             </button>
           )}
-          <EventLogo />
+          <Link to="/">
+            <EventLogo />
+          </Link>
           <span className="text-amber text-xs font-bold uppercase tracking-widest">Console</span>
           <div className="flex-1" />
           {/* Logout button in mobile top bar */}

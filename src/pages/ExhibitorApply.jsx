@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/components/AuthLayout';
-import { standardizeImage } from '@/lib/imageUtils';
+import { standardizeImage, MAX_IMAGE_MB, IMAGE_INPUT_HINT } from '@/lib/imageUtils';
 import { uploadFileToS3 } from '@/lib/uploadFile';
 import { Progress } from '@/components/ui/progress';
 
@@ -47,6 +47,10 @@ export default function ExhibitorApply() {
 
     if (!file.type.startsWith('image/')) {
       setLogoError('Please select an image file.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      setLogoError(`Image must be ${MAX_IMAGE_MB}MB or smaller.`);
       return;
     }
 
@@ -209,6 +213,7 @@ export default function ExhibitorApply() {
         {/* Logo upload */}
         <div className="space-y-2">
           <Label>Company logo <span className="text-muted-foreground font-normal">(auto-cropped to 500×500 px PNG)</span></Label>
+          <p className="text-xs text-muted-foreground -mt-1">{IMAGE_INPUT_HINT}</p>
           <div
             className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors
               ${logoError ? 'border-destructive/50 bg-destructive/5' : 'border-border hover:border-muted-foreground/50'}`}

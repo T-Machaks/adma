@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ImagePlus, X, Link2 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
-import { standardizeImage, IMAGE_PRESETS, IMAGE_PRESET_LABELS } from '@/lib/imageUtils';
+import { standardizeImage, IMAGE_PRESETS, IMAGE_PRESET_LABELS, MAX_IMAGE_MB, IMAGE_INPUT_HINT } from '@/lib/imageUtils';
 import { uploadFileToS3 } from '@/lib/uploadFile';
 import { Progress } from '@/components/ui/progress';
 
@@ -41,8 +41,13 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadProgress(0);
     setError(null);
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      setError(`Image must be ${MAX_IMAGE_MB}MB or smaller.`);
+      e.target.value = '';
+      return;
+    }
+    setUploadProgress(0);
     setPreviewBroken(false);
     try {
       const blob = await standardizeImage(file, preset);
@@ -119,7 +124,7 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
       )}
       {uploading && <Progress value={uploadProgress} className="h-1 mt-2" />}
       <p className="text-[10px] text-muted-foreground mt-1">
-        Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. {preset === 'flexible'
+        Upload: {IMAGE_INPUT_HINT}. Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. {preset === 'flexible'
           ? 'Uploaded files keep their original shape, just resized down if oversized — pasted URLs are used as-is.'
           : 'Uploaded files are auto-cropped to fit — pasted URLs are used as-is.'}
       </p>

@@ -167,8 +167,85 @@ async function getById(id) {
 }
 
 function sanitize(user) {
-  const { password_hash, totp_secret, ...rest } = user;
+  const { password_hash, totp_secret, password_history, ...rest } = user;
   return rest;
+}
+
+// ── Password policy ──────────────────────────────────────────────────────────
+// 180 days (~6 months) — a common enterprise/compliance-driven rotation window
+// (PCI-DSS traditionally required 90 days; NIST SP 800-63B's current guidance is
+// actually to avoid *mandatory periodic* rotation altogether unless there's reason
+// to suspect compromise, since forced rotation tends to push people toward
+// weaker, predictable variations). 180 days is a reasonable middle ground given
+// it's paired with reuse prevention and a name-based weak-password check below,
+// which is what NIST recommends leaning on instead of rotation alone.
+const PASSWORD_EXPIRY_DAYS = 180;
+// How many previous passwords are remembered and blocked from reuse.
+const PASSWORD_HISTORY_LIMIT = 5;
+
+function isPasswordExpired(user) {
+  // No recorded change date (every account that existed before this feature
+  // shipped) is treated as not-yet-expired rather than immediately expired —
+  // backfillPasswordChangedAt below starts the clock from their next login
+  // instead of force-changing every existing account's password all at once.
+  if (!user.password_changed_at) return false;
+  return Date.now() - new Date(user.password_changed_at).getTime() > PASSWORD_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+}
+
+// Best-effort — starts the 6-month clock for accounts that predate this feature,
+// the first time they log in after it ships. Not awaited for correctness (a
+// failed write just means it's retried on the next login), only to record it.
+async function backfillPasswordChangedAt(user) {
+  if (user.password_changed_at) return;
+  const now = new Date().toISOString();
+  user.password_changed_at = now;
+  try {
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { id: user.id },
+      UpdateExpression: 'SET password_changed_at = :t',
+      ExpressionAttributeValues: { ':t': now },
+    }));
+  } catch (e) {
+    console.error('password_changed_at backfill failed:', e.message);
+  }
+}
+
+// Blocks a password containing any part of the account holder's name (e.g. "Jane
+// Smith" blocks "jane...", "...smith...", and "JaneSmith2026" with no space) —
+// checked per name segment of 3+ characters so short/common segments ("Jo", "Li",
+// a middle initial) don't over-trigger on unrelated words.
+function containsName(password, fullName) {
+  if (!password || !fullName) return false;
+  const strip = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const pw = strip(password);
+  return fullName.toLowerCase().split(/\s+/).filter(w => w.length >= 3).some(part => pw.includes(strip(part)));
+}
+
+// Compares against the account's current password plus its remembered history —
+// bcrypt hashes can't be compared directly, so this is a compare-per-candidate
+// loop, kept cheap by PASSWORD_HISTORY_LIMIT capping how many there ever are.
+async function isPasswordReused(newPassword, user) {
+  const candidates = [user.password_hash, ...(user.password_history || [])].filter(Boolean);
+  for (const hash of candidates) {
+    if (await bcrypt.compare(newPassword, hash)) return true;
+  }
+  return false;
+}
+
+// Called right before overwriting password_hash — rolls the (soon-to-be-previous)
+// hash onto the front of the remembered history, capped at PASSWORD_HISTORY_LIMIT.
+function nextPasswordHistory(user) {
+  if (!user.password_hash) return user.password_history || [];
+  return [user.password_hash, ...(user.password_history || [])].slice(0, PASSWORD_HISTORY_LIMIT);
+}
+
+// Shared by every endpoint that sets a password (signup, forced change, reset,
+// organizer-created accounts) so the two rules can't drift out of sync between them.
+async function validateNewPassword(newPassword, user) {
+  if (containsName(newPassword, user.full_name)) return 'Password must not contain your name.';
+  if (await isPasswordReused(newPassword, user)) return `Password must be different from your last ${PASSWORD_HISTORY_LIMIT} passwords.`;
+  return null;
 }
 
 function maskEmail(email) {
@@ -207,6 +284,8 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid email address.' });
     if (password.length < 6)
       return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (containsName(password, full_name))
+      return res.status(400).json({ error: 'Password must not contain your name.' });
 
     if (phone && !isValidZimPhone(phone))
       return res.status(400).json({ error: 'Phone number must be a valid Zimbabwe mobile number (e.g. 0771234567 or +263771234567).' });
@@ -225,6 +304,7 @@ router.post('/signup', async (req, res) => {
       role: 'attendee',
       status: 'active',
       password_hash,
+      password_changed_at: new Date().toISOString(),
     };
     await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
     await issueSession(req, res, user);
@@ -270,12 +350,14 @@ router.post('/login', async (req, res) => {
 
     logSecurityEvent('login_password_verified', { userId: user.id, email: user.email, role: user.role, ip: req.ip });
     cleanExpired();
+    await backfillPasswordChangedAt(user);
 
-    // Force password change on first login
-    if (user.must_change_password) {
+    // Force password change on first login, or once the 6-month rotation window
+    // (PASSWORD_EXPIRY_DAYS) has passed since it was last set.
+    if (user.must_change_password || isPasswordExpired(user)) {
       const token = newToken();
       challengeStore.set(token, { type: 'password_change', userId: user.id, expiresAt: newExpiry() });
-      return res.json({ must_change_password: true, change_token: token });
+      return res.json({ must_change_password: true, change_token: token, password_expired: !user.must_change_password });
     }
 
     // Organizer/superadmin/marketing_partner → TOTP (authenticator app), unconditionally —
@@ -421,12 +503,15 @@ router.post('/change-password', async (req, res) => {
     const user = await getById(entry.userId);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
+    const validationError = await validateNewPassword(new_password, user);
+    if (validationError) return res.status(400).json({ error: validationError });
+
     const password_hash = await bcrypt.hash(new_password, 10);
     await ddb.send(new UpdateCommand({
       TableName: TABLE,
       Key: { id: user.id },
-      UpdateExpression: 'SET password_hash = :p REMOVE must_change_password',
-      ExpressionAttributeValues: { ':p': password_hash },
+      UpdateExpression: 'SET password_hash = :p, password_changed_at = :t, password_history = :h REMOVE must_change_password',
+      ExpressionAttributeValues: { ':p': password_hash, ':t': new Date().toISOString(), ':h': nextPasswordHistory(user) },
     }));
 
     challengeStore.delete(change_token);
@@ -504,12 +589,15 @@ router.post('/reset-password', async (req, res) => {
     const user = await getById(entry.userId);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
+    const validationError = await validateNewPassword(new_password, user);
+    if (validationError) return res.status(400).json({ error: validationError });
+
     const password_hash = await bcrypt.hash(new_password, 10);
     await ddb.send(new UpdateCommand({
       TableName: TABLE,
       Key: { id: user.id },
-      UpdateExpression: 'SET password_hash = :p REMOVE must_change_password',
-      ExpressionAttributeValues: { ':p': password_hash },
+      UpdateExpression: 'SET password_hash = :p, password_changed_at = :t, password_history = :h REMOVE must_change_password',
+      ExpressionAttributeValues: { ':p': password_hash, ':t': new Date().toISOString(), ':h': nextPasswordHistory(user) },
     }));
 
     challengeStore.delete(token);
@@ -725,6 +813,8 @@ router.post('/organizer/add-user', async (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid email address.' });
     if (password.length < 8)
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (containsName(password, full_name))
+      return res.status(400).json({ error: 'Password must not contain your name.' });
 
     const existing = await findByEmail(email);
     if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
@@ -740,6 +830,7 @@ router.post('/organizer/add-user', async (req, res) => {
       role: 'organizer',
       status: 'active',
       password_hash,
+      password_changed_at: new Date().toISOString(),
     };
     await ddb.send(new PutCommand({ TableName: TABLE, Item: user }));
     logSecurityEvent('organizer_added', { requesterEmail: requester_email, newUserId: user.id, newUserEmail: user.email, ip: req.ip });
@@ -918,6 +1009,30 @@ async function upgradeToExhibitor(req, res, { existing, full_name, normalizedEma
   }
 }
 
+// Keeps exhibitor portal team size in the range typical for a booth-staff seat
+// allowance on B2B event platforms (most cap SMB/exhibitor tiers well under 10
+// seats). Also mirrored client-side in ExhibitorTeam.jsx so the "Add Member"
+// button disables before someone hits this as a server error — this check here
+// is still the actual source of truth.
+const MAX_TEAM_SIZE = 5;
+
+async function countTeamMembers(companyName) {
+  // Compared trim+lowercase in JS rather than as a DynamoDB FilterExpression
+  // equality — some existing accounts have a `company` value with incidental
+  // whitespace differences from adma_exhibitors.name (see ExhibitorTeam.jsx's
+  // normCompany, the same fix applied there), which a byte-exact filter would
+  // silently undercount.
+  const norm = s => (s || '').trim().toLowerCase();
+  const target = norm(companyName);
+  const result = await ddb.send(new ScanCommand({
+    TableName: TABLE,
+    FilterExpression: '#role = :r AND (attribute_not_exists(deleted) OR deleted = :f)',
+    ExpressionAttributeNames: { '#role': 'role' },
+    ExpressionAttributeValues: { ':r': 'exhibitor', ':f': false },
+  }));
+  return (result.Items || []).filter(u => norm(u.company) === target).length;
+}
+
 // ── POST /api/auth/invite-team-member  — exhibitor adds a colleague ──────
 // Previously ExhibitorTeam.jsx just POSTed straight to /api/users, which created a
 // bare account with no password, no way to ever set one, and no event registration —
@@ -960,6 +1075,20 @@ router.post('/invite-team-member', requireAuth, async (req, res) => {
       if (CONSOLE_ROLES.includes(existing.role)) {
         return res.status(409).json({ error: 'An account with that email already exists.' });
       }
+    }
+
+    // Team-size cap — checked here so it covers both remaining paths that actually
+    // grow the team: upgrading an existing account onto it (below), and creating a
+    // brand-new one (further below). The "already on this team" case above doesn't
+    // grow anything, so it's deliberately excluded from this check.
+    if (companyName) {
+      const teamCount = await countTeamMembers(companyName);
+      if (teamCount >= MAX_TEAM_SIZE) {
+        return res.status(409).json({ error: `Team size limit reached — exhibitors can have up to ${MAX_TEAM_SIZE} team members. Remove someone first, or contact the organiser.` });
+      }
+    }
+
+    if (existing) {
       return upgradeToExhibitor(req, res, { existing, full_name, normalizedEmail, companyName, exhibitor });
     }
 
