@@ -34,6 +34,14 @@ jobs:
       # Written to a file (not passed as a CLI argument) so there is zero shell-quoting
       # to get wrong — the heredoc's quoted delimiter ('EOF') means this is copied
       # completely literally, no expansion of any kind.
+      #
+      # `git checkout -- package-lock.json` right before the pull: the servers run
+      # Linux, dev is Windows, and `npm install` normalizes a handful of
+      # platform-specific fields in package-lock.json differently on each — so every
+      # server-side npm install leaves a small uncommitted diff there, which blocks
+      # the *next* git pull with "local changes would be overwritten by merge".
+      # Discarding it first is safe: package-lock.json should only ever come from git
+      # here, never be hand-edited on the server.
       - name: Write SSM command parameters
         run: |
           cat > ssm-params.json <<'EOF'
@@ -41,6 +49,7 @@ jobs:
             "commands": [
               "set -e",
               "cd /home/ec2-user/adma",
+              "sudo -u ec2-user git checkout -- package-lock.json",
               "sudo -u ec2-user git pull",
               "sudo -u ec2-user npm install",
               "sudo -u ec2-user npm run build",
