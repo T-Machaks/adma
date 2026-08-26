@@ -42,6 +42,11 @@ jobs:
       # the *next* git pull with "local changes would be overwritten by merge".
       # Discarding it first is safe: package-lock.json should only ever come from git
       # here, never be hand-edited on the server.
+      #
+      # Health check retries for up to 15s instead of one `sleep 2` + single curl —
+      # a real deploy hit this exact one-shot check too early on a colder instance
+      # (pm2 showed the process "online" and it came up fine seconds later, but the
+      # single immediate check had already failed and red-flagged a good deploy).
       - name: Write SSM command parameters
         run: |
           cat > ssm-params.json <<'EOF'
@@ -54,8 +59,7 @@ jobs:
               "sudo -u ec2-user npm install",
               "sudo -u ec2-user npm run build",
               "sudo -u ec2-user pm2 restart adma-api",
-              "sleep 2",
-              "curl -sf localhost:3001/api/health"
+              "for i in $(seq 1 15); do curl -sf localhost:3001/api/health && ok=1 && break; sleep 1; done; [ \"$ok\" = \"1\" ]"
             ]
           }
           EOF
