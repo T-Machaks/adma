@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { UploadCloud, X, Link2 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import { isEmbedVideoUrl, toEmbedUrl } from '@/lib/videoUtils';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 
-const MAX_VIDEO_MB = 50;
+// Lowered from 50MB — large S3-hosted uploads were the main driver of slow video load
+// times reported in the exhibitor portal and magazine; a smaller cap keeps uploads
+// reasonably fast to fetch without needing a server-side transcoding pipeline.
+const MAX_VIDEO_MB = 20;
 
 // Reusable video input: upload an MP4 file directly (presigned-PUT to S3 via
 // /api/upload/video-ad-url) or paste a YouTube/Vimeo link. `ownerId` namespaces the S3
 // key (e.g. ad slot id); `purpose` is a short tag used only for key organisation.
 export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label, helperText }) {
-  const [uploading, setUploading] = useState(false);
+  // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const uploading = uploadProgress !== null;
   const [error, setError] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
   // `value` truthiness switches this component from "editing" to "preview" mode — without
@@ -32,20 +39,19 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
       e.target.value = '';
       return;
     }
-    setUploading(true);
+    setUploadProgress(0);
     setPreviewBroken(false);
     try {
       const { uploadUrl, publicUrl } = await apiFetch('/api/upload/video-ad-url', {
         method: 'POST',
         body: { ownerId: ownerId || 'new', purpose },
       });
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'video/mp4' }, body: file });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, file, { contentType: 'video/mp4', onProgress: setUploadProgress });
       onChange(publicUrl);
     } catch (err) {
       setError(err.message);
     } finally {
-      setUploading(false);
+      setUploadProgress(null);
       e.target.value = '';
     }
   };
@@ -63,13 +69,13 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
             ) : isEmbedVideoUrl(value) ? (
               <iframe key={value} src={toEmbedUrl(value)} className="absolute inset-0 w-full h-full" allow="autoplay; encrypted-media" title="Video ad preview" />
             ) : (
-              <video key={value} src={value} controls muted playsInline className="absolute inset-0 w-full h-full object-contain" onError={() => setPreviewBroken(true)} />
+              <video key={value} src={value} controls muted playsInline preload="none" className="absolute inset-0 w-full h-full object-contain" onError={() => setPreviewBroken(true)} />
             )}
           </div>
           <div className="flex items-center gap-2">
             <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
               <UploadCloud className="w-3.5 h-3.5" />
-              {uploading ? 'Uploading…' : 'Replace'}
+              {uploading ? `Uploading… ${uploadProgress}%` : 'Replace'}
               <input type="file" accept="video/mp4" className="hidden" onChange={handleFile} disabled={uploading} />
             </label>
             <button
@@ -85,7 +91,7 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
         <div className="flex gap-2">
           <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors flex-shrink-0 ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
             <UploadCloud className="w-3.5 h-3.5" />
-            {uploading ? 'Uploading…' : 'Upload MP4'}
+            {uploading ? `Uploading… ${uploadProgress}%` : 'Upload MP4'}
             <input type="file" accept="video/mp4" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
           <div className="relative flex-1">
@@ -105,6 +111,7 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
           </div>
         </div>
       )}
+      {uploading && <Progress value={uploadProgress} className="h-1 mt-2" />}
       <p className="text-[10px] text-muted-foreground mt-1">
         {helperText ?? `MP4 file (max ${MAX_VIDEO_MB}MB) or a YouTube/Vimeo link — plays automatically, muted, in the video ad rotation.`}
       </p>

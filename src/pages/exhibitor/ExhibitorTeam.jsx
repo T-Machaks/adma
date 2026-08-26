@@ -65,15 +65,18 @@ export default function ExhibitorTeam() {
   const deleteMutation = useMutation({
     mutationFn: (id) => User.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users-exhibitors'] }),
+    meta: { successMessage: 'Member removed' },
   });
 
   // Recovers members added before the invite email existed (no password, no
   // registration) and doubles as a plain "resend it" for a lost email — refused
-  // server-side once the member has actually set a password.
+  // server-side once the member has actually set a password. Already shows its own
+  // specific toast below, so opt out of the generic global one (see queryClient.js).
   const resendInviteMutation = useMutation({
     mutationFn: (email) => User.resendTeamInvite(email),
     onSuccess: (_, email) => { qc.invalidateQueries({ queryKey: ['users-exhibitors'] }); toast({ title: 'Invite sent', description: `A new invite was emailed to ${email}.` }); },
     onError: (e) => toast({ title: 'Could not resend invite', description: e.message, variant: 'destructive' }),
+    meta: { silent: true },
   });
 
   const openAdd = () => {

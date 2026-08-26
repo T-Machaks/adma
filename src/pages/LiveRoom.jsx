@@ -39,6 +39,9 @@ export default function LiveRoom() {
   const updateMutation = useMutation({
     mutationFn: (data) => Session.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['session', id] }),
+    // Covers poll votes and moderator toggles — both high-frequency and already
+    // reflected live in the UI, so a generic "Saved" toast would just be noise.
+    meta: { silent: true },
   });
 
   const handlePollVote = (option) => {

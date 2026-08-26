@@ -7,6 +7,8 @@ import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { standTierAtLeast } from '@/lib/standTiers';
 import { isMarketplaceAddonActive } from '@/lib/rateCard';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 import {
   FileText, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone,
   Building2, Download, UploadCloud, ArrowRight,
@@ -25,6 +27,8 @@ export default function ExhibitorTenders() {
   const [form, setForm] = useState(EMPTY_TENDER);
   const [expandedTender, setExpandedTender] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(null);
+  // 0-100 while uploadingDoc is set (tracked via XHR so we get a real percentage).
+  const [docUploadProgress, setDocUploadProgress] = useState(0);
 
   const { data: exhibitors = [] } = useQuery({
     queryKey: ['exhibitors-all'],
@@ -91,10 +95,10 @@ export default function ExhibitorTenders() {
   const handleDocUpload = async (tender, file) => {
     if (!file) return;
     setUploadingDoc(tender.id);
+    setDocUploadProgress(0);
     try {
       const { uploadUrl, publicUrl } = await TenderListing.getDocumentUploadUrl(myBooth.id, tender.document_url || null);
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: file });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, file, { contentType: 'application/pdf', onProgress: setDocUploadProgress });
       await updateMutation.mutateAsync({ id: tender.id, data: { document_url: publicUrl } });
     } finally {
       setUploadingDoc(null);
@@ -328,10 +332,13 @@ export default function ExhibitorTenders() {
                         <Download className="w-3.5 h-3.5" /> Document
                       </a>
                     ) : t.interactive_status === 'active' ? (
-                      <label className={`flex items-center gap-1.5 text-xs border border-dashed border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors cursor-pointer ${uploadingDoc === t.id ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <UploadCloud className="w-3.5 h-3.5" /> {uploadingDoc === t.id ? 'Uploading…' : 'Upload Document (PDF)'}
-                        <input type="file" accept="application/pdf" className="hidden" onChange={e => handleDocUpload(t, e.target.files?.[0])} disabled={uploadingDoc === t.id} />
-                      </label>
+                      <div className="w-full sm:w-auto space-y-1">
+                        <label className={`flex items-center gap-1.5 text-xs border border-dashed border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors cursor-pointer ${uploadingDoc === t.id ? 'opacity-60 pointer-events-none' : ''}`}>
+                          <UploadCloud className="w-3.5 h-3.5" /> {uploadingDoc === t.id ? `Uploading… ${docUploadProgress}%` : 'Upload Document (PDF)'}
+                          <input type="file" accept="application/pdf" className="hidden" onChange={e => handleDocUpload(t, e.target.files?.[0])} disabled={uploadingDoc === t.id} />
+                        </label>
+                        {uploadingDoc === t.id && <Progress value={docUploadProgress} className="h-1" />}
+                      </div>
                     ) : null}
                     <div className="flex gap-1.5">
                       {['Open', 'Closed', 'Awarded'].filter(s => s !== (t.status || 'Open')).map(s => (

@@ -21,7 +21,7 @@ export default function EmbeddedVideo({ url, title }) {
           allowFullScreen
         />
       ) : (
-        <video key={embed} src={embed} controls muted playsInline className="w-full h-full object-contain" />
+        <video key={embed} src={embed} controls muted playsInline preload="none" className="w-full h-full object-contain" />
       )}
     </div>
   );

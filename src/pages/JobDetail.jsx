@@ -6,6 +6,8 @@ import { notifyJobApplication } from '@/api/notify';
 import { trackListing } from '@/lib/tracking';
 import { useAuth } from '@/lib/AuthContext';
 import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, Briefcase, MapPin, Clock, Mail, Send, CheckCircle, Lock, LogIn, UserPlus, FileUp, ExternalLink,
 } from 'lucide-react';
@@ -29,7 +31,9 @@ export default function JobDetail() {
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
   const [cvFile, setCvFile] = useState(null);
-  const [uploadingCv, setUploadingCv] = useState(false);
+  // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
+  const [cvUploadProgress, setCvUploadProgress] = useState(null);
+  const uploadingCv = cvUploadProgress !== null;
 
   useEffect(() => {
     if (user) {
@@ -45,14 +49,13 @@ export default function JobDetail() {
     mutationFn: async (data) => {
       let cv_url = null;
       if (cvFile) {
-        setUploadingCv(true);
+        setCvUploadProgress(0);
         try {
           const { uploadUrl, publicUrl } = await JobListing.getCvUploadUrl(job.id);
-          const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: cvFile });
-          if (!s3Res.ok) throw new Error(`CV upload failed: ${s3Res.status}`);
+          await uploadFileToS3(uploadUrl, cvFile, { contentType: 'application/pdf', onProgress: setCvUploadProgress });
           cv_url = publicUrl;
         } finally {
-          setUploadingCv(false);
+          setCvUploadProgress(null);
         }
       }
       return JobApplication.create({ ...data, cv_url });
@@ -61,6 +64,7 @@ export default function JobDetail() {
       notifyJobApplication(variables);
       setSubmitted(true);
     },
+    meta: { successMessage: 'Application sent' },
   });
 
   function handleApply(e) {
@@ -252,13 +256,14 @@ export default function JobDetail() {
                   />
                 </div>
                 {formError && <p className="text-xs text-red-500">{formError}</p>}
+                {uploadingCv && <Progress value={cvUploadProgress} className="h-1" />}
                 <button
                   type="submit"
                   disabled={applyMutation.isPending}
                   className="w-full bg-amber text-white font-semibold text-sm py-2.5 rounded-xl hover:opacity-90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
-                  {uploadingCv ? 'Uploading CV…' : applyMutation.isPending ? 'Sending…' : 'Submit Application'}
+                  {uploadingCv ? `Uploading CV… ${cvUploadProgress}%` : applyMutation.isPending ? 'Sending…' : 'Submit Application'}
                 </button>
               </form>
             )}

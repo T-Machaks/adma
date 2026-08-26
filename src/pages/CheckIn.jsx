@@ -74,6 +74,9 @@ export default function CheckIn() {
         status: 'Checked In',
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['registrations'] }),
+    // The scan already flips into its own big pass/fail status card — a generic
+    // "Saved" toast on top would just compete with that during rapid-fire scanning.
+    meta: { silent: true },
   });
 
   const handleScan = useCallback(

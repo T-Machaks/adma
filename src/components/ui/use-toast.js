@@ -1,7 +1,19 @@
 import { useState, useEffect } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+// Delay between a toast being dismissed and actually being removed from state — kept
+// short (not instant) only to leave a brief window for a close animation. This used to
+// be 1,000,000ms (~16.7 minutes), which barely mattered while nothing ever called
+// dismiss() automatically (see DEFAULT_TOAST_DURATION below) — a toast rendered by
+// Toaster regardless of its `open` value, so the array-removal delay, not `open`, is
+// what actually controls when a toast disappears from screen.
+const TOAST_REMOVE_DELAY = 1000;
+// `<Toast>` (src/components/ui/toast.jsx) is a plain <div>, not Radix's toast
+// primitive — there was no auto-dismiss timer anywhere in this system before now, so
+// every toast stayed on screen until someone manually clicked its close button.
+// Harmless while toast() was called from 2 places sparingly; would pile up
+// indefinitely once mutations fire it by default (see src/lib/queryClient.js).
+const DEFAULT_TOAST_DURATION = 5000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -62,7 +74,7 @@ function dispatch(action) {
   listeners.forEach((listener) => listener(memoryState));
 }
 
-function toast({ ...props }) {
+function toast({ duration = DEFAULT_TOAST_DURATION, ...props }) {
   const id = genId();
   const update = (props) => dispatch({ type: actionTypes.UPDATE_TOAST, toast: { ...props, id } });
   const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
@@ -71,6 +83,11 @@ function toast({ ...props }) {
     type: actionTypes.ADD_TOAST,
     toast: { ...props, id, open: true, onOpenChange: (open) => { if (!open) dismiss(); } },
   });
+
+  // Pass duration: 0 (or Infinity) to opt a specific toast out of auto-dismiss.
+  if (duration > 0 && Number.isFinite(duration)) {
+    setTimeout(dismiss, duration);
+  }
 
   return { id, dismiss, update };
 }

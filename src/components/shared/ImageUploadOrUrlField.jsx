@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { ImagePlus, X, Link2 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import { standardizeImage, IMAGE_PRESETS, IMAGE_PRESET_LABELS } from '@/lib/imageUtils';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 
 // Aspect ratio (as a CSS class) matching each preset's target dimensions, so the preview
 // reflects roughly how the auto-cropped image will actually look, not a generic square.
@@ -28,7 +30,9 @@ const TRANSPARENCY_BG = {
 // slot id); `purpose` is a short tag ('adslot'|'job'|'tender'|'collab') used only for key
 // organisation. `preset` picks the standard spec from IMAGE_PRESETS ('logo'|'banner'|'cutout').
 export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label, preset = 'banner' }) {
-  const [uploading, setUploading] = useState(false);
+  // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const uploading = uploadProgress !== null;
   const [error, setError] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
 
@@ -37,7 +41,7 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
+    setUploadProgress(0);
     setError(null);
     setPreviewBroken(false);
     try {
@@ -46,13 +50,12 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
         method: 'POST',
         body: { ownerId: ownerId || 'new', purpose, format: presetSpec.format },
       });
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': `image/${presetSpec.format}` }, body: blob });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, blob, { contentType: `image/${presetSpec.format}`, onProgress: setUploadProgress });
       onChange(publicUrl);
     } catch (err) {
       setError(err.message);
     } finally {
-      setUploading(false);
+      setUploadProgress(null);
       e.target.value = '';
     }
   };
@@ -83,7 +86,7 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
           <div className="flex items-center gap-2">
             <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
               <ImagePlus className="w-3.5 h-3.5" />
-              {uploading ? 'Uploading…' : 'Replace'}
+              {uploading ? `Uploading… ${uploadProgress}%` : 'Replace'}
               <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
             </label>
             <button
@@ -99,7 +102,7 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
         <div className="flex gap-2">
           <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors flex-shrink-0 ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
             <ImagePlus className="w-3.5 h-3.5" />
-            {uploading ? 'Uploading…' : 'Upload'}
+            {uploading ? `Uploading… ${uploadProgress}%` : 'Upload'}
             <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
           <div className="relative flex-1">
@@ -114,6 +117,7 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
           </div>
         </div>
       )}
+      {uploading && <Progress value={uploadProgress} className="h-1 mt-2" />}
       <p className="text-[10px] text-muted-foreground mt-1">
         Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. {preset === 'flexible'
           ? 'Uploaded files keep their original shape, just resized down if oversized — pasted URLs are used as-is.'

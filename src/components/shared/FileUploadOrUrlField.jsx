@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { UploadCloud, X, Link2, FileText } from 'lucide-react';
 import { apiFetch } from '@/api/client';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 
 const MAX_FILE_MB = 25;
 
@@ -11,7 +13,9 @@ const MAX_FILE_MB = 25;
 // pasted URL instead. `previewKind` picks the preview style: 'image' shows a thumbnail,
 // 'document' shows a filename/link chip.
 export default function FileUploadOrUrlField({ value, onChange, uploadEndpoint, accept, previewKind = 'document', label, helperText }) {
-  const [uploading, setUploading] = useState(false);
+  // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const uploading = uploadProgress !== null;
   const [error, setError] = useState(null);
 
   const handleFile = async (e) => {
@@ -23,19 +27,18 @@ export default function FileUploadOrUrlField({ value, onChange, uploadEndpoint, 
       e.target.value = '';
       return;
     }
-    setUploading(true);
+    setUploadProgress(0);
     try {
       const { uploadUrl, publicUrl } = await apiFetch(uploadEndpoint, {
         method: 'POST',
         body: { oldFileUrl: value || '', contentType: file.type, fileName: file.name },
       });
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, file, { contentType: file.type || 'application/octet-stream', onProgress: setUploadProgress });
       onChange(publicUrl);
     } catch (err) {
       setError(err.message);
     } finally {
-      setUploading(false);
+      setUploadProgress(null);
       e.target.value = '';
     }
   };
@@ -60,7 +63,7 @@ export default function FileUploadOrUrlField({ value, onChange, uploadEndpoint, 
           <div className="flex items-center gap-2">
             <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
               <UploadCloud className="w-3.5 h-3.5" />
-              {uploading ? 'Uploading…' : 'Replace'}
+              {uploading ? `Uploading… ${uploadProgress}%` : 'Replace'}
               <input type="file" accept={accept} className="hidden" onChange={handleFile} disabled={uploading} />
             </label>
             <button
@@ -76,7 +79,7 @@ export default function FileUploadOrUrlField({ value, onChange, uploadEndpoint, 
         <div className="flex gap-2">
           <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors flex-shrink-0 ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
             <UploadCloud className="w-3.5 h-3.5" />
-            {uploading ? 'Uploading…' : 'Upload'}
+            {uploading ? `Uploading… ${uploadProgress}%` : 'Upload'}
             <input type="file" accept={accept} className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
           <div className="relative flex-1">
@@ -91,6 +94,7 @@ export default function FileUploadOrUrlField({ value, onChange, uploadEndpoint, 
           </div>
         </div>
       )}
+      {uploading && <Progress value={uploadProgress} className="h-1 mt-2" />}
       {helperText && <p className="text-[10px] text-muted-foreground mt-1">{helperText}</p>}
       {error && <p className="text-[10px] text-red-500 mt-1">{error}</p>}
     </div>

@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/select';
 import { LOT_CATEGORIES, AUCTION_TYPES, EXTERNAL_SYNC_MODES, EXTERNAL_SYNC_MODE_LABELS } from '@/lib/auctionConstants';
 import { resizeImageToBlob } from '@/lib/imageUtils';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 
 const AUCTION_STATUS_STYLES = {
   Upcoming: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -46,6 +48,8 @@ export default function AuctionsManager() {
   const [lotForm, setLotForm] = useState(EMPTY_LOT);
   const [deleteLotId, setDeleteLotId] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  // 0-100 while uploadingImage is true (tracked via XHR so we get a real percentage).
+  const [imageUploadProgress, setImageUploadProgress] = useState(0);
 
   const { data: auctions = [], isLoading } = useQuery({
     queryKey: ['auctions'],
@@ -137,11 +141,11 @@ export default function AuctionsManager() {
     const file = e.target.files?.[0];
     if (!file || !editLotId) return;
     setUploadingImage(true);
+    setImageUploadProgress(0);
     try {
       const blob = await resizeImageToBlob(file);
       const { uploadUrl, publicUrl } = await Lot.getImageUploadUrl(editLotId);
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, blob, { contentType: 'image/jpeg', onProgress: setImageUploadProgress });
       setLotForm(f => ({ ...f, images: [...f.images, publicUrl] }));
     } finally {
       setUploadingImage(false);
@@ -494,11 +498,12 @@ export default function AuctionsManager() {
                   ))}
                   <label className={`w-16 h-16 flex flex-col items-center justify-center gap-0.5 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted transition-colors ${uploadingImage ? 'opacity-60 pointer-events-none' : ''}`}>
                     <ImagePlus className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-[9px] text-muted-foreground">{uploadingImage ? '…' : 'Add'}</span>
+                    <span className="text-[9px] text-muted-foreground">{uploadingImage ? `${imageUploadProgress}%` : 'Add'}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={handleLotImageUpload} disabled={uploadingImage} />
                   </label>
                 </div>
               )}
+              {uploadingImage && <Progress value={imageUploadProgress} className="h-1 mt-2 max-w-[160px]" />}
             </div>
 
             <DialogFooter>

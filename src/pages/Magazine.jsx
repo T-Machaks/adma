@@ -915,7 +915,7 @@ function VideoAdSection({ config }) {
           onLoad={handlePlay}
         />
       ) : (
-        <video key={embed} src={embed} controls muted playsInline className="absolute inset-0 w-full h-full object-contain" onPlay={handlePlay} />
+        <video key={embed} src={embed} controls muted playsInline preload="none" className="absolute inset-0 w-full h-full object-contain" onPlay={handlePlay} />
       )}
       {click_url && (
         <a
@@ -1179,6 +1179,16 @@ function ADMAFlipBook({ onBack, isMobile }) {
 
   const TOTAL = admaPages.length; // 86
   const onFlip = useCallback(e => setCurrentPage(e.data), []);
+
+  // react-pageflip mounts every page's content up front (needed for the 3D turn
+  // animation), so any page carrying a video section has a live <video>/<iframe> in
+  // the DOM the whole time the book is open, not just while that page is showing.
+  // Same fix already applied to the legacy 16-page book above — without it, a video
+  // left playing on a page you've since flipped past keeps playing in the background.
+  useEffect(() => {
+    document.querySelectorAll('video').forEach(v => v.pause());
+  }, [currentPage]);
+
   const flipPrev = () => bookRef.current?.pageFlip().flipPrev();
   const flipNext = () => bookRef.current?.pageFlip().flipNext();
 

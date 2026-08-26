@@ -21,6 +21,8 @@ import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import { Switch } from '@/components/ui/switch';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 
 const TENDER_CATEGORIES = EVENT_CONFIG.exhibitorCategories;
 
@@ -98,6 +100,8 @@ export default function MarketplaceListings() {
   const [tenderForm, setTenderForm] = useState(EMPTY_TENDER);
   const [deleteTenderId, setDeleteTenderId] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  // 0-100 while uploadingDoc is true (tracked via XHR so we get a real percentage).
+  const [docUploadProgress, setDocUploadProgress] = useState(0);
 
   // Collaboration dialog state
   const [collabDialog, setCollabDialog] = useState(false);
@@ -188,10 +192,10 @@ export default function MarketplaceListings() {
   const handleDocUpload = async (file) => {
     if (!file || !editTenderId) return;
     setUploadingDoc(true);
+    setDocUploadProgress(0);
     try {
       const { uploadUrl, publicUrl } = await TenderListing.getDocumentUploadUrl(editTenderId, tenderForm.document_url || null);
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'application/pdf' }, body: file });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, file, { contentType: 'application/pdf', onProgress: setDocUploadProgress });
       setTenderForm(f => ({ ...f, document_url: publicUrl }));
     } finally {
       setUploadingDoc(false);
@@ -500,7 +504,7 @@ export default function MarketplaceListings() {
               onChange={v => setJobForm(f => ({ ...f, video_url: v }))}
               ownerId={editJobId || 'generic-job'}
               purpose="job-listing"
-              helperText="MP4 file (max 50MB) or a YouTube/Vimeo link — shown on the listing's detail page."
+              helperText="MP4 file (max 20MB) or a YouTube/Vimeo link — shown on the listing's detail page."
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setJobDialog(false)}>Cancel</Button>
@@ -589,11 +593,14 @@ export default function MarketplaceListings() {
                   <Download className="w-3.5 h-3.5" /> View current document
                 </a>
               ) : (
+                <div className="space-y-1">
                 <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border text-sm cursor-pointer hover:bg-muted transition-colors w-fit ${uploadingDoc ? 'opacity-60 pointer-events-none' : ''}`}>
                   <UploadCloud className="w-4 h-4 text-muted-foreground" />
-                  {uploadingDoc ? 'Uploading…' : 'Upload PDF'}
+                  {uploadingDoc ? `Uploading… ${docUploadProgress}%` : 'Upload PDF'}
                   <input type="file" accept="application/pdf" className="hidden" onChange={e => handleDocUpload(e.target.files?.[0])} disabled={uploadingDoc} />
                 </label>
+                {uploadingDoc && <Progress value={docUploadProgress} className="h-1" />}
+                </div>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -636,7 +643,7 @@ export default function MarketplaceListings() {
               onChange={v => setTenderForm(f => ({ ...f, video_url: v }))}
               ownerId={editTenderId || 'generic-tender'}
               purpose="tender-listing"
-              helperText="MP4 file (max 50MB) or a YouTube/Vimeo link — shown on the listing's detail page."
+              helperText="MP4 file (max 20MB) or a YouTube/Vimeo link — shown on the listing's detail page."
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTenderDialog(false)}>Cancel</Button>
@@ -755,7 +762,7 @@ export default function MarketplaceListings() {
               onChange={v => setCollabForm(f => ({ ...f, video_url: v }))}
               ownerId={editCollabId || 'generic-collab'}
               purpose="collaboration-listing"
-              helperText="MP4 file (max 50MB) or a YouTube/Vimeo link — shown on the listing's detail page."
+              helperText="MP4 file (max 20MB) or a YouTube/Vimeo link — shown on the listing's detail page."
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCollabDialog(false)}>Cancel</Button>

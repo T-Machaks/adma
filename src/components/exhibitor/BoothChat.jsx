@@ -29,6 +29,9 @@ export default function BoothChat({ exhibitorId, threadEmail, viewerRole, viewer
   const sendMutation = useMutation({
     mutationFn: (data) => BoothMessage.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['booth-messages', exhibitorId] }),
+    // A "Saved" toast per chat message would be constant noise — the message
+    // appearing in the thread is confirmation enough.
+    meta: { silent: true },
   });
 
   const send = (e) => {

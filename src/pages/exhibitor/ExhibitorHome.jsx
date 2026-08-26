@@ -21,6 +21,8 @@ import { resizeImageToBlob, normalizeGalleryItem } from '@/lib/imageUtils';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { isEmbedVideoUrl } from '@/lib/videoUtils';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 
 const STATUS_STYLES = {
   Pending:   { cls: 'bg-amber-100 text-amber-700', icon: Clock },
@@ -39,7 +41,9 @@ export default function ExhibitorHome() {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({});
-  const [uploadingImage, setUploadingImage] = useState(false);
+  // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
+  const [imageUploadProgress, setImageUploadProgress] = useState(null);
+  const uploadingImage = imageUploadProgress !== null;
   const [upgradeDismissed, setUpgradeDismissed] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [updateError, setUpdateError] = useState(null);
@@ -133,7 +137,9 @@ export default function ExhibitorHome() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
   });
 
-  const [uploadingGallery, setUploadingGallery] = useState(false);
+  // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
+  const [galleryUploadProgress, setGalleryUploadProgress] = useState(null);
+  const uploadingGallery = galleryUploadProgress !== null;
   const updateGallery = useMutation({
     mutationFn: (gallery) => Exhibitor.update(myBooth.id, { gallery }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exhibitors-all'] }),
@@ -144,15 +150,14 @@ export default function ExhibitorHome() {
     if (!file) return;
     const current = myBooth.gallery || [];
     if (current.length >= limits.galleryMax) { e.target.value = ''; return; }
-    setUploadingGallery(true);
+    setGalleryUploadProgress(0);
     try {
       const blob = await resizeImageToBlob(file);
       const { uploadUrl, publicUrl } = await Exhibitor.getGalleryUploadUrl(myBooth.id);
-      const s3Res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, blob, { contentType: 'image/jpeg', onProgress: setGalleryUploadProgress });
       await updateGallery.mutateAsync([...current, { url: publicUrl, caption: '' }]);
     } finally {
-      setUploadingGallery(false);
+      setGalleryUploadProgress(null);
       e.target.value = '';
     }
   };
@@ -227,22 +232,17 @@ export default function ExhibitorHome() {
   const handleBoothImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadingImage(true);
+    setImageUploadProgress(0);
     try {
       const blob = await resizeImageToBlob(file);
       const { uploadUrl, publicUrl } = await Exhibitor.getBoothImageUploadUrl(
         myBooth.id,
         myBooth.booth_image_url || null
       );
-      const s3Res = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'image/jpeg' },
-        body: blob,
-      });
-      if (!s3Res.ok) throw new Error(`S3 upload failed: ${s3Res.status}`);
+      await uploadFileToS3(uploadUrl, blob, { contentType: 'image/jpeg', onProgress: setImageUploadProgress });
       await updateBoothImage.mutateAsync(publicUrl);
     } finally {
-      setUploadingImage(false);
+      setImageUploadProgress(null);
       e.target.value = '';
     }
   };
@@ -720,12 +720,13 @@ export default function ExhibitorHome() {
               {(myBooth.gallery || []).length < limits.galleryMax && (
                 <label className={`flex flex-col items-center justify-center gap-1 aspect-square cursor-pointer border-2 border-dashed border-border rounded-lg hover:bg-muted/40 transition-colors ${uploadingGallery ? 'opacity-60 pointer-events-none' : ''}`}>
                   <ImagePlus className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground">{uploadingGallery ? 'Uploading…' : 'Add image'}</span>
+                  <span className="text-[10px] text-muted-foreground">{uploadingGallery ? `Uploading… ${galleryUploadProgress}%` : 'Add image'}</span>
                   <input type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} disabled={uploadingGallery} />
                 </label>
               )}
             </div>
           )}
+          {uploadingGallery && <Progress value={galleryUploadProgress} className="h-1 mt-2" />}
           <p className="text-[11px] text-muted-foreground">Tap an image to preview it full-size and add a caption.</p>
         </div>
       </div>
@@ -781,7 +782,7 @@ export default function ExhibitorHome() {
                   <div className="flex gap-2 flex-wrap">
                     <label className={`flex items-center gap-2 cursor-pointer text-xs bg-muted border border-border px-3 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploadingImage ? 'opacity-60 pointer-events-none' : ''}`}>
                       <ImagePlus className="w-3.5 h-3.5" />
-                      {uploadingImage ? 'Uploading…' : 'Replace Image'}
+                      {uploadingImage ? `Uploading… ${imageUploadProgress}%` : 'Replace Image'}
                       <input type="file" accept="image/*" className="hidden" onChange={handleBoothImageUpload} disabled={uploadingImage} />
                     </label>
                     <button
@@ -798,6 +799,7 @@ export default function ExhibitorHome() {
                       <Trash2 className="w-3.5 h-3.5" /> Remove
                     </button>
                   </div>
+                  {uploadingImage && <Progress value={imageUploadProgress} className="h-1" />}
                 </>
               )}
             </>
@@ -805,12 +807,13 @@ export default function ExhibitorHome() {
             <label className={`flex flex-col items-center justify-center gap-3 cursor-pointer border-2 border-dashed border-border rounded-xl p-8 hover:bg-muted/40 transition-colors ${uploadingImage ? 'opacity-60 pointer-events-none' : ''}`}>
               <ImagePlus className="w-8 h-8 text-muted-foreground" />
               <div className="text-center">
-                <p className="text-sm font-medium">{uploadingImage ? 'Uploading…' : 'Upload Booth Image'}</p>
+                <p className="text-sm font-medium">{uploadingImage ? `Uploading… ${imageUploadProgress}%` : 'Upload Booth Image'}</p>
                 <p className="text-xs text-muted-foreground mt-1">JPG or PNG · automatically resized</p>
               </div>
               <input type="file" accept="image/*" className="hidden" onChange={handleBoothImageUpload} disabled={uploadingImage} />
             </label>
           )}
+          {uploadingImage && !myBooth.booth_image_url && <Progress value={imageUploadProgress} className="h-1" />}
         </div>
       </div>
 
@@ -836,7 +839,7 @@ export default function ExhibitorHome() {
                     allowFullScreen
                   />
                 ) : (
-                  <video src={myBooth.video_url} controls muted playsInline className="w-full h-full object-contain bg-black" />
+                  <video src={myBooth.video_url} controls muted playsInline preload="none" className="w-full h-full object-contain bg-black" />
                 )}
               </div>
             )}
@@ -856,7 +859,7 @@ export default function ExhibitorHome() {
                   onChange={setVideoDraft}
                   ownerId={myBooth.id}
                   purpose="exhibitor-video"
-                  helperText="MP4 upload (max 50MB) or a YouTube/Vimeo link — shown as an embedded video on your public booth page."
+                  helperText="MP4 upload (max 20MB) or a YouTube/Vimeo link — shown as an embedded video on your public booth page."
                 />
                 <div className="flex gap-2">
                   <button

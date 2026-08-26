@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/components/AuthLayout';
 import { standardizeImage } from '@/lib/imageUtils';
+import { uploadFileToS3 } from '@/lib/uploadFile';
+import { Progress } from '@/components/ui/progress';
 
 // Physical-booth applications are stubbed out for now — this page only handles
 // virtual-only registration. The backend (server/routes/exhibitor-applications.js)
@@ -32,6 +34,8 @@ export default function ExhibitorApply() {
   const [logoError, setLogoError] = useState('');
   const [error, setError]         = useState('');
   const [loading, setLoading]     = useState(false);
+  // null = idle; 0-100 = logo upload in progress (tracked via XHR so we get a real percentage).
+  const [logoUploadProgress, setLogoUploadProgress] = useState(null);
   const [submitted, setSubmitted] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -76,12 +80,14 @@ export default function ExhibitorApply() {
       const { uploadUrl, publicUrl } = await urlRes.json();
 
       // 2. Upload logo directly to S3
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'image/png' },
-        body: logoFile,
-      });
-      if (!uploadRes.ok) throw new Error('Logo upload failed.');
+      setLogoUploadProgress(0);
+      try {
+        await uploadFileToS3(uploadUrl, logoFile, { contentType: 'image/png', onProgress: setLogoUploadProgress });
+      } catch {
+        throw new Error('Logo upload failed.');
+      } finally {
+        setLogoUploadProgress(null);
+      }
 
       // 3. Submit application
       const appRes = await fetch('/api/exhibitor-applications', {
@@ -270,8 +276,11 @@ export default function ExhibitorApply() {
           </div>
         </div>
 
+        {logoUploadProgress !== null && <Progress value={logoUploadProgress} className="h-1" />}
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
-          {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Submitting…</> : 'Submit application'}
+          {logoUploadProgress !== null
+            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading logo… {logoUploadProgress}%</>
+            : loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Submitting…</> : 'Submit application'}
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">

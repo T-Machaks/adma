@@ -10,6 +10,7 @@ import TierBadge from '@/components/ui/TierBadge';
 import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
 import { getExhibitorCategories } from '@/lib/eventConfig';
 import { normalizeGalleryItem } from '@/lib/imageUtils';
+import { isEmbedVideoUrl } from '@/lib/videoUtils';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import BoothChat from '@/components/exhibitor/BoothChat';
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
@@ -226,13 +227,29 @@ export default function ExhibitorDetail() {
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Company Video</h2>
             </div>
             <div className="aspect-video">
-              <iframe
-                src={ex.video_url}
-                title={`${ex.name} video`}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              {isEmbedVideoUrl(ex.video_url) ? (
+                <iframe
+                  src={ex.video_url}
+                  title={`${ex.name} video`}
+                  className="w-full h-full"
+                  allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                // Direct file (S3-hosted upload) — a bare iframe pointed at a raw video
+                // file previously ended up here for every uploaded (non-YouTube/Vimeo)
+                // company video, and some browsers auto-start playback of a raw media
+                // file navigated to directly, unmuted, with no controls. A real <video>
+                // tag never does that unless explicitly told to.
+                <video
+                  src={ex.video_url}
+                  controls
+                  muted
+                  playsInline
+                  preload="none"
+                  className="w-full h-full object-contain bg-black"
+                />
+              )}
             </div>
           </div>
         </div>
