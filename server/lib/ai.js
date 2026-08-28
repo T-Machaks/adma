@@ -11,13 +11,17 @@ const awsRegion = process.env.AWS_BEDROCK_REGION;
 const client = awsRegion ? new AnthropicBedrockMantle({ awsRegion }) : null;
 
 // Bedrock model IDs take an `anthropic.` prefix instead of the first-party
-// `claude-haiku-4-5` string. Haiku because this is a short, structured, low-stakes
-// generation task (a handful of FAQ pairs from a paragraph of context) triggered
-// on-demand by an exhibitor — no need for a larger model's extra reasoning, and it
-// should stay fast and cheap. Verify this exact string in Bedrock's "Model access"
-// page if requests fail with a model-not-found error — exact availability/naming
-// can vary by AWS account and region.
-const MODEL = 'anthropic.claude-haiku-4-5';
+// `claude-haiku-4-5` string, and this model doesn't support on-demand invocation
+// by its bare model ID — it must be addressed via an inference profile ID
+// (confirmed against Bedrock directly: the bare `anthropic.claude-haiku-4-5...`
+// ID 400s with "on-demand throughput isn't supported ... retry with an inference
+// profile"). Haiku because this is a short, structured, low-stakes generation
+// task (a handful of FAQ pairs from a paragraph of context) triggered on-demand
+// by an exhibitor — no need for a larger model's extra reasoning, and it should
+// stay fast and cheap. Verify this exact string in Bedrock's "Model access" page
+// if requests fail with a model-not-found error — exact availability/naming can
+// vary by AWS account and region.
+const MODEL = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 // Generates candidate FAQ question/answer pairs for an exhibitor's public profile,
 // grounded in whatever they've written as their company description. Purely
