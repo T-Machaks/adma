@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/components/AuthLayout';
-import { standardizeImage, MAX_IMAGE_MB, IMAGE_INPUT_HINT } from '@/lib/imageUtils';
+import { standardizeImage, renderPdfFirstPageToBlob, MAX_IMAGE_MB, IMAGE_INPUT_HINT } from '@/lib/imageUtils';
 import { uploadFileToS3 } from '@/lib/uploadFile';
 import { Progress } from '@/components/ui/progress';
 
@@ -45,17 +45,22 @@ export default function ExhibitorApply() {
     if (!file) return;
     setLogoError('');
 
-    if (!file.type.startsWith('image/')) {
-      setLogoError('Please select an image file.');
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (!isPdf && !file.type.startsWith('image/')) {
+      setLogoError('Please select an image or PDF file.');
       return;
     }
     if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-      setLogoError(`Image must be ${MAX_IMAGE_MB}MB or smaller.`);
+      setLogoError(`File must be ${MAX_IMAGE_MB}MB or smaller.`);
       return;
     }
 
     try {
-      const blob = await standardizeImage(file, 'logo');
+      // A design-tool-exported PDF is often the only logo asset a new exhibitor
+      // actually has on hand — render its first page to an image first, then run
+      // it through the same crop pipeline as any other upload.
+      const source = isPdf ? await renderPdfFirstPageToBlob(file) : file;
+      const blob = await standardizeImage(source, 'logo');
       const standardized = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.png', { type: 'image/png' });
       setLogoFile(standardized);
       setLogoPreview(URL.createObjectURL(standardized));
@@ -229,12 +234,12 @@ export default function ExhibitorApply() {
               <div className="flex flex-col items-center gap-2 py-2">
                 <FileImage className="w-8 h-8 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">Click to upload logo</p>
-                <p className="text-xs text-muted-foreground/60">Any image — we'll auto-crop it to a 500×500 square</p>
+                <p className="text-xs text-muted-foreground/60">Image or PDF — we'll auto-crop it to a 500×500 square</p>
               </div>
             )}
           </div>
           {logoError && <p className="text-xs text-destructive">{logoError}</p>}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
+          <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleLogoChange} />
         </div>
 
         {/* Description */}

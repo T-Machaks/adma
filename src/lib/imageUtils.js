@@ -59,7 +59,7 @@ export const MAX_IMAGE_MB = 10;
 // What the upload buttons tell people they can pick, shown alongside the preset's
 // output spec (IMAGE_PRESET_LABELS) so both "what you can upload" and "what you'll get"
 // are visible at once.
-export const IMAGE_INPUT_HINT = `JPG, PNG or WEBP · up to ${MAX_IMAGE_MB}MB`;
+export const IMAGE_INPUT_HINT = `JPG, PNG, WEBP or PDF (first page) · up to ${MAX_IMAGE_MB}MB`;
 
 // Crops a loaded <img> to an exact target size using the same "object-fit: cover +
 // object-position" math the browser itself uses — this is what turns
@@ -85,6 +85,43 @@ export function cropImageToBlob(imgEl, targetW, targetH, posXPercent, posYPercen
   canvas.getContext('2d').drawImage(imgEl, sx, sy, sw, sh, 0, 0, targetW, targetH);
   return new Promise((resolve, reject) => {
     canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))), format, quality);
+  });
+}
+
+// Renders a PDF's first page to a PNG Blob, entirely in the browser — pdf.js is
+// browser-native here (real <canvas>, no Node/native-binding involvement at all),
+// so this doesn't carry any of the fragility the server-side conversion scripts
+// (scripts/convert-adma.mjs) need Node canvas polyfills to work around. Lets
+// standardizeImage's normal crop/resize pipeline treat a PDF logo exactly like any
+// other image file — a design-tool-exported PDF is the only asset many exhibitors
+// actually have for their logo, and previously they had to convert it themselves
+// with an external tool before this form would even accept it.
+export async function renderPdfFirstPageToBlob(file, scale = 3) {
+  const pdfjsLib = await import('pdfjs-dist/build/pdf');
+  const { default: workerUrl } = await import('pdfjs-dist/build/pdf.worker.min.js?url');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  const page = await pdf.getPage(1);
+  // scale=3 renders at ~3x the PDF's own point size — comfortably higher
+  // resolution than any of the crop presets' target dimensions (max 1200px),
+  // so the subsequent crop/resize is working from a sharp source, not upscaling.
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(viewport.width);
+  canvas.height = Math.round(viewport.height);
+  const ctx = canvas.getContext('2d');
+  // Most logo PDFs have a transparent or undefined background — fill white first
+  // so a design with dark linework on "nothing" doesn't turn invisible against
+  // the app's own dark-mode backgrounds later.
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))), 'image/png', 1);
   });
 }
 

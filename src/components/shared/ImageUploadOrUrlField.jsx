@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ImagePlus, X, Link2 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
-import { standardizeImage, IMAGE_PRESETS, IMAGE_PRESET_LABELS, MAX_IMAGE_MB, IMAGE_INPUT_HINT } from '@/lib/imageUtils';
+import { standardizeImage, renderPdfFirstPageToBlob, IMAGE_PRESETS, IMAGE_PRESET_LABELS, MAX_IMAGE_MB, IMAGE_INPUT_HINT } from '@/lib/imageUtils';
 import { uploadFileToS3 } from '@/lib/uploadFile';
 import { Progress } from '@/components/ui/progress';
 
@@ -32,7 +32,10 @@ const TRANSPARENCY_BG = {
 export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label, preset = 'banner' }) {
   // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
   const [uploadProgress, setUploadProgress] = useState(null);
-  const uploading = uploadProgress !== null;
+  // Set only while rendering a PDF's first page to an image, before the actual
+  // S3 upload (and its own progress tracking) even starts.
+  const [converting, setConverting] = useState(false);
+  const uploading = uploadProgress !== null || converting;
   const [error, setError] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
 
@@ -47,10 +50,20 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
       e.target.value = '';
       return;
     }
-    setUploadProgress(0);
     setPreviewBroken(false);
     try {
-      const blob = await standardizeImage(file, preset);
+      // A design-tool-exported PDF is the only logo asset a lot of exhibitors
+      // actually have — render its first page to an image first, then run it
+      // through the exact same crop/resize pipeline as any other upload.
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      let source = file;
+      if (isPdf) {
+        setConverting(true);
+        source = await renderPdfFirstPageToBlob(file);
+        setConverting(false);
+      }
+      setUploadProgress(0);
+      const blob = await standardizeImage(source, preset);
       const { uploadUrl, publicUrl } = await apiFetch('/api/upload/marketing-image-url', {
         method: 'POST',
         body: { ownerId: ownerId || 'new', purpose, format: presetSpec.format },
@@ -61,9 +74,12 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
       setError(err.message);
     } finally {
       setUploadProgress(null);
+      setConverting(false);
       e.target.value = '';
     }
   };
+
+  const statusLabel = converting ? 'Converting…' : uploadProgress !== null ? `Uploading… ${uploadProgress}%` : null;
 
   return (
     <div>
@@ -91,8 +107,8 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
           <div className="flex items-center gap-2">
             <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
               <ImagePlus className="w-3.5 h-3.5" />
-              {uploading ? `Uploading… ${uploadProgress}%` : 'Replace'}
-              <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
+              {statusLabel ?? 'Replace'}
+              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} disabled={uploading} />
             </label>
             <button
               type="button"
@@ -107,8 +123,8 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
         <div className="flex gap-2">
           <label className={`flex items-center gap-1.5 cursor-pointer text-xs bg-muted border border-border px-2.5 py-1.5 rounded-lg font-medium hover:bg-muted/80 transition-colors flex-shrink-0 ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
             <ImagePlus className="w-3.5 h-3.5" />
-            {uploading ? `Uploading… ${uploadProgress}%` : 'Upload'}
-            <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
+            {statusLabel ?? 'Upload'}
+            <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} disabled={uploading} />
           </label>
           <div className="relative flex-1">
             <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -122,7 +138,8 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
           </div>
         </div>
       )}
-      {uploading && <Progress value={uploadProgress} className="h-1 mt-2" />}
+      {uploadProgress !== null && <Progress value={uploadProgress} className="h-1 mt-2" />}
+      {converting && <Progress value={undefined} className="h-1 mt-2 animate-pulse" />}
       <p className="text-[10px] text-muted-foreground mt-1">
         Upload: {IMAGE_INPUT_HINT}. Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. {preset === 'flexible'
           ? 'Uploaded files keep their original shape, just resized down if oversized — pasted URLs are used as-is.'
