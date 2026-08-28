@@ -61,28 +61,39 @@ export const MAX_IMAGE_MB = 10;
 // are visible at once.
 export const IMAGE_INPUT_HINT = `JPG, PNG, WEBP or PDF (first page) · up to ${MAX_IMAGE_MB}MB`;
 
-// Crops a loaded <img> to an exact target size using the same "object-fit: cover +
-// object-position" math the browser itself uses — this is what turns
-// ImagePositioner's non-destructive on-screen pan (a display-time CSS trick) into an
-// ACTUAL cropped file, for the pre-upload "pick which part of the photo to keep" step
-// (ImageCropModal.jsx) rather than standardizeImage's fixed always-centered crop.
-export function cropImageToBlob(imgEl, targetW, targetH, posXPercent, posYPercent, format = 'image/jpeg', quality = 0.85) {
-  const scale = Math.max(targetW / imgEl.naturalWidth, targetH / imgEl.naturalHeight);
+// Crops a loaded <img> to an exact target size at a given zoom/pan, generalizing the
+// "object-fit: cover + object-position" math the browser itself uses. `zoom` is the
+// actual scale factor (source-image pixels -> output pixels); omitted, it defaults to
+// the cover scale (image fills the whole frame, same fixed behavior as before this
+// took a zoom parameter at all — every existing caller that doesn't pass one is
+// unaffected). Passing a smaller zoom (down to the "contain" scale, where the whole
+// image just fits with no cropping) is what lets a wide/narrow source — a logo that
+// doesn't match the frame's aspect ratio being the motivating case — be shown in full
+// with padding instead of always having its edges cropped away.
+export function cropImageToBlob(imgEl, targetW, targetH, posXPercent, posYPercent, format = 'image/jpeg', quality = 0.85, zoom = null) {
+  const scale = zoom ?? Math.max(targetW / imgEl.naturalWidth, targetH / imgEl.naturalHeight);
   const scaledW = imgEl.naturalWidth * scale;
   const scaledH = imgEl.naturalHeight * scale;
-  // How far the (larger, scaled) image extends past the frame on each axis — object-
-  // position picks where within that overflow the frame sits, same as CSS.
+  // Signed — negative means the scaled image is smaller than the frame on that axis
+  // (zoomed below cover scale), so it's centered with padding there instead of panned.
   const overflowX = scaledW - targetW;
   const overflowY = scaledH - targetH;
-  // Convert back into the original image's own pixel space for the actual crop rect.
-  const sx = (overflowX * (posXPercent / 100)) / scale;
-  const sy = (overflowY * (posYPercent / 100)) / scale;
-  const sw = targetW / scale;
-  const sh = targetH / scale;
+  // Where the scaled image's top-left lands in the output canvas — pan picks where
+  // within the overflow the frame sits when the image is bigger than the frame;
+  // centers it when the image is smaller.
+  const dx = overflowX >= 0 ? -(overflowX * (posXPercent / 100)) : (targetW - scaledW) / 2;
+  const dy = overflowY >= 0 ? -(overflowY * (posYPercent / 100)) : (targetH - scaledH) / 2;
   const canvas = document.createElement('canvas');
   canvas.width = targetW;
   canvas.height = targetH;
-  canvas.getContext('2d').drawImage(imgEl, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  const ctx = canvas.getContext('2d');
+  if (format !== 'image/png') {
+    // JPEG can't encode transparency — fill white first so any padding (from a
+    // below-cover zoom) doesn't render as black instead of blank.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetW, targetH);
+  }
+  ctx.drawImage(imgEl, 0, 0, imgEl.naturalWidth, imgEl.naturalHeight, dx, dy, scaledW, scaledH);
   return new Promise((resolve, reject) => {
     canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Canvas toBlob failed'))), format, quality);
   });
