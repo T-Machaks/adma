@@ -1,4 +1,4 @@
-import { AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
+import { AnthropicBedrock } from '@anthropic-ai/bedrock-sdk';
 
 // AWS Bedrock (partner-operated), not the direct Anthropic API — no API key here.
 // Credentials come from the standard AWS SDK chain (the EC2 instance's IAM role in
@@ -7,8 +7,15 @@ import { AnthropicBedrockMantle } from '@anthropic-ai/bedrock-sdk';
 // has no default and must be set explicitly — pick one where Claude models are
 // actually enabled in the Bedrock console's "Model access" page (that's a separate,
 // one-time per-account/region toggle — an IAM policy alone isn't enough).
+//
+// `AnthropicBedrock` (not `AnthropicBedrockMantle`, a different export in the same
+// package) — confirmed against the SDK's own README: it's the one that actually
+// signs requests to the real bedrock-runtime.<region>.amazonaws.com endpoint via
+// the standard AWS credential chain. The Mantle variant hits a different host
+// (bedrock-mantle.<region>.api.aws) with a different model catalog and 404s on
+// every model ID that real Bedrock accepts.
 const awsRegion = process.env.AWS_BEDROCK_REGION;
-const client = awsRegion ? new AnthropicBedrockMantle({ awsRegion }) : null;
+const client = awsRegion ? new AnthropicBedrock({ awsRegion }) : null;
 
 // Bedrock model IDs take an `anthropic.` prefix instead of the first-party
 // `claude-haiku-4-5` string, and this model doesn't support on-demand invocation
