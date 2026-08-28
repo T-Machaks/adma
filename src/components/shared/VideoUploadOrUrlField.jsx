@@ -71,6 +71,7 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
     setUploadProgress(0);
     setPreviewBroken(false);
     try {
+      const oldVideoUrl = value && !isEmbedVideoUrl(value) ? value : null;
       const { uploadUrl, publicUrl } = await apiFetch('/api/upload/video-ad-url', {
         method: 'POST',
         body: { ownerId: ownerId || 'new', purpose },
@@ -86,6 +87,15 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
         await waitForCompression(publicUrl);
       }
       onChange(publicUrl);
+      // Only delete the old video now, once the new one has fully succeeded —
+      // deleting it up front would risk leaving the exhibitor with neither file
+      // if the upload or compression above had failed instead.
+      if (oldVideoUrl) {
+        apiFetch('/api/upload/video-ad-cleanup', { method: 'POST', body: { oldVideoUrl } }).catch(() => {
+          // Best-effort — an orphaned old file is a minor cleanup miss, not
+          // worth surfacing an error over a replacement that itself succeeded.
+        });
+      }
     } catch (err) {
       setError(err.message);
     } finally {

@@ -161,6 +161,30 @@ r.post('/video-ad-url', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/upload/video-ad-cleanup — deletes a previous video-ad object once its
+// replacement has actually finished uploading (and compressing, if applicable).
+// Deliberately a separate step called only after the new upload's full success,
+// not folded into video-ad-url itself — deleting the old file up front would mean
+// a failed/interrupted replacement (network error, compression timeout) leaves the
+// exhibitor with neither the old video nor a working new one.
+r.post('/video-ad-cleanup', requireAuth, async (req, res) => {
+  try {
+    const { oldVideoUrl } = req.body;
+    if (oldVideoUrl) {
+      try {
+        const url = new URL(oldVideoUrl);
+        await deleteS3Object(decodeURIComponent(url.pathname.slice(1)));
+      } catch {
+        // oldVideoUrl wasn't a parseable S3 URL (e.g. a YouTube/Vimeo link) —
+        // nothing to delete, not an error.
+      }
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/upload/video-status — polled by VideoUploadOrUrlField.jsx right after a
 // video-ad-url upload finishes, to find out whether server/lambda/video-compress.js
 // (an S3-triggered Lambda, deployed separately from this app server, see that
