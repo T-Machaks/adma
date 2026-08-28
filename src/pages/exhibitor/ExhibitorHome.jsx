@@ -227,7 +227,14 @@ export default function ExhibitorHome() {
     setEditOpen(o => !o);
   };
 
+  // Typing is allowed past limits.descChars (see the textarea below) so "Tighten
+  // with AI" gets the full original text as context — but the package-tier
+  // character budget is a real product rule, not just UI decoration, so it's
+  // still enforced here at save time instead.
+  const descOverLimit = (editForm.description?.length || 0) > limits.descChars;
+
   const handleSaveProfile = () => {
+    if (descOverLimit) return;
     const { specialties, certifications, faq, ...rest } = editForm;
     updateBooth.mutate({
       ...rest,
@@ -512,7 +519,7 @@ export default function ExhibitorHome() {
                   >
                     <Sparkles className="w-3 h-3" /> {shorteningDesc ? 'Thinking…' : 'Tighten with AI'}
                   </button>
-                  <span className={`text-[10px] font-medium ${(editForm.description?.length || 0) >= limits.descChars ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  <span className={`text-[10px] font-medium ${descOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}>
                     {editForm.description?.length || 0}/{limits.descChars}
                   </span>
                 </div>
@@ -520,11 +527,19 @@ export default function ExhibitorHome() {
               {descShortenError && <p className="text-[11px] text-red-500 mb-1">{descShortenError}</p>}
               <textarea
                 rows={5}
-                maxLength={limits.descChars}
                 value={editForm.description || ''}
-                onChange={e => setEditForm(f => ({ ...f, description: e.target.value.slice(0, limits.descChars) }))}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
+                onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                className={`w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 resize-none ${descOverLimit ? 'border-red-400 focus:ring-red-300' : 'border-border focus:ring-amber/50'}`}
               />
+              {/* No maxLength/typing cap here on purpose — writing past the limit is
+                  allowed so "Tighten with AI" has the full original text as context,
+                  not an already-truncated fragment. The limit is enforced at save
+                  time instead (handleSaveProfile), not while typing. */}
+              {descOverLimit && (
+                <p className="text-[11px] text-amber-600 mt-1">
+                  Over your {standTier} package's {limits.descChars}-character limit by {editForm.description.length - limits.descChars} — shorten it manually or use "Tighten with AI" above before saving.
+                </p>
+              )}
             </div>
 
             {isPremiumPkg && (
@@ -630,7 +645,8 @@ export default function ExhibitorHome() {
             <div className="flex gap-2 pt-1">
               <button
                 onClick={handleSaveProfile}
-                disabled={updateBooth.isPending}
+                disabled={updateBooth.isPending || descOverLimit}
+                title={descOverLimit ? 'Shorten the description to fit your package limit before saving' : undefined}
                 className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 touch-manipulation"
               >
                 {updateBooth.isPending ? 'Saving…' : 'Save Changes'}
