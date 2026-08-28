@@ -8,7 +8,7 @@ import { cropImageToBlob } from '@/lib/imageUtils';
 // booth image "Adjust Position" flow) but baking the chosen position into an actual
 // cropped file via cropImageToBlob before it's ever uploaded — not just a
 // display-time CSS trick applied to the full original.
-export default function ImageCropModal({ file, targetWidth = 1200, targetHeight = 675, aspectClassName = 'aspect-video', onConfirm, onCancel }) {
+export default function ImageCropModal({ file, targetWidth = 1200, targetHeight = 675, aspectClassName = 'aspect-video', format = 'image/jpeg', quality = 0.85, onConfirm, onCancel }) {
   const [objectUrl, setObjectUrl] = useState('');
   const [pos, setPos] = useState({ x: 50, y: 50 });
   const [busy, setBusy] = useState(false);
@@ -34,7 +34,7 @@ export default function ImageCropModal({ file, targetWidth = 1200, targetHeight 
         img.onerror = () => reject(new Error('Could not read that image.'));
         img.src = objectUrl;
       });
-      const blob = await cropImageToBlob(img, targetWidth, targetHeight, pos.x, pos.y);
+      const blob = await cropImageToBlob(img, targetWidth, targetHeight, pos.x, pos.y, format, quality);
       onConfirm(blob);
     } catch (err) {
       setError(err.message);

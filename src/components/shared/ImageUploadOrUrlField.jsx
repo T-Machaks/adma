@@ -4,6 +4,7 @@ import { apiFetch } from '@/api/client';
 import { standardizeImage, renderPdfFirstPageToBlob, IMAGE_PRESETS, IMAGE_PRESET_LABELS, MAX_IMAGE_MB, IMAGE_INPUT_HINT } from '@/lib/imageUtils';
 import { uploadFileToS3 } from '@/lib/uploadFile';
 import { Progress } from '@/components/ui/progress';
+import ImageCropModal from './ImageCropModal';
 
 // Aspect ratio (as a CSS class) matching each preset's target dimensions, so the preview
 // reflects roughly how the auto-cropped image will actually look, not a generic square.
@@ -14,6 +15,15 @@ const PREVIEW_ASPECT = {
   // Not a real aspect ratio claim — flexible images keep whatever shape they came in,
   // this box is just a reasonable preview frame (object-contain, so nothing gets cropped).
   flexible: 'aspect-[4/3] max-w-[240px]',
+};
+
+// Plain aspect-ratio classes (no size cap, unlike PREVIEW_ASPECT above which is
+// sized for the small thumbnail) for the interactive crop modal, which wants a
+// properly usable-sized crop area — ImageCropModal's own max-w-md container
+// already bounds it.
+const CROP_ASPECT = {
+  logo: 'aspect-square',
+  banner: 'aspect-video',
 };
 
 // Checkered backdrop (instead of solid white) so PNG transparency is actually visible in
@@ -32,14 +42,39 @@ const TRANSPARENCY_BG = {
 export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpose = 'misc', label, preset = 'banner' }) {
   // null = idle; 0-100 = upload in progress (tracked via XHR so we get a real percentage).
   const [uploadProgress, setUploadProgress] = useState(null);
-  // Set only while rendering a PDF's first page to an image, before the actual
-  // S3 upload (and its own progress tracking) even starts.
+  // Set the instant a PDF is picked (before the pdf.js dynamic-import fetch even
+  // starts) through until conversion finishes — dynamic imports have no built-in
+  // browser progress UI, so on a slow connection this used to look like nothing
+  // was happening at all for however long that fetch took.
   const [converting, setConverting] = useState(false);
-  const uploading = uploadProgress !== null || converting;
+  // Holds the source (post-PDF-conversion, if applicable) awaiting an interactive
+  // crop choice — only used for 'cover' presets (logo, banner), where cropping
+  // actually discards part of the image, so there's something worth letting the
+  // person choose. 'cutout'/'flexible' presets never crop, so they skip straight
+  // to standardizeImage same as before.
+  const [cropTarget, setCropTarget] = useState(null);
+  const uploading = uploadProgress !== null || converting || !!cropTarget;
   const [error, setError] = useState(null);
   const [previewBroken, setPreviewBroken] = useState(false);
 
   const presetSpec = IMAGE_PRESETS[preset] || IMAGE_PRESETS.banner;
+  const isCoverPreset = presetSpec.mode === 'cover';
+
+  const uploadBlob = async (blob) => {
+    setUploadProgress(0);
+    try {
+      const { uploadUrl, publicUrl } = await apiFetch('/api/upload/marketing-image-url', {
+        method: 'POST',
+        body: { ownerId: ownerId || 'new', purpose, format: presetSpec.format },
+      });
+      await uploadFileToS3(uploadUrl, blob, { contentType: `image/${presetSpec.format}`, onProgress: setUploadProgress });
+      onChange(publicUrl);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadProgress(null);
+    }
+  };
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -62,21 +97,25 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
         source = await renderPdfFirstPageToBlob(file);
         setConverting(false);
       }
-      setUploadProgress(0);
-      const blob = await standardizeImage(source, preset);
-      const { uploadUrl, publicUrl } = await apiFetch('/api/upload/marketing-image-url', {
-        method: 'POST',
-        body: { ownerId: ownerId || 'new', purpose, format: presetSpec.format },
-      });
-      await uploadFileToS3(uploadUrl, blob, { contentType: `image/${presetSpec.format}`, onProgress: setUploadProgress });
-      onChange(publicUrl);
+      if (isCoverPreset) {
+        // Hands off to ImageCropModal below — the actual upload continues from
+        // handleCropConfirm once they've chosen a position, not here.
+        setCropTarget(source);
+      } else {
+        const blob = await standardizeImage(source, preset);
+        await uploadBlob(blob);
+      }
     } catch (err) {
       setError(err.message);
-    } finally {
-      setUploadProgress(null);
       setConverting(false);
+    } finally {
       e.target.value = '';
     }
+  };
+
+  const handleCropConfirm = async (blob) => {
+    setCropTarget(null);
+    await uploadBlob(blob);
   };
 
   const statusLabel = converting ? 'Converting…' : uploadProgress !== null ? `Uploading… ${uploadProgress}%` : null;
@@ -143,9 +182,23 @@ export default function ImageUploadOrUrlField({ value, onChange, ownerId, purpos
       <p className="text-[10px] text-muted-foreground mt-1">
         Upload: {IMAGE_INPUT_HINT}. Standard: {IMAGE_PRESET_LABELS[preset] || IMAGE_PRESET_LABELS.banner}. {preset === 'flexible'
           ? 'Uploaded files keep their original shape, just resized down if oversized — pasted URLs are used as-is.'
-          : 'Uploaded files are auto-cropped to fit — pasted URLs are used as-is.'}
+          : isCoverPreset
+            ? "You'll be asked to position the crop after picking a file — pasted URLs are used as-is."
+            : 'Uploaded files are auto-fit — pasted URLs are used as-is.'}
       </p>
       {error && <p className="text-[10px] text-red-500 mt-1">{error}</p>}
+      {cropTarget && (
+        <ImageCropModal
+          file={cropTarget}
+          targetWidth={presetSpec.width}
+          targetHeight={presetSpec.height}
+          aspectClassName={CROP_ASPECT[preset] || 'aspect-video'}
+          format={`image/${presetSpec.format}`}
+          quality={presetSpec.quality}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropTarget(null)}
+        />
+      )}
     </div>
   );
 }
