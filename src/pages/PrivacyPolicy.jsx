@@ -36,13 +36,16 @@ We do not sell your personal information to third parties.`,
   {
     title: '4. Third parties we share data with',
     body: `Amazon Web Services (AWS) — hosting, database (DynamoDB), and file storage (S3), region af-south-1 (Cape
-Town). Paynow — processes payments for Rate Card purchases (packages, ads, marketplace add-ons, magazine
-placements); card and mobile-money details are entered directly on Paynow's own checkout page and never reach our
-servers. Microsoft Graph API — sends transactional emails on our behalf. OmniFlex — sends SMS verification codes and
-notifications. Google, Microsoft, and Facebook — only if you choose to sign in using one of these providers, in
-which case that provider shares your name and email with us per their own privacy terms. CC Sales — pedigree
-livestock auction listings link out to their platform; we don't share your data with them unless you follow that
-link yourself.`,
+Town). AWS Bedrock — only if you use an "AI suggestions" feature on your exhibitor profile (drafting a FAQ,
+description, job/tender/collaboration listing): generates draft text from what you've already entered, run in AWS's
+us-east-1 (United States) region since the underlying AI model isn't available in af-south-1; suggestions are shown
+to you and nothing is saved unless you choose to keep it. Paynow — processes payments for Rate Card purchases
+(packages, ads, marketplace add-ons, magazine placements); card and mobile-money details are entered directly on
+Paynow's own checkout page and never reach our servers. Microsoft Graph API — sends transactional emails on our
+behalf. OmniFlex — sends SMS verification codes and notifications. Google, Microsoft, and Facebook — only if you
+choose to sign in using one of these providers, in which case that provider shares your name and email with us per
+their own privacy terms. CC Sales — pedigree livestock auction listings link out to their platform; we don't share
+your data with them unless you follow that link yourself.`,
   },
   {
     title: '5. Data retention',

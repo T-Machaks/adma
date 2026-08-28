@@ -1,6 +1,6 @@
 # ADMA Digital — Data Classification & Retention Statement
 
-**Effective:** 2026-08-05
+**Effective:** 2026-08-05 (reviewed 2026-08-28 — added AWS Bedrock processing note to §1)
 **Companion to:** `src/pages/PrivacyPolicy.jsx` (the public-facing version of this — this document is the internal, more technical companion, and the two should stay consistent if either changes).
 
 ## 1. Data classification
@@ -10,7 +10,7 @@
 | **Account/identity PII** | Name, email, phone, company | `adma_users`, `adma_exhibitors` | Medium — enables account takeover if leaked, not financial |
 | **Authentication secrets** | Password hashes (bcrypt), TOTP secrets, session tokens | `adma_users.password_hash`/`totp_secret`, `adma_auth_sessions` | High — never logged, never returned in any API response (`users.js` strips both fields from every response) |
 | **Payment metadata** | Amount, reference, line-item description, Paynow poll/redirect URLs, EFT proof-of-payment file | `adma_payments`, S3 (`payment-pop` uploads) | High — no card numbers or bank credentials ever touch ADMA's own systems (Paynow's hosted checkout handles those; EFT is an uploaded PDF/image, not raw bank credentials) |
-| **Exhibitor business content** | Company descriptions, logos, gallery images, product/service details, ad creative | `adma_exhibitors`, `adma_adslots`, S3 (`marketing-image`, `video-ad`) | Low–Medium — mostly intended to be public-facing already |
+| **Exhibitor business content** | Company descriptions, logos, gallery images, product/service details, ad creative | `adma_exhibitors`, `adma_adslots`, S3 (`marketing-image`, `video-ad`) | Low–Medium — mostly intended to be public-facing already. Name/description/category text is also sent to **AWS Bedrock** (`server/lib/ai.js`, in **us-east-1**, not af-south-1) when an exhibitor uses an "AI suggestions" control — opt-in per use, not automatic, and never stored by Bedrock beyond the request itself; see `VENDOR_DEPENDENCY_REVIEW.md` |
 | **Engagement analytics** | Booth visits, QR scans, ad clicks, meeting requests, messages | `adma_engagements`, `adma_meeting_requests`, `adma_booth_messages` | Low — operational data, used to give exhibitors visibility into attendee interest |
 | **Technical/security logs** | IP address, request metadata, CSP violation reports | pm2 stdout, `server/routes/csp-report.js` | Low individually, Medium in aggregate — collected for rate-limiting/abuse-detection, not analytics |
 
