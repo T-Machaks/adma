@@ -9,8 +9,9 @@ import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
+import { apiFetch } from '@/api/client';
 import {
-  Handshake, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone, Building2, ArrowRight,
+  Handshake, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone, Building2, ArrowRight, Sparkles,
 } from 'lucide-react';
 
 const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '' };
@@ -85,6 +86,26 @@ export default function ExhibitorCollaborations() {
   };
 
   const toggleStatus = (c, status) => updateMutation.mutate({ id: c.id, data: { status } });
+
+  // AI-drafted opportunity details, grounded in title/type/closing date — same
+  // shared listing-copy pattern as job postings and tenders.
+  const [draftingCollab, setDraftingCollab] = useState(false);
+  const [draftCollabError, setDraftCollabError] = useState('');
+  const handleDraftCollabCopy = async () => {
+    setDraftingCollab(true);
+    setDraftCollabError('');
+    try {
+      const { description } = await apiFetch('/api/ai/suggest-listing', {
+        method: 'POST',
+        body: { kind: 'collaboration', title: form.title, category: form.type, extra: { 'Closing date': form.closing_date } },
+      });
+      setForm(f => ({ ...f, description }));
+    } catch (err) {
+      setDraftCollabError(err.message);
+    } finally {
+      setDraftingCollab(false);
+    }
+  };
 
   if (!myBooth) {
     return (
@@ -184,7 +205,18 @@ export default function ExhibitorCollaborations() {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Opportunity Details</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground font-medium">Opportunity Details</label>
+              <button
+                type="button"
+                onClick={handleDraftCollabCopy}
+                disabled={draftingCollab || !form.title.trim()}
+                className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline disabled:opacity-60"
+              >
+                <Sparkles className="w-3 h-3" /> {draftingCollab ? 'Thinking…' : 'Draft with AI'}
+              </button>
+            </div>
+            {draftCollabError && <p className="text-[11px] text-red-500 mb-1">{draftCollabError}</p>}
             <textarea
               rows={4} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}

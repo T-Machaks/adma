@@ -272,6 +272,29 @@ export default function ExhibitorHome() {
   };
   const discardFaqSuggestion = (i) => setFaqSuggestions(s => s.filter((_, idx) => idx !== i));
 
+  // AI description tightening — a real, reachable need (not just "over-typing"):
+  // limits.descChars can shrink after a package downgrade, and the textarea's own
+  // maxLength only blocks further typing, it doesn't retroactively trim an
+  // already-saved value. Replaces editForm.description directly (single value, not
+  // a list like FAQ suggestions) since Cancel already discards unsaved edits wholesale.
+  const [shorteningDesc, setShorteningDesc] = useState(false);
+  const [descShortenError, setDescShortenError] = useState('');
+  const handleShortenDescription = async () => {
+    setShorteningDesc(true);
+    setDescShortenError('');
+    try {
+      const { description } = await apiFetch('/api/ai/suggest-description', {
+        method: 'POST',
+        body: { name: editForm.name, description: editForm.description, categories: editForm.categories, maxChars: limits.descChars },
+      });
+      setEditForm(f => ({ ...f, description }));
+    } catch (err) {
+      setDescShortenError(err.message);
+    } finally {
+      setShorteningDesc(false);
+    }
+  };
+
   const handleBoothImageUpload = (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -480,10 +503,21 @@ export default function ExhibitorHome() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs text-muted-foreground font-medium">Description</label>
-                <span className={`text-[10px] font-medium ${(editForm.description?.length || 0) >= limits.descChars ? 'text-red-500' : 'text-muted-foreground'}`}>
-                  {editForm.description?.length || 0}/{limits.descChars}
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleShortenDescription}
+                    disabled={shorteningDesc || !(editForm.description || '').trim()}
+                    className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline disabled:opacity-60"
+                  >
+                    <Sparkles className="w-3 h-3" /> {shorteningDesc ? 'Thinking…' : 'Tighten with AI'}
+                  </button>
+                  <span className={`text-[10px] font-medium ${(editForm.description?.length || 0) >= limits.descChars ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {editForm.description?.length || 0}/{limits.descChars}
+                  </span>
+                </div>
               </div>
+              {descShortenError && <p className="text-[11px] text-red-500 mb-1">{descShortenError}</p>}
               <textarea
                 rows={5}
                 maxLength={limits.descChars}
