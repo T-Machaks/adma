@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createPresignedPut, deleteS3Object } from '../lib/s3.js';
+import { createPresignedPut, deleteS3Object, getS3ObjectMetadata } from '../lib/s3.js';
 import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 import { getMyExhibitorId } from '../lib/ownership.js';
 
@@ -156,6 +156,29 @@ r.post('/video-ad-url', requireAuth, async (req, res) => {
     const key = `video-ads/${purpose || 'misc'}/${ownerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
     const { uploadUrl, publicUrl } = await createPresignedPut(key, 'video/mp4');
     res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/upload/video-status — polled by VideoUploadOrUrlField.jsx right after a
+// video-ad-url upload finishes, to find out whether server/lambda/video-compress.js
+// (an S3-triggered Lambda, deployed separately from this app server, see that
+// file's header comment) has finished re-encoding the video down to size yet.
+// Exists because the presigned-PUT flow used to mean "PUT succeeds -> publicUrl is
+// immediately the final asset" — that's no longer true once a background
+// compression step can still be rewriting the object in place after the upload
+// returns, so the frontend needs a real way to ask "is it actually done" instead
+// of assuming.
+r.get('/video-status', requireAuth, async (req, res) => {
+  try {
+    const { publicUrl } = req.query;
+    if (!publicUrl) return res.status(400).json({ error: 'publicUrl required' });
+    const url = new URL(publicUrl);
+    const key = decodeURIComponent(url.pathname.slice(1));
+    const metadata = await getS3ObjectMetadata(key);
+    if (!metadata) return res.status(404).json({ error: 'Not found' });
+    res.json({ processed: metadata.processed === 'true' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
