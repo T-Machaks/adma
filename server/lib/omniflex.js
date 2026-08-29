@@ -1,5 +1,6 @@
 const BASE = process.env.OMNIFLEX_API_URL || 'https://omniflex.co.zw';
 const API_KEY = process.env.OMNIFLEX_API_KEY;
+const OTP_CAMPAIGN_ID = process.env.OMNIFLEX_OTP_CAMPAIGN_ID;
 
 // Normalize any Zim phone format to 263XXXXXXXXX
 function normalizePhone(phone) {
@@ -24,8 +25,12 @@ async function post(path, body) {
   return data;
 }
 
-export async function sendSmsOtp(phone) {
-  return post('/api/otp/send', { identifier: normalizePhone(phone), method: 'sms' });
+export async function sendSmsOtp(phone, name) {
+  if (!OTP_CAMPAIGN_ID) throw new Error('OMNIFLEX_OTP_CAMPAIGN_ID is not configured.');
+  return post(`/api/campaigns/${OTP_CAMPAIGN_ID}/send-otp`, {
+    identifier: normalizePhone(phone),
+    name: name || undefined,
+  });
 }
 
 export async function verifySmsOtp(phone, code) {

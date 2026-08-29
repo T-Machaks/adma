@@ -382,6 +382,7 @@ router.post('/login', async (req, res) => {
       userId: user.id,
       email: user.email,
       phone: user.phone || '',
+      name: user.full_name || '',
       otp,
       expiresAt: newExpiry(),
     });
@@ -457,7 +458,7 @@ router.post('/otp/resend', async (req, res) => {
     if (target === 'sms') {
       if (!entry.phone) return res.status(400).json({ error: 'No phone number on this account.' });
       try {
-        await sendSmsOtp(entry.phone);
+        await sendSmsOtp(entry.phone, entry.name);
       } catch (smsErr) {
         console.error('SMS OTP send failed:', smsErr.message);
         return res.status(503).json({ error: 'Could not send SMS. Please try email instead.' });
@@ -673,12 +674,12 @@ router.post('/totp/fallback', async (req, res) => {
 
     if (target === 'sms') {
       try {
-        await sendSmsOtp(user.phone);
+        await sendSmsOtp(user.phone, user.full_name);
       } catch (smsErr) {
         console.error('TOTP fallback SMS send failed:', smsErr.message);
         return res.status(503).json({ error: 'Could not send SMS. Please try email instead.' });
       }
-      challengeStore.set(mfa_token, { type: 'sms', userId: user.id, email: user.email, phone: user.phone, expiresAt: newExpiry() });
+      challengeStore.set(mfa_token, { type: 'sms', userId: user.id, email: user.email, phone: user.phone, name: user.full_name || '', expiresAt: newExpiry() });
       return res.json({ ok: true, method: 'sms', phone_hint: maskPhone(user.phone) });
     }
 
