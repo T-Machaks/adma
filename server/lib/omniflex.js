@@ -2,10 +2,14 @@ const BASE = process.env.OMNIFLEX_API_URL || 'https://omniflex.co.zw';
 const API_KEY = process.env.OMNIFLEX_API_KEY;
 const OTP_CAMPAIGN_ID = process.env.OMNIFLEX_OTP_CAMPAIGN_ID;
 
-// Normalize any Zim phone format to 263XXXXXXXXX
+// Normalize any Zim phone format (07XX…, +2637X…, 002637X…) to 263XXXXXXXXX.
+// The 00-international-prefix case must be checked before the bare-0-trunk-prefix
+// case, or "00263771234567" gets misread as a domestic 0-number and comes out
+// mangled (263 + "0263771234567" instead of the correct 263771234567).
 function normalizePhone(phone) {
   if (!phone) return phone;
-  const digits = String(phone).replace(/\D/g, '');
+  let digits = String(phone).replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
   if (digits.startsWith('263')) return digits;
   if (digits.startsWith('0')) return '263' + digits.slice(1);
   return '263' + digits;

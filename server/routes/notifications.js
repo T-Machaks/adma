@@ -8,12 +8,17 @@ import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 const r = Router();
 const APP_URL = 'https://admadigital.co.zw';
 
+// Accepts 07XXXXXXXX, +263XXXXXXXXX, or 00263XXXXXXXXX — anything else is treated
+// as invalid and returns null so smsSilent() skips the send rather than guessing.
 function normalizePhone(phone) {
   if (!phone) return null;
-  const clean = phone.replace(/[\s\-\(\)]/g, '');
-  if (clean.startsWith('07') && clean.length === 10) return '+263' + clean.slice(1);
-  if (clean.startsWith('+263')) return clean;
-  return null;
+  const digits = String(phone).replace(/\D/g, '');
+  let national;
+  if (digits.startsWith('00263') && digits.length === 14) national = digits.slice(5);
+  else if (digits.startsWith('263') && digits.length === 12) national = digits.slice(3);
+  else if (digits.startsWith('0') && digits.length === 10) national = digits.slice(1);
+  else return null;
+  return '+263' + national;
 }
 
 async function emailSilent(to, subject, html) {
