@@ -57,25 +57,25 @@ export default function ExhibitorShell() {
                 key={path}
                 to={path}
                 title={label}
-                className={`flex items-center gap-1 p-2 lg:px-2 lg:py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-95 select-none touch-manipulation flex-shrink-0 ${
+                className={`flex items-center gap-1 p-2 lg:px-1.5 lg:py-1 rounded-lg text-xs lg:text-[11px] font-medium transition-all duration-150 active:scale-95 select-none touch-manipulation flex-shrink-0 ${
                   isActive(path, exact)
                     ? 'bg-amber text-white shadow-sm'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
+                <Icon className="w-4 h-4 lg:w-3.5 lg:h-3.5 flex-shrink-0" />
                 <span className="hidden lg:inline whitespace-nowrap">{label}</span>
               </Link>
             ))}
 
-            <div className="w-px h-5 bg-white/20 mx-1 hidden lg:block flex-shrink-0" />
+            <div className="w-px h-5 bg-white/20 mx-0.5 hidden lg:block flex-shrink-0" />
 
             <button
               onClick={() => { logout(); navigate('/login'); }}
-              className="flex items-center gap-1 p-2 lg:px-2 lg:py-1.5 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-150 touch-manipulation flex-shrink-0"
+              className="flex items-center gap-1 p-2 lg:px-1.5 lg:py-1 rounded-lg text-xs lg:text-[11px] text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-150 touch-manipulation flex-shrink-0"
               title="Log out"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
               <span className="hidden lg:inline whitespace-nowrap">Log out</span>
             </button>
           </nav>
