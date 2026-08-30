@@ -105,6 +105,7 @@ export default function PaymentsLedger() {
                       <th className="px-4 py-3 font-semibold">Method</th>
                       <th className="px-4 py-3 font-semibold">Status</th>
                       <th className="px-4 py-3 font-semibold">Reference</th>
+                      <th className="px-4 py-3 font-semibold">Proof</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -125,6 +126,15 @@ export default function PaymentsLedger() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.reference}</td>
+                        <td className="px-4 py-3">
+                          {p.pop_url ? (
+                            <a href={p.pop_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-amber font-medium hover:underline whitespace-nowrap">
+                              <FileText className="w-3.5 h-3.5" /> View
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{p.method === 'eft' ? '—' : ''}</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
