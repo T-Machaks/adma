@@ -613,22 +613,30 @@ export default function ExhibitorRateCard() {
             {SMS_BUNDLES.map(b => {
               const price = smsSummary?.prices?.[b.key];
               const already = inCart('sms_bundle', b.key);
+              // Missing entirely (still loading) reads as available, same as the server's
+              // own null-means-unknown-means-allow default — only an explicit `false`
+              // disables the card.
+              const isUnavailable = smsSummary?.available?.[b.key] === false;
               return (
-                <div key={b.key} className={`rounded-xl border p-4 ${already ? 'border-amber bg-amber/5' : 'border-border'}`}>
+                <div key={b.key} className={`rounded-xl border p-4 ${already ? 'border-amber bg-amber/5' : 'border-border'} ${isUnavailable ? 'opacity-60' : ''}`}>
                   <p className="font-heading font-bold text-sm">{b.credits.toLocaleString()} SMS Credits</p>
                   <p className="font-heading text-2xl font-bold mt-2">{price != null ? `$${price.toFixed(2)}` : '—'}</p>
                   <p className="text-[11px] text-muted-foreground">one-time · ≈ {b.credits.toLocaleString()} text messages</p>
-                  <button
-                    onClick={() => already
-                      ? removeFromCart(already.localId)
-                      : addToCart({ type: 'sms_bundle', item_key: b.key, item_label: `${b.credits.toLocaleString()} SMS Credits`, period: 'once', amount: price })}
-                    disabled={price == null}
-                    className={`w-full flex items-center justify-center gap-1.5 mt-3 text-xs font-semibold px-3 py-2 rounded-lg transition-all disabled:opacity-60 ${
-                      already ? 'bg-amber/10 text-amber border border-amber/30 hover:bg-amber/20' : 'bg-amber text-white hover:bg-amber/90'
-                    }`}
-                  >
-                    {already ? <><X className="w-3.5 h-3.5" /> Remove</> : <><Plus className="w-3.5 h-3.5" /> Add to Cart</>}
-                  </button>
+                  {isUnavailable ? (
+                    <p className="text-[11px] text-amber font-semibold mt-3 text-center py-2">Temporarily unavailable — check back shortly</p>
+                  ) : (
+                    <button
+                      onClick={() => already
+                        ? removeFromCart(already.localId)
+                        : addToCart({ type: 'sms_bundle', item_key: b.key, item_label: `${b.credits.toLocaleString()} SMS Credits`, period: 'once', amount: price })}
+                      disabled={price == null}
+                      className={`w-full flex items-center justify-center gap-1.5 mt-3 text-xs font-semibold px-3 py-2 rounded-lg transition-all disabled:opacity-60 ${
+                        already ? 'bg-amber/10 text-amber border border-amber/30 hover:bg-amber/20' : 'bg-amber text-white hover:bg-amber/90'
+                      }`}
+                    >
+                      {already ? <><X className="w-3.5 h-3.5" /> Remove</> : <><Plus className="w-3.5 h-3.5" /> Add to Cart</>}
+                    </button>
+                  )}
                 </div>
               );
             })}

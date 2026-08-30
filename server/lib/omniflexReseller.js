@@ -96,3 +96,30 @@ export async function getBundlePrices() {
 }
 
 export const SMS_BUNDLE_CREDITS = { SMS500: 500, SMS1000: 1000 };
+
+// ADMA's own remaining OmniFlex pool balance — a pre-payment sanity check so an
+// exhibitor isn't charged only to find out afterward that allocate() would have 409'd
+// (pool_insufficient). Cached only ~30s since the pool moves on every allocation across
+// every exhibitor, not just this one.
+//
+// Never treated as authoritative: ANY failure (network, non-2xx, unexpected shape)
+// returns null — "unknown" — and callers must treat null as "allow the purchase,"
+// falling back to the existing allocate() 409 + refund-notify path as the real
+// backstop. This call existing/failing must never itself block a sale.
+const POOL_CACHE_MS = 30 * 1000;
+let poolCache = null;
+let poolCacheAt = 0;
+
+export async function getPoolBalance() {
+  if (poolCache !== null && Date.now() - poolCacheAt < POOL_CACHE_MS) return poolCache;
+  try {
+    const data = await request('GET', '/api/reseller/overview');
+    const bal = data?.pool?.balance;
+    if (typeof bal !== 'number') return null;
+    poolCache = bal;
+    poolCacheAt = Date.now();
+    return bal;
+  } catch {
+    return null;
+  }
+}

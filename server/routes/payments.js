@@ -9,7 +9,7 @@ import { getRateCard, computeServerPrice } from './rate-card.js';
 import { initiatePayment, pollPaymentStatus, isPaynowConfigured } from '../lib/paynow.js';
 import { markAdSlotRequested, createAdSlotFromRequest } from './adslots.js';
 import { sendOtpEmail } from '../lib/mailer.js';
-import { provisionWorkspace, allocateBundle, getBundlePrices, SMS_BUNDLE_CREDITS } from '../lib/omniflexReseller.js';
+import { provisionWorkspace, allocateBundle, getBundlePrices, getPoolBalance, SMS_BUNDLE_CREDITS } from '../lib/omniflexReseller.js';
 
 const TABLE = 'adma_payments';
 
@@ -81,6 +81,19 @@ async function buildItem(rateCard, exhibitorId, raw) {
     if (!exhibitorId) throw { status: 403, message: 'SMS credit bundles require a Virtual Exhibitor account.' };
     const credits = SMS_BUNDLE_CREDITS[raw.item_key];
     if (!credits) throw { status: 400, message: 'Unknown SMS bundle.' };
+
+    // Pre-payment pool check — runs here (buildItem, called from buildCart, called
+    // BEFORE initiatePayment()) so a known-insufficient pool blocks the sale before any
+    // charge or workspace provisioning happens at all. null (unknown) always allows the
+    // purchase through — the allocate() 409 pool_insufficient branch in completePayment()
+    // stays as the real backstop for the race where the pool drains between this check
+    // and the actual allocation.
+    const poolBalance = await getPoolBalance();
+    if (poolBalance !== null && poolBalance < credits) {
+      console.error(`[sms_bundle] ADMA OmniFlex pool below bundle size — bundle=${credits}, pool=${poolBalance}`);
+      throw { status: 503, message: 'SMS credits temporarily unavailable, please try again shortly.' };
+    }
+
     const prices = await getBundlePrices();
     const amount = prices[raw.item_key];
     if (amount == null) throw { status: 503, message: 'SMS bundle pricing is temporarily unavailable. Please try again shortly.' };

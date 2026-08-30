@@ -8,7 +8,7 @@ import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { requireRole } from '../lib/authMiddleware.js';
 import { getMyExhibitorId } from '../lib/ownership.js';
-import { provisionWorkspace, makeLoginLink, getBundlePrices } from '../lib/omniflexReseller.js';
+import { provisionWorkspace, makeLoginLink, getBundlePrices, getPoolBalance, SMS_BUNDLE_CREDITS } from '../lib/omniflexReseller.js';
 
 const r = Router();
 
@@ -18,7 +18,13 @@ r.get('/summary', requireRole('exhibitor'), async (req, res) => {
     if (!exhibitorId) return res.status(400).json({ error: 'No booth linked to your account.' });
     const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitorId } }));
     const prices = await getBundlePrices();
-    res.json({ prices, hasWorkspace: !!result.Item?.omniflex_org_id });
+    const poolBalance = await getPoolBalance();
+    // null (unknown pool) always reads as available — same "never hard-block on a
+    // monitoring call" principle as the purchase-time check in payments.js.
+    const available = Object.fromEntries(
+      Object.entries(SMS_BUNDLE_CREDITS).map(([key, credits]) => [key, poolBalance === null || poolBalance >= credits])
+    );
+    res.json({ prices, hasWorkspace: !!result.Item?.omniflex_org_id, available });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
