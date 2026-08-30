@@ -508,7 +508,7 @@ export default function ExhibitorDetail() {
                 <MessageCircle className="w-4 h-4 text-amber" />
                 <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Chat with {ex.name}</h2>
               </div>
-              <p className="text-xs text-muted-foreground mb-3">Message the exhibitor directly — replies appear here.</p>
+              <p className="text-xs text-muted-foreground mb-3">Quick questions? Message the exhibitor directly — replies appear here. For a formal pricing request, use Request a Quote below instead.</p>
               {!isAuthenticated ? (
                 <div className="flex flex-col items-center gap-3 py-4 text-center">
                   <Lock className="w-6 h-6 text-muted-foreground" />
@@ -541,7 +541,7 @@ export default function ExhibitorDetail() {
                 <Sparkles className="w-4 h-4 text-amber" />
                 <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Request a Quote</h2>
               </div>
-              <p className="text-xs text-muted-foreground mb-4">Send a qualified enquiry with your budget and timeline — {ex.name} treats these as priority leads.</p>
+              <p className="text-xs text-muted-foreground mb-4">A separate channel from live chat above — send a qualified enquiry with your budget and timeline, and {ex.name} treats it as a priority lead.</p>
 
               {leadSubmitted ? (
                 <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">

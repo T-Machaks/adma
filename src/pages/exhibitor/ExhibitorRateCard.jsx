@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Exhibitor, RateCard, Payment, AdSlot } from '@/api/entities';
+import { Exhibitor, RateCard, Payment, AdSlot, SmsCredits } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { BILLING_PERIOD_ORDER, computePrice, isMarketplaceAddonActive } from '@/lib/rateCard';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
@@ -10,13 +10,21 @@ import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import FileUploadOrUrlField from '@/components/shared/FileUploadOrUrlField';
 import {
   DollarSign, CheckCircle, Send, Loader2, Briefcase, ShoppingBag, BookOpen, Layout,
-  ShoppingCart, Plus, X, ArrowRight, CreditCard, Landmark, Receipt,
+  ShoppingCart, Plus, X, ArrowRight, CreditCard, Landmark, Receipt, MessageSquare, ExternalLink,
 } from 'lucide-react';
 
 const AD_PLACEMENTS = [
   { key: 'carousel', title: 'Banner Carousel' },
   { key: 'video-carousel', title: 'Video Carousel' },
   { key: 'footer-strip', title: 'Strip Footer Banner' },
+];
+
+// Priced live from OmniFlex (see server/lib/omniflexReseller.js) — not part of the
+// rate card at all, unlike everything else on this page. One-time purchase, no
+// billing period.
+const SMS_BUNDLES = [
+  { key: 'SMS500', credits: 500 },
+  { key: 'SMS1000', credits: 1000 },
 ];
 
 // Same gradient set AdSlotCard.jsx (exhibitor ad-content form) uses, kept in sync manually.
@@ -149,6 +157,14 @@ export default function ExhibitorRateCard() {
 
   const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors-all'], queryFn: () => Exhibitor.list('-created_date') });
   const { data: rateCard, isLoading } = useQuery({ queryKey: ['rate-card'], queryFn: () => RateCard.get() });
+  const { data: smsSummary } = useQuery({ queryKey: ['sms-credits-summary'], queryFn: () => SmsCredits.summary(), enabled: user?.role === 'exhibitor' });
+  const [smsOpenError, setSmsOpenError] = useState('');
+  const smsOpenMutation = useMutation({
+    mutationFn: () => SmsCredits.open(),
+    onMutate: () => setSmsOpenError(''),
+    onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (e) => setSmsOpenError(e.message || 'Could not open your SMS dashboard.'),
+  });
 
   const myBooth = exhibitors.find(
     e => e.contact_email?.toLowerCase() === user?.email?.toLowerCase()
@@ -563,6 +579,60 @@ export default function ExhibitorRateCard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Section E: SMS Credits — exhibitor-only, priced live from OmniFlex rather than
+          the rate card. Checkout goes through the exact same cart below as everything
+          else on this page. */}
+      {isExhibitor && (
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-1 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-amber" /> Bulk Messaging / SMS Credits
+          </h2>
+          <p className="text-xs text-muted-foreground mb-3">Reach your leads directly by SMS, sent from your own OmniFlex workspace.</p>
+
+          {smsSummary?.hasWorkspace && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 mb-3">
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                <CheckCircle className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
+                Your SMS workspace is active.
+              </p>
+              <button
+                onClick={() => smsOpenMutation.mutate()}
+                disabled={smsOpenMutation.isPending}
+                className="flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg bg-amber text-white hover:bg-amber/90 transition-all disabled:opacity-60 flex-shrink-0"
+              >
+                {smsOpenMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />} Open My SMS Dashboard
+              </button>
+            </div>
+          )}
+          {smsOpenError && <p className="text-xs text-red-500 mb-3">{smsOpenError}</p>}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {SMS_BUNDLES.map(b => {
+              const price = smsSummary?.prices?.[b.key];
+              const already = inCart('sms_bundle', b.key);
+              return (
+                <div key={b.key} className={`rounded-xl border p-4 ${already ? 'border-amber bg-amber/5' : 'border-border'}`}>
+                  <p className="font-heading font-bold text-sm">{b.credits.toLocaleString()} SMS Credits</p>
+                  <p className="font-heading text-2xl font-bold mt-2">{price != null ? `$${price.toFixed(2)}` : '—'}</p>
+                  <p className="text-[11px] text-muted-foreground">one-time · ≈ {b.credits.toLocaleString()} text messages</p>
+                  <button
+                    onClick={() => already
+                      ? removeFromCart(already.localId)
+                      : addToCart({ type: 'sms_bundle', item_key: b.key, item_label: `${b.credits.toLocaleString()} SMS Credits`, period: 'once', amount: price })}
+                    disabled={price == null}
+                    className={`w-full flex items-center justify-center gap-1.5 mt-3 text-xs font-semibold px-3 py-2 rounded-lg transition-all disabled:opacity-60 ${
+                      already ? 'bg-amber/10 text-amber border border-amber/30 hover:bg-amber/20' : 'bg-amber text-white hover:bg-amber/90'
+                    }`}
+                  >
+                    {already ? <><X className="w-3.5 h-3.5" /> Remove</> : <><Plus className="w-3.5 h-3.5" /> Add to Cart</>}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
