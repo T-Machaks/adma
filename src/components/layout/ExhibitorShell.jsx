@@ -1,10 +1,13 @@
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt, MessageSquare, Loader2 } from 'lucide-react';
+import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ChevronDown, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt, MessageSquare, Loader2 } from 'lucide-react';
 import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
 import { SmsCredits } from '@/api/entities';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
+// Kept as individual top-level pills — either high-frequency (checked most days) or
+// distinct enough not to bury in a group.
 const exhibitorNav = [
   { path: '/exhibitor',           label: 'My Booth',   icon: Store,     exact: true },
   { path: '/exhibitor/meetings',  label: 'Meetings',   icon: Calendar },
@@ -13,12 +16,29 @@ const exhibitorNav = [
   { path: '/exhibitor/team',      label: 'Team',       icon: Users },
   { path: '/exhibitor/enquiries', label: 'Enquiries',  icon: Inbox },
   { path: '/exhibitor/messages',  label: 'Messages',   icon: MessageCircle },
-  { path: '/exhibitor/jobs',      label: 'Jobs',        icon: Briefcase },
-  { path: '/exhibitor/tenders',   label: 'Tenders',     icon: FileText },
-  { path: '/exhibitor/collaborations', label: 'Collaborations', icon: Handshake },
-  { path: '/exhibitor/listings',       label: 'My Listings',    icon: LayoutList },
-  { path: '/exhibitor/rate-card',      label: 'Rate Card',      icon: DollarSign },
-  { path: '/exhibitor/billing',        label: 'Billing',        icon: Receipt },
+];
+
+// Grouped under dropdown pills so the whole bar fits a normal desktop viewport without
+// horizontal scrolling — each group here collapses 3-4 items into one pill.
+const navGroups = [
+  {
+    label: 'Marketplace',
+    icon: LayoutList,
+    items: [
+      { path: '/exhibitor/jobs',           label: 'Jobs',           icon: Briefcase },
+      { path: '/exhibitor/tenders',        label: 'Tenders',        icon: FileText },
+      { path: '/exhibitor/collaborations', label: 'Collaborations', icon: Handshake },
+      { path: '/exhibitor/listings',       label: 'My Listings',    icon: LayoutList },
+    ],
+  },
+  {
+    label: 'Billing',
+    icon: DollarSign,
+    items: [
+      { path: '/exhibitor/rate-card', label: 'Rate Card', icon: DollarSign },
+      { path: '/exhibitor/billing',   label: 'Billing',   icon: Receipt },
+    ],
+  },
 ];
 
 export default function ExhibitorShell() {
@@ -83,6 +103,35 @@ export default function ExhibitorShell() {
                 <span className="hidden lg:inline whitespace-nowrap">{label}</span>
               </Link>
             ))}
+
+            {navGroups.map(group => {
+              const groupActive = group.items.some(i => isActive(i.path));
+              return (
+                <DropdownMenu key={group.label}>
+                  <DropdownMenuTrigger
+                    title={group.label}
+                    className={`flex items-center gap-1 p-2 lg:px-1.5 lg:py-1 rounded-lg text-xs lg:text-[11px] font-medium transition-all duration-150 active:scale-95 select-none touch-manipulation flex-shrink-0 outline-none ${
+                      groupActive
+                        ? 'bg-amber text-white shadow-sm'
+                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <group.icon className="w-4 h-4 lg:w-3.5 lg:h-3.5 flex-shrink-0" />
+                    <span className="hidden lg:inline whitespace-nowrap">{group.label}</span>
+                    <ChevronDown className="hidden lg:inline w-3 h-3 flex-shrink-0" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {group.items.map(({ path, label, icon: Icon }) => (
+                      <DropdownMenuItem key={path} asChild>
+                        <Link to={path} className={isActive(path) ? 'font-semibold text-amber' : ''}>
+                          <Icon className="w-4 h-4" /> {label}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            })}
 
             {smsSummary?.hasWorkspace ? (
               <button
