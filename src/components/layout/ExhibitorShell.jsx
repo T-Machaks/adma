@@ -1,7 +1,9 @@
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
-import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt, MessageSquare, Loader2 } from 'lucide-react';
 import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
+import { SmsCredits } from '@/api/entities';
 
 const exhibitorNav = [
   { path: '/exhibitor',           label: 'My Booth',   icon: Store,     exact: true },
@@ -24,6 +26,21 @@ export default function ExhibitorShell() {
   const navigate = useNavigate();
   const { user, isLoadingAuth, logout } = useAuth();
   const isHome = location.pathname === '/exhibitor';
+
+  // One-click SMS Dashboard access from anywhere in the portal, not just My Booth/Rate
+  // Card. Smart pill: opens the workspace directly once one exists, otherwise sends the
+  // exhibitor to Rate Card to buy a bundle first (same summary query as those pages —
+  // react-query dedupes it, so this doesn't add an extra request on pages that already
+  // fetch it).
+  const { data: smsSummary } = useQuery({
+    queryKey: ['sms-credits-summary'],
+    queryFn: () => SmsCredits.summary(),
+    enabled: !!user && user.role === 'exhibitor',
+  });
+  const smsOpenMutation = useMutation({
+    mutationFn: () => SmsCredits.open(),
+    onSuccess: ({ url }) => { window.location.href = url; },
+  });
 
   if (isLoadingAuth) return null;
   if (!user || user.role !== 'exhibitor') {
@@ -66,6 +83,33 @@ export default function ExhibitorShell() {
                 <span className="hidden lg:inline whitespace-nowrap">{label}</span>
               </Link>
             ))}
+
+            {smsSummary?.hasWorkspace ? (
+              <button
+                onClick={() => smsOpenMutation.mutate()}
+                disabled={smsOpenMutation.isPending}
+                title="Open My SMS Dashboard"
+                className="flex items-center gap-1 p-2 lg:px-1.5 lg:py-1 rounded-lg text-xs lg:text-[11px] font-medium transition-all duration-150 active:scale-95 select-none touch-manipulation flex-shrink-0 text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-60"
+              >
+                {smsOpenMutation.isPending
+                  ? <Loader2 className="w-4 h-4 lg:w-3.5 lg:h-3.5 flex-shrink-0 animate-spin" />
+                  : <MessageSquare className="w-4 h-4 lg:w-3.5 lg:h-3.5 flex-shrink-0" />}
+                <span className="hidden lg:inline whitespace-nowrap">SMS Dashboard</span>
+              </button>
+            ) : (
+              <Link
+                to="/exhibitor/rate-card"
+                title="Buy SMS credits to activate your SMS Dashboard"
+                className={`flex items-center gap-1 p-2 lg:px-1.5 lg:py-1 rounded-lg text-xs lg:text-[11px] font-medium transition-all duration-150 active:scale-95 select-none touch-manipulation flex-shrink-0 ${
+                  isActive('/exhibitor/rate-card')
+                    ? 'bg-amber text-white shadow-sm'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4 lg:w-3.5 lg:h-3.5 flex-shrink-0" />
+                <span className="hidden lg:inline whitespace-nowrap">SMS Dashboard</span>
+              </Link>
+            )}
 
             <div className="w-px h-5 bg-white/20 mx-0.5 hidden lg:block flex-shrink-0" />
 
