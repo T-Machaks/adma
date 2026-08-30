@@ -13,7 +13,6 @@ export default function PaymentReturn() {
   const [params] = useSearchParams();
   const id = params.get('id');
   const [status, setStatus] = useState('pending');
-  const [isSmsBundle, setIsSmsBundle] = useState(false);
   const attempts = useRef(0);
 
   useEffect(() => {
@@ -22,12 +21,8 @@ export default function PaymentReturn() {
 
     const tick = async () => {
       try {
-        // .get() (not just .status()) so the "Back to…" link below can tell an SMS
-        // credit purchase apart from a Rate Card one and send the exhibitor back to
-        // the right page — same ownership check as .status(), just richer data.
-        const res = await Payment.get(id);
+        const res = await Payment.status(id);
         if (cancelled) return;
-        setIsSmsBundle(res.items?.some(i => i.type === 'sms_bundle') ?? false);
         if (res.status !== 'pending') { setStatus(res.status); return; }
         attempts.current += 1;
         if (attempts.current >= MAX_ATTEMPTS) { setStatus('pending'); return; }
@@ -81,10 +76,10 @@ export default function PaymentReturn() {
           </>
         )}
         <Link
-          to={isSmsBundle ? '/exhibitor/sms-credits' : '/exhibitor/rate-card'}
+          to="/exhibitor/rate-card"
           className="inline-flex items-center gap-1.5 mt-6 text-sm bg-amber text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-amber/90 active:scale-95 transition-all duration-150"
         >
-          {isSmsBundle ? 'Back to SMS Credits' : 'Back to Rate Card'}
+          Back to Rate Card
         </Link>
       </div>
     </div>

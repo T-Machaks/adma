@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Exhibitor, MeetingRequest, AdSlot } from '@/api/entities';
+import { Exhibitor, MeetingRequest, AdSlot, SmsCredits } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { notifyMeeting } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
@@ -10,6 +10,7 @@ import {
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
   Images, MessageCircle, Award, Plus, Video, Move, Sparkles, Check,
+  MessageSquare, ExternalLink, Loader2,
 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
@@ -63,6 +64,15 @@ export default function ExhibitorHome() {
   const { data: allAdSlots = [] } = useQuery({
     queryKey: ['adslots'],
     queryFn: () => AdSlot.list(),
+  });
+
+  const { data: smsSummary } = useQuery({ queryKey: ['sms-credits-summary'], queryFn: () => SmsCredits.summary() });
+  const [smsOpenError, setSmsOpenError] = useState('');
+  const smsOpenMutation = useMutation({
+    mutationFn: () => SmsCredits.open(),
+    onMutate: () => setSmsOpenError(''),
+    onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (e) => setSmsOpenError(e.message || 'Could not open your SMS dashboard.'),
   });
 
   const myBooth = exhibitors.find(
@@ -679,6 +689,41 @@ export default function ExhibitorHome() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* SMS Dashboard quick link — always visible on the profile page so there's one
+          clear path to it regardless of whether a workspace exists yet. Purchasing
+          bundles still happens on the Rate Card page; this is just the fast path to
+          the dashboard itself once it's active. */}
+      <div className="bg-card border border-border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-amber/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <MessageSquare className="w-5 h-5 text-amber" />
+          </div>
+          <div>
+            <p className="font-heading font-bold text-sm">SMS Dashboard</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {smsSummary?.hasWorkspace ? 'Send bulk messages from your OmniFlex workspace.' : 'Buy SMS credits to activate your workspace.'}
+            </p>
+          </div>
+        </div>
+        {smsSummary?.hasWorkspace ? (
+          <button
+            onClick={() => smsOpenMutation.mutate()}
+            disabled={smsOpenMutation.isPending}
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-xl bg-amber text-white hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 flex-shrink-0"
+          >
+            {smsOpenMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />} Open My SMS Dashboard
+          </button>
+        ) : (
+          <Link
+            to="/exhibitor/rate-card"
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs border border-border font-semibold px-4 py-2.5 rounded-xl hover:bg-muted active:scale-95 transition-all duration-150 whitespace-nowrap"
+          >
+            Buy SMS Credits <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        )}
+        {smsOpenError && <p className="text-xs text-red-500 w-full">{smsOpenError}</p>}
       </div>
 
       {/* Package Upgrade CTA — shown for non-Premium exhibitors */}
