@@ -71,7 +71,7 @@ function paymentConfirmationHtml(record) {
 // `exhibitorId` is null for a non-exhibitor payer — package/marketplace_addon are
 // rejected outright, and an adslot_request has no pre-existing slot to reference so it's
 // built entirely from `request_payload` instead.
-async function buildItem(rateCard, exhibitorId, raw) {
+export async function buildItem(rateCard, exhibitorId, raw) {
   const { type, period, ad_slot_id, request_payload } = raw;
 
   // SMS credit bundles are priced live from OmniFlex, not from ADMA's own rate card —
@@ -186,7 +186,7 @@ async function buildCart(exhibitorId, rawItems) {
 // Idempotent: uses a conditional update to atomically claim a still-pending/pending-
 // verification record before running side effects, so a poll, the Paynow webhook, and an
 // organiser's EFT approval racing each other can't double-fire activation/email.
-async function completePayment(record) {
+export async function completePayment(record) {
   try {
     await ddb.send(new UpdateCommand({
       TableName: TABLE,
