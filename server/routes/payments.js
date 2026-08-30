@@ -9,6 +9,7 @@ import { getRateCard, computeServerPrice } from './rate-card.js';
 import { initiatePayment, pollPaymentStatus, isPaynowConfigured } from '../lib/paynow.js';
 import { markAdSlotRequested, createAdSlotFromRequest } from './adslots.js';
 import { sendOtpEmail } from '../lib/mailer.js';
+import { provisionWorkspace, allocateBundle, getBundlePrices, SMS_BUNDLE_CREDITS } from '../lib/omniflexReseller.js';
 
 const TABLE = 'adma_payments';
 
@@ -28,7 +29,7 @@ const SINGLETON_TYPES = new Set(['package', 'marketplace_addon']);
 // Only meaningful on an exhibitor record — a non-exhibitor account has no `package` or
 // marketplace posting rights to attach these to. Enforced server-side, not just hidden
 // from the non-exhibitor Rate Card view.
-const EXHIBITOR_ONLY_TYPES = new Set(['package', 'marketplace_addon']);
+const EXHIBITOR_ONLY_TYPES = new Set(['package', 'marketplace_addon', 'sms_bundle']);
 
 const AD_PLACEMENTS = new Set(['carousel', 'video-carousel', 'footer-strip']);
 
@@ -72,6 +73,30 @@ function paymentConfirmationHtml(record) {
 // built entirely from `request_payload` instead.
 async function buildItem(rateCard, exhibitorId, raw) {
   const { type, period, ad_slot_id, request_payload } = raw;
+
+  // SMS credit bundles are priced live from OmniFlex, not from ADMA's own rate card —
+  // handled entirely separately from the SECTION_BY_TYPE/findItem path below, and with
+  // no `period` concept (a one-time credit purchase, not a subscription).
+  if (type === 'sms_bundle') {
+    if (!exhibitorId) throw { status: 403, message: 'SMS credit bundles require a Virtual Exhibitor account.' };
+    const credits = SMS_BUNDLE_CREDITS[raw.item_key];
+    if (!credits) throw { status: 400, message: 'Unknown SMS bundle.' };
+    const prices = await getBundlePrices();
+    const amount = prices[raw.item_key];
+    if (amount == null) throw { status: 503, message: 'SMS bundle pricing is temporarily unavailable. Please try again shortly.' };
+    return {
+      id: generateId(),
+      type,
+      section_id: null,
+      item_key: raw.item_key,
+      item_label: `${credits.toLocaleString()} SMS Credits`,
+      period: null,
+      amount,
+      sms_credits: credits,
+      fulfilled: false, // flips true once allocateBundle() succeeds — see completePayment()
+    };
+  }
+
   if (!SECTION_BY_TYPE[type]) throw { status: 400, message: 'Invalid payment type.' };
   if (!period) throw { status: 400, message: 'period is required.' };
   if (!exhibitorId && EXHIBITOR_ONLY_TYPES.has(type)) {
@@ -168,8 +193,11 @@ async function completePayment(record) {
 
   const rateCard = await getRateCard();
   let magazineNotified = false;
+  const smsFailures = [];
+  let exhibitorOrgId; // lazily fetched, memoized across multiple sms_bundle lines in one cart
 
-  for (const item of record.items) {
+  for (let idx = 0; idx < record.items.length; idx++) {
+    const item = record.items[idx];
     if (item.type === 'package') {
       await ddb.send(new UpdateCommand({
         TableName: 'adma_exhibitors',
@@ -227,6 +255,64 @@ async function completePayment(record) {
           `,
         }).catch(() => {});
       }
+    } else if (item.type === 'sms_bundle') {
+      // The exhibitor has already paid at this point — a failure here must never look
+      // like the exhibitor's problem. No auto-refund: this app has no working refund
+      // path against Paynow's EcoCash/OneMoney/card rails (nothing in lib/paynow.js
+      // exposes one, and Zim mobile-money aggregators generally don't offer a clean
+      // programmatic refund). Instead this mirrors the magazine_request precedent
+      // above — leave the item unfulfilled, alert ops, let them resolve it (top up
+      // ADMA's OmniFlex pool, then retry via POST .../retry-sms-allocation) or refund
+      // manually through Paynow's own dashboard if that's ever truly warranted.
+      try {
+        if (exhibitorOrgId === undefined) {
+          const exResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: record.exhibitor_id } }));
+          exhibitorOrgId = exResult.Item?.omniflex_org_id || null;
+        }
+        if (!exhibitorOrgId) {
+          const created = await provisionWorkspace({
+            name: record.exhibitor_name || 'ADMA Exhibitor',
+            admin_email: record.exhibitor_email,
+            admin_name: record.exhibitor_name || 'ADMA Exhibitor',
+          });
+          exhibitorOrgId = created.id;
+          await ddb.send(new UpdateCommand({
+            TableName: 'adma_exhibitors',
+            Key: { id: record.exhibitor_id },
+            UpdateExpression: 'SET omniflex_org_id = :o',
+            ExpressionAttributeValues: { ':o': exhibitorOrgId },
+          }));
+        }
+        await allocateBundle(exhibitorOrgId, item.sms_credits, `ADMA-payment-${record.id}-${item.id}`);
+        await ddb.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { id: record.id },
+          UpdateExpression: `SET #items[${idx}].fulfilled = :t`,
+          ExpressionAttributeNames: { '#items': 'items' },
+          ExpressionAttributeValues: { ':t': true },
+        }));
+      } catch (err) {
+        console.error(`[sms_bundle] allocation failed for payment ${record.id} item ${item.id}:`, err.message);
+        smsFailures.push({ item, error: err });
+      }
+    }
+  }
+
+  if (smsFailures.length) {
+    const settingsResult = await ddb.send(new GetCommand({ TableName: 'adma_app_settings', Key: { pk: 'singleton' } }));
+    const opsEmail = settingsResult.Item?.paidFeatureRequestEmail;
+    if (opsEmail) {
+      await sendOtpEmail(opsEmail, null, {
+        subject: `ADMA — SMS credit allocation failed (payment ${record.reference})`,
+        html: `
+          <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+            <h2 style="margin:0 0 8px;color:#111">SMS credit allocation needs manual follow-up</h2>
+            <p style="color:#555">${record.exhibitor_name || 'An exhibitor'} paid for SMS credits (payment <strong>${record.reference}</strong>, already confirmed paid) but allocation into their OmniFlex workspace failed:</p>
+            <ul style="color:#555;font-size:13px">${smsFailures.map(f => `<li>${f.item.item_label} — ${f.error.message}</li>`).join('')}</ul>
+            <p style="color:#555">The payment succeeded — the exhibitor has been charged and must not be charged again. Once the underlying issue is resolved, retry allocation from the Payments Ledger, or refund manually via Paynow's dashboard if that's the right call instead.</p>
+          </div>
+        `,
+      }).catch(() => {});
     }
   }
 
@@ -521,6 +607,58 @@ r.put('/:id/items/:itemId/fulfill', requireAuth, async (req, res) => {
     res.json(updated.Attributes);
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// Organiser retry after a failed SMS-credit allocation (e.g. ADMA's OmniFlex pool was
+// temporarily low) — re-attempts allocateBundle() for one already-paid sms_bundle line
+// item without touching the payment/charge itself. Provisions a workspace first if one
+// still doesn't exist (covers the rare case where provisioning itself was what failed).
+r.post('/:id/items/:itemId/retry-sms-allocation', requireAuth, async (req, res) => {
+  try {
+    if (!CONSOLE_ROLES.includes(req.user.role)) return res.status(403).json({ error: 'You do not have permission to do that.' });
+    const result = await ddb.send(new GetCommand({ TableName: TABLE, Key: { id: req.params.id } }));
+    const record = result.Item;
+    if (!record) return res.status(404).json({ error: 'Payment not found' });
+    const idx = record.items.findIndex(i => i.id === req.params.itemId);
+    if (idx === -1) return res.status(404).json({ error: 'Item not found in this payment.' });
+    const item = record.items[idx];
+    if (item.type !== 'sms_bundle') return res.status(400).json({ error: 'This item is not an SMS bundle.' });
+    if (item.fulfilled) return res.json({ ok: true, already: true });
+
+    const exResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: record.exhibitor_id } }));
+    const exhibitor = exResult.Item;
+    if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
+
+    let orgId = exhibitor.omniflex_org_id;
+    if (!orgId) {
+      const created = await provisionWorkspace({
+        name: record.exhibitor_name || exhibitor.name,
+        admin_email: record.exhibitor_email || exhibitor.contact_email,
+        admin_name: record.exhibitor_name || exhibitor.name,
+      });
+      orgId = created.id;
+      await ddb.send(new UpdateCommand({
+        TableName: 'adma_exhibitors',
+        Key: { id: record.exhibitor_id },
+        UpdateExpression: 'SET omniflex_org_id = :o',
+        ExpressionAttributeValues: { ':o': orgId },
+      }));
+    }
+
+    await allocateBundle(orgId, item.sms_credits, `ADMA-payment-${record.id}-${item.id}-retry`);
+
+    const updated = await ddb.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { id: req.params.id },
+      UpdateExpression: `SET #items[${idx}].fulfilled = :t`,
+      ExpressionAttributeNames: { '#items': 'items' },
+      ExpressionAttributeValues: { ':t': true },
+      ReturnValues: 'ALL_NEW',
+    }));
+    res.json(updated.Attributes);
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
   }
 });
 

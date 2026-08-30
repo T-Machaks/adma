@@ -83,6 +83,7 @@ import ExhibitorEnquiries from '@/pages/exhibitor/ExhibitorEnquiries';
 import ExhibitorMessages from '@/pages/exhibitor/ExhibitorMessages';
 import ExhibitorJobs from '@/pages/exhibitor/ExhibitorJobs';
 import ExhibitorTenders from '@/pages/exhibitor/ExhibitorTenders';
+import ExhibitorSmsCredits from '@/pages/exhibitor/ExhibitorSmsCredits';
 import ExhibitorCollaborations from '@/pages/exhibitor/ExhibitorCollaborations';
 import ExhibitorListings from '@/pages/exhibitor/ExhibitorListings';
 import ExhibitorRateCard from '@/pages/exhibitor/ExhibitorRateCard';
@@ -187,6 +188,7 @@ const AuthenticatedApp = () => {
         <Route path="/exhibitor/collaborations" element={<ExhibitorCollaborations />} />
         <Route path="/exhibitor/listings"  element={<ExhibitorListings />} />
         <Route path="/exhibitor/rate-card" element={<ExhibitorRateCard />} />
+        <Route path="/exhibitor/sms-credits" element={<ExhibitorSmsCredits />} />
         <Route path="/exhibitor/billing"   element={<PaymentHistory />} />
       </Route>
 
