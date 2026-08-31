@@ -45,8 +45,25 @@ r.get('/open', requireRole('exhibitor'), async (req, res) => {
     if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
     if (!exhibitor.contact_email) return res.status(400).json({ error: 'Add a contact email to your booth before opening your SMS dashboard.' });
 
+    // Sign the CALLER in under their own identity, not always the booth's shared
+    // contact_email — getMyExhibitorId matches a teammate purely by company name (see
+    // lib/ownership.js), so req.user here can be the booth owner or any invited
+    // colleague. The booth owner (contact_email match) gets OmniFlex 'admin'; anyone
+    // else gets 'operator' (can view/send campaigns, can't touch billing/users/routes —
+    // see ROLE_PERMISSIONS in the omniflex repo). Passed on every call so a role change
+    // here (e.g. a teammate promoted to owner) re-syncs on next login — see makeLoginLink.
+    const isOwner = req.user.email?.toLowerCase() === exhibitor.contact_email.toLowerCase();
+    const role = isOwner ? 'admin' : 'operator';
+    const userResult = await ddb.send(new GetCommand({ TableName: 'adma_users', Key: { id: req.user.id } }));
+    const callerName = userResult.Item?.full_name || exhibitor.name;
+    const caller = { email: req.user.email, name: callerName, role };
+
     let orgId = exhibitor.omniflex_org_id;
     if (!orgId) {
+      // Provisioning always establishes the booth OWNER as the workspace's admin_email,
+      // regardless of who's actually clicking "Open Dashboard" right now — a teammate
+      // triggering first-ever provisioning still gets JIT-created as 'operator' by the
+      // makeLoginLink call below, in the same new workspace.
       const created = await provisionWorkspace({
         name: exhibitor.name,
         admin_email: exhibitor.contact_email,
@@ -63,7 +80,7 @@ r.get('/open', requireRole('exhibitor'), async (req, res) => {
 
     let link;
     try {
-      link = await makeLoginLink(orgId, { email: exhibitor.contact_email, name: exhibitor.name }, '/');
+      link = await makeLoginLink(orgId, caller, '/');
     } catch (e) {
       // Stored org id is stale — re-provision once and retry, rather than leaving the
       // exhibitor stuck forever on a workspace id that no longer resolves.
@@ -80,7 +97,7 @@ r.get('/open', requireRole('exhibitor'), async (req, res) => {
           UpdateExpression: 'SET omniflex_org_id = :o',
           ExpressionAttributeValues: { ':o': orgId },
         }));
-        link = await makeLoginLink(orgId, { email: exhibitor.contact_email, name: exhibitor.name }, '/');
+        link = await makeLoginLink(orgId, caller, '/');
       } else {
         throw e;
       }
@@ -89,7 +106,7 @@ r.get('/open', requireRole('exhibitor'), async (req, res) => {
     res.json({ url: link.url });
   } catch (e) {
     if (e.code === 'email_taken') {
-      return res.status(409).json({ error: 'This contact email is already an OmniFlex account under a different workspace. Use a different booth contact email, or contact ADMA.' });
+      return res.status(409).json({ error: 'This email is already an OmniFlex account under a different workspace. Use a different email, or contact ADMA.' });
     }
     res.status(e.status || 500).json({ error: e.message });
   }

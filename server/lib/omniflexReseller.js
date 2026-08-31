@@ -55,13 +55,19 @@ export async function allocateBundle(orgId, credits, reference) {
   }
 }
 
-// One-time (~120s) SSO URL that drops the exhibitor's browser straight into their
+// One-time (~120s) SSO URL that drops the caller's browser straight into their
 // OmniFlex workspace, already signed in — never store or log the returned url, use
 // it immediately. 409 email_taken → that email is an OmniFlex account in a *different*
 // workspace already; 404 → the stored omniflex_org_id is stale, caller should
 // re-provision and retry once.
-export async function makeLoginLink(orgId, { email, name }, returnTo = '/') {
-  return request('POST', `/api/reseller/clients/${orgId}/login-link`, { email, name, returnTo });
+//
+// `role` (admin | manager | operator | viewer, default admin) is sent on every call —
+// OmniFlex JIT-creates the user in this workspace on first call, and re-syncs their
+// role on every subsequent one, so a role change on the ADMA side (e.g. someone goes
+// from invited teammate to booth owner) propagates automatically. There is no user/role
+// management inside adma.omniflex.co.zw for exhibitors — this is the only source of truth.
+export async function makeLoginLink(orgId, { email, name, role = 'admin' }, returnTo = '/') {
+  return request('POST', `/api/reseller/clients/${orgId}/login-link`, { email, name, role, returnTo });
 }
 
 // Live package prices, cached ~1h (in-memory — fine for a single-process pm2 app;
