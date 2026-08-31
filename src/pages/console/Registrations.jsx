@@ -49,7 +49,7 @@ export default function Registrations() {
   }), [registrations]);
 
   function exportCsv() {
-    const cols = ['full_name', 'email', 'role_type', 'ticket_type', 'quantity', 'total_amount', 'payment_status', 'status', 'exhibitor_tier', 'badge_category'];
+    const cols = ['full_name', 'email', 'phone', 'role_type', 'ticket_type', 'quantity', 'total_amount', 'payment_status', 'status', 'exhibitor_tier', 'badge_category'];
     const header = cols.join(',');
     const rows = registrations.map(r => cols.map(c => `"${(r[c] ?? '').toString().replace(/"/g, '""')}"`).join(','));
     const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv' });

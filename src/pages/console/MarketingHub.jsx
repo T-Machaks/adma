@@ -8,7 +8,7 @@ import { notifyAnnouncement } from '@/api/notify';
 import {
   Megaphone, Sparkles, BarChart2, TrendingUp, MousePointerClick,
   Plus, Trash2, Download, ExternalLink, ImageIcon, Link2, Check, Play,
-  ChevronDown, ChevronUp, Layers, BookOpen, Monitor, FileEdit, Video,
+  ChevronDown, ChevronUp, Layers, BookOpen, Monitor, FileEdit, Video, Building2,
 } from 'lucide-react';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
 import VideoAdCarousel from '@/components/home/VideoAdCarousel';
@@ -343,6 +343,17 @@ export default function MarketingHub() {
       sponsoredPosts.map(a => [a.title, a.sponsor_name, a.type, a.created_date]),
       'adma_sponsored_posts.csv',
       ['Title', 'Sponsor', 'Type', 'Date'],
+    );
+  };
+
+  const exportExhibitorDirectory = () => {
+    exportCSV(
+      exhibitors.map(e => [
+        e.name, e.contact_email, e.phone, e.website,
+        e.package, e.tier, (e.categories || []).join('; '), e.status,
+      ]),
+      'adma_exhibitor_directory.csv',
+      ['Company', 'Contact Email', 'Phone', 'Website', 'Package', 'Tier', 'Categories', 'Status'],
     );
   };
 
@@ -1165,6 +1176,13 @@ export default function MarketingHub() {
               icon: MousePointerClick,
               fn: exportAdPerformanceReport,
               disabled: adSlots.length === 0,
+            },
+            {
+              label: 'Exhibitor Directory',
+              sub: `${exhibitors.length} companies — contact email, phone, package, categories`,
+              icon: Building2,
+              fn: exportExhibitorDirectory,
+              disabled: exhibitors.length === 0,
             },
           ].map(({ label, sub, icon: Icon, fn, disabled }) => (
             <button
