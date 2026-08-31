@@ -7,17 +7,17 @@
 
 ---
 
-## 0. Re-score — overall: 31.7% → 60.8% → 64.2% → 64.8% → 65.4% → 66.1% → **66.5%** (2026-08-04 through 2026-08-31)
+## 0. Re-score — overall: 31.7% → 60.8% → 64.2% → 64.8% → 65.4% → 66.1% → 66.5% → **66.9%** (2026-08-04 through 2026-08-31)
 
-The full 263-question questionnaire was re-scored, question by question, against everything shipped across Phases 1–3 plus the CloudShell-executed AWS infrastructure work (CloudTrail, CloudWatch log shipping, automated snapshots/auto-recovery). This was a **real re-score, not an estimate** — every one of the changed answers cites the specific document or verified technical artifact behind it (see the updated `ADMA_CAIQ_v4.0.3_Completed_2026-08-31.xlsx`, kept alongside every prior dated file for audit trail rather than overwriting them).
+The full 263-question questionnaire was re-scored, question by question, against everything shipped across Phases 1–3 plus the CloudShell-executed AWS infrastructure work (CloudTrail, CloudWatch log shipping, automated snapshots/auto-recovery). This was a **real re-score, not an estimate** — every one of the changed answers cites the specific document or verified technical artifact behind it (see the updated `ADMA_CAIQ_v4.0.3_Completed_2026-08-31.xlsx`, kept alongside every prior dated file for audit trail rather than overwriting them; Round 5 and 5b share this same file, same-day-round convention from Round 4/4b).
 
-| | 2026-08-04 | Round 1 | Round 2 | Round 3 | Round 4 | Round 4b | **Round 5** |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| **Overall score** | 31.7% | 60.8% | 64.2% | 64.8% | 65.4% | 66.1% | **66.5%** |
-| Answered Yes | 30 | 95 | 104 | 106 | 106 | 108 | 110 |
-| Answered Partial | 96 | 109 | 108 | 107 | 110 | 109 | 107 |
-| Answered No | 120 | 42 | 34 | 33 | 30 | 29 | 29 |
-| N/A | 17 | 17 | 17 | 17 | 17 | 17 | 17 |
+| | 2026-08-04 | Round 1 | Round 2 | Round 3 | Round 4 | Round 4b | Round 5 | **Round 5b** |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Overall score** | 31.7% | 60.8% | 64.2% | 64.8% | 65.4% | 66.1% | 66.5% | **66.9%** |
+| Answered Yes | 30 | 95 | 104 | 106 | 106 | 108 | 110 | 112 |
+| Answered Partial | 96 | 109 | 108 | 107 | 110 | 109 | 107 | 105 |
+| Answered No | 120 | 42 | 34 | 33 | 30 | 29 | 29 | 29 |
+| N/A | 17 | 17 | 17 | 17 | 17 | 17 | 17 | 17 |
 
 ### Round 4 (2026-08-28) — a small, honest movement
 
@@ -66,6 +66,17 @@ The infrastructure this document's own "Is 80% reachable?" section (below) said 
 
 **The lesson for future estimates in this document**: a shared evidence blurb across many rows describing several gaps together doesn't mean fixing one of those gaps moves all the rows — check each question's actual bar individually before estimating impact, the same discipline this document already applies when actually scoring.
 
+### Round 5b (same day) — the Cryptography domain's own stale block, found while checking for more
+
+Asked directly what else could move the score, rather than guess, the answer was to actually check the domains this document hadn't recently reviewed row-by-row — Cryptography, Governance/Risk, and Supply Chain. Governance and Supply Chain turned out to already be accurate (every Partial/No row already cites real, current evidence — nothing stale found). **Cryptography had the exact same stale-block pattern Round 4b found in DSP/LOG/BCR**: `KEY_MANAGEMENT_POLICY.md` has existed since 2026-08-05 (26 days), cross-applied to 9 of 23 rows at the time, but never extended to the other 14 — 13 of which still said "no formal key management policy... relies on AWS-managed default keys" verbatim, describing a document that had existed for weeks.
+
+Checked all 23 rows individually against what the policy actually covers (not a bulk find-replace):
+- **CEK-03.1** (Partial→Yes) — "data at-rest/in-transit cryptographically protected using approved-standard libraries" — Policy §1/§2 (AES-256 at rest, TLS 1.2+ in transit) is a direct match, same reasoning already credited to the near-identical CEK-04.1.
+- **CEK-11.1** (Partial→Yes) — "private keys provisioned for a unique purpose... managed" — Policy §3's per-secret-type table is a direct match, same reasoning already credited to CEK-10.1 and CEK-21.1.
+- **The other 11 stale rows kept their verdict** (CEK-06.1, 08.1, 09.1, 09.2, 12.1, 14.1, 15.1–20.1) but got the same false-claim removed and replaced with the *real* reason they're still Partial/No — mostly genuine gaps the policy itself honestly flags as open (no rotation schedule, no destruction process, no formal lifecycle-state procedures for suspension/activation/compromise, self-review isn't the same as independent audit). One (CEK-08.1) turned out to be Partial for an entirely different reason than the stale text implied — it's about giving *customers* self-service key management, not about ADMA's own internal documentation, which the stale text had conflated.
+
+**Cryptography moved 50.0% → 54.3%.** Net effect this round: **66.5% → 66.9%.**
+
 ### Is 80% realistically reachable?
 
 Ran the math honestly rather than assuming yes because it was asked for. **80% is not reachable through more documentation or infrastructure work alone.** Three domains are structurally capped by things that take calendar time, not engineering effort:
@@ -102,27 +113,27 @@ ADMA Digital is a small, fast-moving team operating a real production platform w
 
 **All snapshots shown** — 2026-08-04 (original) through Round 5 (current) — sorted by the current score, lowest → highest.
 
-| Domain | 2026-08-04 | Round 1 | Round 2 | Round 3 | Round 4 | Round 4b | **Round 5 (current)** | Qs |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Human Resources | 0.0% | 25.0% | 27.5% | 27.5% | 27.5% | 27.5% | **27.5%** | 20 |
-| Audit & Assurance | 0.0% | 31.3% | 31.3% | 31.3% | 31.3% | 31.3% | **31.3%** | 8 |
-| Threat & Vulnerability Management | 0.0% | 45.8% | 45.8% | 45.8% | 50.0% | 50.0% | **50.0%** | 12 |
-| Cryptography, Encryption & Key Management | 21.7% | 47.8% | 50.0% | 50.0% | 50.0% | 50.0% | **50.0%** | 23 |
-| Governance, Risk and Compliance | 0.0% | 44.4% | 50.0% | 50.0% | 50.0% | 50.0% | **50.0%** | 9 |
-| Supply Chain Mgmt, Transparency & Accountability | 0.0% | 43.3% | 46.7% | 46.7% | 53.3% | 53.3% | **53.3%** | 15 |
-| Logging and Monitoring | 47.2% | 63.9% | 63.9% | 63.9% | 63.9% | 66.7% | **66.7%** | 18 |
-| Interoperability & Portability | 0.0% | 37.5% | 68.8% | 68.8% | 68.8% | 68.8% | **68.8%** | 8 |
-| Infrastructure & Virtualization Security | 50.0% | 67.9% | 67.9% | 67.9% | 67.9% | 67.9% | **71.4%** | 14 |
-| Application & Interface Security | 50.0% | 72.7% | 72.7% | 72.7% | 72.7% | 72.7% | **72.7%** | 11 |
-| Security Incident Mgmt, E-Discovery & Cloud Forensics | 0.0% | 59.1% | 72.7% | 72.7% | 72.7% | 72.7% | **72.7%** | 11 |
-| Data Security and Privacy Lifecycle Management | 43.8% | 66.7% | 68.8% | 68.8% | 68.8% | 72.9% | **72.9%** | 24 |
-| Business Continuity Mgmt & Operational Resilience | 0.0% | 61.1% | 69.4% | 77.8% | 77.8% | 77.8% | **80.6%** | 18 |
-| Identity & Access Management | 54.8% | 81.0% | 81.0% | 81.0% | 81.0% | 81.0% | **81.0%** | 21 |
-| Change Control and Configuration Management | 63.6% | 86.4% | 90.9% | 90.9% | 90.9% | 90.9% | **90.9%** | 11 |
-| Datacenter Security | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | **100.0%** | 23 |
-| Universal Endpoint Management | N/A | N/A | N/A | N/A | N/A | N/A | **N/A** | 17 |
+| Domain | 2026-08-04 | Round 1 | Round 2 | Round 3 | Round 4 | Round 4b | Round 5 | **Round 5b (current)** | Qs |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Human Resources | 0.0% | 25.0% | 27.5% | 27.5% | 27.5% | 27.5% | 27.5% | **27.5%** | 20 |
+| Audit & Assurance | 0.0% | 31.3% | 31.3% | 31.3% | 31.3% | 31.3% | 31.3% | **31.3%** | 8 |
+| Threat & Vulnerability Management | 0.0% | 45.8% | 45.8% | 45.8% | 50.0% | 50.0% | 50.0% | **50.0%** | 12 |
+| Governance, Risk and Compliance | 0.0% | 44.4% | 50.0% | 50.0% | 50.0% | 50.0% | 50.0% | **50.0%** | 9 |
+| Supply Chain Mgmt, Transparency & Accountability | 0.0% | 43.3% | 46.7% | 46.7% | 53.3% | 53.3% | 53.3% | **53.3%** | 15 |
+| Cryptography, Encryption & Key Management | 21.7% | 47.8% | 50.0% | 50.0% | 50.0% | 50.0% | 50.0% | **54.3%** | 23 |
+| Logging and Monitoring | 47.2% | 63.9% | 63.9% | 63.9% | 63.9% | 66.7% | 66.7% | **66.7%** | 18 |
+| Interoperability & Portability | 0.0% | 37.5% | 68.8% | 68.8% | 68.8% | 68.8% | 68.8% | **68.8%** | 8 |
+| Infrastructure & Virtualization Security | 50.0% | 67.9% | 67.9% | 67.9% | 67.9% | 67.9% | 71.4% | **71.4%** | 14 |
+| Application & Interface Security | 50.0% | 72.7% | 72.7% | 72.7% | 72.7% | 72.7% | 72.7% | **72.7%** | 11 |
+| Security Incident Mgmt, E-Discovery & Cloud Forensics | 0.0% | 59.1% | 72.7% | 72.7% | 72.7% | 72.7% | 72.7% | **72.7%** | 11 |
+| Data Security and Privacy Lifecycle Management | 43.8% | 66.7% | 68.8% | 68.8% | 68.8% | 72.9% | 72.9% | **72.9%** | 24 |
+| Business Continuity Mgmt & Operational Resilience | 0.0% | 61.1% | 69.4% | 77.8% | 77.8% | 77.8% | 80.6% | **80.6%** | 18 |
+| Identity & Access Management | 54.8% | 81.0% | 81.0% | 81.0% | 81.0% | 81.0% | 81.0% | **81.0%** | 21 |
+| Change Control and Configuration Management | 63.6% | 86.4% | 90.9% | 90.9% | 90.9% | 90.9% | 90.9% | **90.9%** | 11 |
+| Datacenter Security | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | **100.0%** | 23 |
+| Universal Endpoint Management | N/A | N/A | N/A | N/A | N/A | N/A | N/A | **N/A** | 17 |
 
-Round 4 moved Threat & Vulnerability Management and Supply Chain Management. Round 4b (same day, the flagged-stale-block follow-up) moved Data Security and Privacy (68.8%→72.9%) and Logging and Monitoring (63.9%→66.7%). Round 5 (2026-08-31, the ALB/WAF cutover) moved Infrastructure & Virtualization Security (67.9%→71.4%, one row of 14 — see Round 5 above for why not more) and Business Continuity Mgmt (77.8%→80.6%, one row of 18). Every other domain is carried forward unchanged.
+Round 4 moved Threat & Vulnerability Management and Supply Chain Management. Round 4b (same day, the flagged-stale-block follow-up) moved Data Security and Privacy (68.8%→72.9%) and Logging and Monitoring (63.9%→66.7%). Round 5 (2026-08-31, the ALB/WAF cutover) moved Infrastructure & Virtualization Security (67.9%→71.4%, one row of 14) and Business Continuity Mgmt (77.8%→80.6%, one row of 18). Round 5b (same day, checking Cryptography/Governance/Supply Chain for the same staleness) moved Cryptography (50.0%→54.3%, 2 rows of 23) — Governance and Supply Chain were already accurate, nothing to fix. Every other domain is carried forward unchanged.
 
 **Datacenter Security scores 100%** because it is fully inherited from AWS — ADMA runs no physical infrastructure, so this domain is answered "Yes, inherited from AWS's own SOC 2 / ISO 27001 certifications." That's legitimate but worth flagging in any customer-facing use of this CAIQ: cite AWS's compliance reports as the evidence, don't imply ADMA itself was audited for it.
 
@@ -239,4 +250,4 @@ Phase 1 alone (documentation-heavy, ~1 week of focused effort) should meaningful
 - Separately, `RISK_REGISTER.md` #7 moved in the *other* direction this session — a prior "no live attack surface" claim about `pdfjs-dist` became false partway through the day once a PDF-upload feature shipped, and was corrected rather than left standing. Not reflected as a CAIQ answer change (no single question hinges narrowly enough on it), but recorded here since a re-score that only ever reports gains isn't a credible one.
 
 ---
-*Generated 2026-08-04. Re-scored 2026-08-05 (Rounds 1–3), 2026-08-28 (Round 4 + 4b), 2026-08-31 (Round 5 — ALB/WAF cutover) — see Section 0. Next re-score due after CSP flips to enforcing, a pentest is commissioned, or the next major phase of work lands, whichever comes first.*
+*Generated 2026-08-04. Re-scored 2026-08-05 (Rounds 1–3), 2026-08-28 (Round 4 + 4b), 2026-08-31 (Round 5 — ALB/WAF cutover; Round 5b — Cryptography stale-block correction) — see Section 0. Next re-score due after CSP flips to enforcing, a pentest is commissioned, or the next major phase of work lands, whichever comes first.*
