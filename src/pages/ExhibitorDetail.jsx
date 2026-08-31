@@ -130,6 +130,9 @@ export default function ExhibitorDetail() {
   const standTier = getStandTier(ex);
   const isEnhancedPlus = standTierAtLeast(ex, 'Enhanced');
   const isPremiumStand = standTier === 'Premium';
+  // Free tier (2026-08-31) sits below Basic and drops the contact form specifically —
+  // everything else on this page Basic already hides too (see isEnhancedPlus gates below).
+  const hasContactForm = standTierAtLeast(ex, 'Basic');
   const limits = getPackageLimits(ex);
 
   const expired = isSubscriptionExpired(ex) || isPackageBillingExpired(ex);
@@ -275,10 +278,20 @@ export default function ExhibitorDetail() {
                     <TierBadge package={ex.package} />
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
-                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                  <span>Booth <span className="font-bold text-foreground">{ex.booth}</span> · {ex.section || 'General'}</span>
-                </div>
+                {/* Physical booth/section — only for exhibitors also registered for a physical
+                    ADMA show. Omitted entirely for virtual-only accounts (Free tier and
+                    beyond); a bare "Booth · General" line for an exhibitor with neither field
+                    isn't meaningful for what's essentially a virtual workspace. */}
+                {(ex.booth || ex.section) && (
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                    <span>
+                      {ex.booth && <>Booth <span className="font-bold text-foreground">{ex.booth}</span></>}
+                      {ex.booth && ex.section && ' · '}
+                      {ex.section}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                   {getExhibitorCategories(ex).map(c => (
                     <span key={c} className="text-[11px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{c}</span>
@@ -422,8 +435,9 @@ export default function ExhibitorDetail() {
             </a>
           )}
 
-          {/* Request Info form — Basic-tier contact channel. Enhanced+ gets live chat instead (below), not both. */}
-          {settings.virtualExhibitionOpen && !isEnhancedPlus && (
+          {/* Request Info form — Basic-tier contact channel. Enhanced+ gets live chat instead
+              (below), not both. Free tier gets neither — see hasContactForm above. */}
+          {settings.virtualExhibitionOpen && hasContactForm && !isEnhancedPlus && (
             <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Send className="w-4 h-4 text-amber" />

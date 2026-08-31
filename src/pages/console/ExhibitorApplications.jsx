@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 const TIERS = ['Platinum', 'Gold', 'Silver', 'Bronze'];
-const PACKAGES = ['Basic', 'Enhanced', 'Premium'];
+const PACKAGES = ['Free', 'Basic', 'Enhanced', 'Premium'];
 
 const STATUS_CONFIG = {
   pending:  { label: 'Pending',  icon: Clock,        className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },

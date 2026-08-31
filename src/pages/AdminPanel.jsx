@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { isSubscriptionExpired } from '@/lib/subscription';
 
-const PACKAGES = ['Basic', 'Enhanced', 'Premium'];
+const PACKAGES = ['Free', 'Basic', 'Enhanced', 'Premium'];
 
 const ROLE_LABELS = {
   organizer:         'Organizer',

@@ -18,6 +18,7 @@ const PACKAGES = [
   { value: 'Premium',  label: 'Premium',  desc: 'Full profile, 9-photo gallery with captions, ad carousel slot & magazine ad', color: 'text-emerald-500' },
   { value: 'Enhanced', label: 'Enhanced', desc: 'Full profile, product gallery with captions & analytics',                     color: 'text-amber-400' },
   { value: 'Basic',    label: 'Basic',    desc: 'Logo, brief profile & contact form',                            color: 'text-slate-400' },
+  { value: 'Free',     label: 'Free',     desc: 'Logo, company name & category listing only',                    color: 'text-muted-foreground' },
 ];
 
 const MAX_DESC = 150;
