@@ -9,6 +9,7 @@ import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
 import { createSession, revokeSession, revokeAllSessionsForUser, SESSION_COOKIE } from '../lib/session.js';
+import { createChallenge, getChallenge, updateChallenge, deleteChallenge } from '../lib/challengeStore.js';
 import { requireRole, requireAuth } from '../lib/authMiddleware.js';
 import { getMyExhibitorId, CONSOLE_ROLES } from '../lib/ownership.js';
 
@@ -113,16 +114,9 @@ function resetPasswordHtml(resetUrl) {
     </div>`;
 }
 
-// ── In-memory challenge store ─────────────────────────────────────────────────
-// token -> { type: 'email'|'totp'|'totp_setup', userId, email, otp?, secret?, expiresAt }
-const challengeStore = new Map();
-
-function cleanExpired() {
-  const now = Date.now();
-  for (const [k, v] of challengeStore) {
-    if (v.expiresAt < now) challengeStore.delete(k);
-  }
-}
+// Challenge store (email/SMS OTP, TOTP, forced password change, password reset) is
+// DynamoDB-backed — see lib/challengeStore.js for why (in-memory doesn't survive
+// landing on either of the two EC2 instances behind the ALB).
 
 function newToken() { return crypto.randomUUID(); }
 function newExpiry() { return Date.now() + 10 * 60 * 1000; } // 10 min
@@ -140,11 +134,11 @@ async function totpChallengeIfRequired(res, user) {
   if (!user.totp_secret) {
     const secret = generateSecret();
     const qr_code = await generateQrDataUrl(user.email, secret);
-    challengeStore.set(token, { type: 'totp_setup', userId: user.id, secret, expiresAt: newExpiry() });
+    await createChallenge(token, { type: 'totp_setup', userId: user.id, secret, expiresAt: newExpiry() });
     res.json({ totp_required: true, mfa_token: token, first_time: true, qr_code });
     return true;
   }
-  challengeStore.set(token, { type: 'totp', userId: user.id, expiresAt: newExpiry() });
+  await createChallenge(token, { type: 'totp', userId: user.id, expiresAt: newExpiry() });
   res.json({ totp_required: true, mfa_token: token, first_time: false });
   return true;
 }
@@ -349,14 +343,13 @@ router.post('/login', async (req, res) => {
     }
 
     logSecurityEvent('login_password_verified', { userId: user.id, email: user.email, role: user.role, ip: req.ip });
-    cleanExpired();
     await backfillPasswordChangedAt(user);
 
     // Force password change on first login, or once the 6-month rotation window
     // (PASSWORD_EXPIRY_DAYS) has passed since it was last set.
     if (user.must_change_password || isPasswordExpired(user)) {
       const token = newToken();
-      challengeStore.set(token, { type: 'password_change', userId: user.id, expiresAt: newExpiry() });
+      await createChallenge(token, { type: 'password_change', userId: user.id, expiresAt: newExpiry() });
       return res.json({ must_change_password: true, change_token: token, password_expired: !user.must_change_password });
     }
 
@@ -377,7 +370,7 @@ router.post('/login', async (req, res) => {
     // All other roles → email OTP via NoReply@tyflex.co.zw
     const otp = generateOtp();
     const token = newToken();
-    challengeStore.set(token, {
+    await createChallenge(token, {
       type: 'email',
       userId: user.id,
       email: user.email,
@@ -412,8 +405,7 @@ router.post('/otp/verify', async (req, res) => {
     if (!mfa_token || !otp)
       return res.status(400).json({ error: 'mfa_token and otp are required.' });
 
-    cleanExpired();
-    const entry = challengeStore.get(mfa_token);
+    const entry = await getChallenge(mfa_token);
     if (!entry || !['email', 'sms'].includes(entry.type))
       return res.status(401).json({ error: 'Verification code expired. Please log in again.' });
 
@@ -431,7 +423,7 @@ router.post('/otp/verify', async (req, res) => {
       }
     }
 
-    challengeStore.delete(mfa_token);
+    await deleteChallenge(mfa_token);
     const user = await getById(entry.userId);
     if (!user) return res.status(404).json({ error: 'User not found.' });
     logSecurityEvent('login_success', { userId: user.id, email: user.email, role: user.role, method: entry.type, ip: req.ip });
@@ -448,8 +440,7 @@ router.post('/otp/resend', async (req, res) => {
     const { mfa_token, method } = req.body;
     if (!mfa_token) return res.status(400).json({ error: 'mfa_token required.' });
 
-    cleanExpired();
-    const entry = challengeStore.get(mfa_token);
+    const entry = await getChallenge(mfa_token);
     if (!entry || !['email', 'sms'].includes(entry.type))
       return res.status(401).json({ error: 'Session expired. Please log in again.' });
 
@@ -463,22 +454,19 @@ router.post('/otp/resend', async (req, res) => {
         console.error('SMS OTP send failed:', smsErr.message);
         return res.status(503).json({ error: 'Could not send SMS. Please try email instead.' });
       }
-      entry.type = 'sms';
-      entry.expiresAt = newExpiry();
+      await updateChallenge(mfa_token, { type: 'sms', expiresAt: newExpiry() });
       return res.json({ ok: true, method: 'sms' });
     }
 
     // email
     const otp = generateOtp();
-    entry.otp = otp;
-    entry.type = 'email';
-    entry.expiresAt = newExpiry();
     try {
       await sendOtpEmail(entry.email, otp);
     } catch (mailErr) {
       console.error('Email OTP resend failed:', mailErr.message);
       return res.status(503).json({ error: 'Could not send verification email. Please try again.' });
     }
+    await updateChallenge(mfa_token, { otp, type: 'email', expiresAt: newExpiry() });
     res.json({ ok: true, method: 'email' });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -496,8 +484,7 @@ router.post('/change-password', async (req, res) => {
     if (new_password === '@AgriShow2026')
       return res.status(400).json({ error: 'You must choose a different password.' });
 
-    cleanExpired();
-    const entry = challengeStore.get(change_token);
+    const entry = await getChallenge(change_token);
     if (!entry || entry.type !== 'password_change')
       return res.status(401).json({ error: 'Session expired. Please log in again.' });
 
@@ -515,7 +502,7 @@ router.post('/change-password', async (req, res) => {
       ExpressionAttributeValues: { ':p': password_hash, ':t': new Date().toISOString(), ':h': nextPasswordHistory(user) },
     }));
 
-    challengeStore.delete(change_token);
+    await deleteChallenge(change_token);
 
     // Immediately issue TOTP challenge so the user continues without re-entering credentials
     const token = newToken();
@@ -524,11 +511,11 @@ router.post('/change-password', async (req, res) => {
     if (!updatedUser.totp_secret) {
       const secret  = generateSecret();
       const qr_code = await generateQrDataUrl(updatedUser.email, secret);
-      challengeStore.set(token, { type: 'totp_setup', userId: updatedUser.id, secret, expiresAt: newExpiry() });
+      await createChallenge(token, { type: 'totp_setup', userId: updatedUser.id, secret, expiresAt: newExpiry() });
       return res.json({ totp_required: true, mfa_token: token, first_time: true, qr_code });
     }
 
-    challengeStore.set(token, { type: 'totp', userId: updatedUser.id, expiresAt: newExpiry() });
+    await createChallenge(token, { type: 'totp', userId: updatedUser.id, expiresAt: newExpiry() });
     return res.json({ totp_required: true, mfa_token: token, first_time: false });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -540,9 +527,8 @@ router.post('/change-password', async (req, res) => {
 // throws on mail failure (caller just logs it), matching /forgot-password's original
 // behavior of not letting a mail-provider hiccup surface as a user-facing error.
 async function sendPasswordResetLink(user, req) {
-  cleanExpired();
   const token = newToken();
-  challengeStore.set(token, { type: 'password_reset', userId: user.id, expiresAt: newResetExpiry() });
+  await createChallenge(token, { type: 'password_reset', userId: user.id, expiresAt: newResetExpiry() });
   logSecurityEvent('password_reset_requested', { userId: user.id, email: user.email, ip: req.ip });
   const resetUrl = `${APP_URL}/reset-password?token=${token}`;
   try {
@@ -582,8 +568,7 @@ router.post('/reset-password', async (req, res) => {
     if (new_password.length < 8)
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
-    cleanExpired();
-    const entry = challengeStore.get(token);
+    const entry = await getChallenge(token);
     if (!entry || entry.type !== 'password_reset')
       return res.status(401).json({ error: 'This reset link has expired or was already used. Please request a new one.' });
 
@@ -601,7 +586,7 @@ router.post('/reset-password', async (req, res) => {
       ExpressionAttributeValues: { ':p': password_hash, ':t': new Date().toISOString(), ':h': nextPasswordHistory(user) },
     }));
 
-    challengeStore.delete(token);
+    await deleteChallenge(token);
     logSecurityEvent('password_reset_completed', { userId: user.id, email: user.email, ip: req.ip });
     res.json({ ok: true });
   } catch (e) {
@@ -616,8 +601,7 @@ router.post('/totp/verify', async (req, res) => {
     if (!mfa_token || !code)
       return res.status(400).json({ error: 'mfa_token and code are required.' });
 
-    cleanExpired();
-    const entry = challengeStore.get(mfa_token);
+    const entry = await getChallenge(mfa_token);
     if (!entry || !['totp', 'totp_setup'].includes(entry.type))
       return res.status(401).json({ error: 'Session expired. Please log in again.' });
 
@@ -642,7 +626,7 @@ router.post('/totp/verify', async (req, res) => {
       }));
     }
 
-    challengeStore.delete(mfa_token);
+    await deleteChallenge(mfa_token);
     logSecurityEvent('login_success', { userId: user.id, email: user.email, role: user.role, method: 'totp', ip: req.ip });
     await issueSession(req, res, user);
     res.json(sanitize(user));
@@ -660,8 +644,7 @@ router.post('/totp/fallback', async (req, res) => {
     const { mfa_token, method } = req.body;
     if (!mfa_token) return res.status(400).json({ error: 'mfa_token is required.' });
 
-    cleanExpired();
-    const entry = challengeStore.get(mfa_token);
+    const entry = await getChallenge(mfa_token);
     if (!entry || !['totp', 'totp_setup'].includes(entry.type))
       return res.status(401).json({ error: 'Session expired. Please log in again.' });
 
@@ -679,7 +662,7 @@ router.post('/totp/fallback', async (req, res) => {
         console.error('TOTP fallback SMS send failed:', smsErr.message);
         return res.status(503).json({ error: 'Could not send SMS. Please try email instead.' });
       }
-      challengeStore.set(mfa_token, { type: 'sms', userId: user.id, email: user.email, phone: user.phone, name: user.full_name || '', expiresAt: newExpiry() });
+      await createChallenge(mfa_token, { type: 'sms', userId: user.id, email: user.email, phone: user.phone, name: user.full_name || '', expiresAt: newExpiry() });
       return res.json({ ok: true, method: 'sms', phone_hint: maskPhone(user.phone) });
     }
 
@@ -690,7 +673,7 @@ router.post('/totp/fallback', async (req, res) => {
       console.error('TOTP fallback email send failed:', mailErr.message);
       return res.status(503).json({ error: 'Could not send verification email. Please try again.' });
     }
-    challengeStore.set(mfa_token, { type: 'email', userId: user.id, email: user.email, phone: user.phone || '', otp, expiresAt: newExpiry() });
+    await createChallenge(mfa_token, { type: 'email', userId: user.id, email: user.email, phone: user.phone || '', otp, expiresAt: newExpiry() });
     res.json({ ok: true, method: 'email', email_hint: maskEmail(user.email) });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -993,7 +976,7 @@ async function upgradeToExhibitor(req, res, { existing, full_name, normalizedEma
         // Account exists but was never activated (no password set) — same combined
         // invite+set-password email a brand-new account gets.
         const token = newToken();
-        challengeStore.set(token, { type: 'password_reset', userId: existing.id, expiresAt: newResetExpiry() });
+        await createChallenge(token, { type: 'password_reset', userId: existing.id, expiresAt: newResetExpiry() });
         const resetUrl = `${APP_URL}/reset-password?token=${token}`;
         await sendOtpEmail(normalizedEmail, null, {
           subject: `ADMA Digital — You've been added to ${companyName || 'the'} team`,
@@ -1130,7 +1113,7 @@ router.post('/invite-team-member', requireAuth, async (req, res) => {
     await ddb.send(new PutCommand({ TableName: 'adma_registrations', Item: registration }));
 
     const token = newToken();
-    challengeStore.set(token, { type: 'password_reset', userId: newUser.id, expiresAt: newResetExpiry() });
+    await createChallenge(token, { type: 'password_reset', userId: newUser.id, expiresAt: newResetExpiry() });
     logSecurityEvent('team_member_invited', { invitedBy: req.user.id, newUserId: newUser.id, email: normalizedEmail, ip: req.ip });
     const resetUrl = `${APP_URL}/reset-password?token=${token}`;
     try {
@@ -1205,7 +1188,7 @@ router.post('/resend-team-invite', requireAuth, async (req, res) => {
     }
 
     const token = newToken();
-    challengeStore.set(token, { type: 'password_reset', userId: target.id, expiresAt: newResetExpiry() });
+    await createChallenge(token, { type: 'password_reset', userId: target.id, expiresAt: newResetExpiry() });
     logSecurityEvent('team_member_invite_resent', { requestedBy: req.user.id, userId: target.id, email: target.email, ip: req.ip });
     const resetUrl = `${APP_URL}/reset-password?token=${token}`;
     await sendOtpEmail(target.email, null, {
