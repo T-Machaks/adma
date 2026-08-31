@@ -161,12 +161,17 @@ r.post('/video-ad-url', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/upload/video-ad-cleanup — deletes a previous video-ad object once its
-// replacement has actually finished uploading (and compressing, if applicable).
-// Deliberately a separate step called only after the new upload's full success,
-// not folded into video-ad-url itself — deleting the old file up front would mean
-// a failed/interrupted replacement (network error, compression timeout) leaves the
-// exhibitor with neither the old video nor a working new one.
+// POST /api/upload/video-ad-cleanup — deletes an old video-ad S3 object by URL.
+// NOT currently called from the frontend (removed 2026-08-31 from
+// VideoUploadOrUrlField.jsx — see that file's handleFile comment and
+// RISK_REGISTER.md for the incident). It used to fire right after every new
+// upload succeeded, using whatever the field's local draft value was as "old" —
+// but a draft isn't necessarily what's actually saved/live, so a second upload
+// before the first was ever saved (or a Cancel after one upload) deleted the
+// still-DB-referenced, live video out from under an exhibitor. Left in place
+// (unused) for whichever call site is retrofitted first with a correct
+// "delete only after a confirmed save, comparing against the pre-save DB value"
+// version of this cleanup — do not wire this back up to fire on upload alone.
 r.post('/video-ad-cleanup', requireAuth, async (req, res) => {
   try {
     const { oldVideoUrl } = req.body;

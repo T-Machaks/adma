@@ -71,7 +71,6 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
     setUploadProgress(0);
     setPreviewBroken(false);
     try {
-      const oldVideoUrl = value && !isEmbedVideoUrl(value) ? value : null;
       const { uploadUrl, publicUrl } = await apiFetch('/api/upload/video-ad-url', {
         method: 'POST',
         body: { ownerId: ownerId || 'new', purpose },
@@ -87,15 +86,17 @@ export default function VideoUploadOrUrlField({ value, onChange, ownerId, purpos
         await waitForCompression(publicUrl);
       }
       onChange(publicUrl);
-      // Only delete the old video now, once the new one has fully succeeded —
-      // deleting it up front would risk leaving the exhibitor with neither file
-      // if the upload or compression above had failed instead.
-      if (oldVideoUrl) {
-        apiFetch('/api/upload/video-ad-cleanup', { method: 'POST', body: { oldVideoUrl } }).catch(() => {
-          // Best-effort — an orphaned old file is a minor cleanup miss, not
-          // worth surfacing an error over a replacement that itself succeeded.
-        });
-      }
+      // Deliberately does NOT delete the previous video here (removed 2026-08-31 —
+      // see git history for the old "oldVideoUrl" cleanup call). `value` at this point
+      // is only a local draft — the caller's onChange may not persist it anywhere
+      // (Cancel, a failed save, or a second upload before the first was ever saved),
+      // so it can't be assumed to be safely replaceable. Deleting eagerly here caused
+      // a real production incident: an exhibitor's live, still-DB-referenced video was
+      // deleted out from under them by a second upload attempt that itself was never
+      // saved, leaving the booth page pointing at a 404 while a good replacement sat
+      // orphaned in S3 (see RISK_REGISTER.md). The tradeoff is an orphaned S3 object
+      // per replacement instead — a harmless storage cost, not data loss — until a
+      // proper "delete only after a confirmed save" cleanup is built per call site.
     } catch (err) {
       setError(err.message);
     } finally {
