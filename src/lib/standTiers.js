@@ -31,8 +31,13 @@ export const STAND_TIER_PERKS = {
 };
 
 // Item 9 — package feature limits, enforced in both the exhibitor portal and public display.
+// Free's descChars is 150, not lower — it must be >= the application form's MAX_DESC
+// cap (src/pages/ExhibitorApply.jsx), or a new Free exhibitor whose submitted
+// description already exceeds their post-approval editing limit would see a confusing
+// "over limit" warning in My Booth before touching anything. Basic/Enhanced/Premium
+// don't have this problem since their limits (250/500/1000) already exceed MAX_DESC.
 export const PACKAGE_LIMITS = {
-  Free:     { descChars: 100,  galleryMax: 0 },
+  Free:     { descChars: 150,  galleryMax: 0 },
   Basic:    { descChars: 250,  galleryMax: 0 },
   Enhanced: { descChars: 500,  galleryMax: 6 },
   Premium:  { descChars: 1000, galleryMax: 9 },
