@@ -10,7 +10,7 @@ import {
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
   Images, MessageCircle, Award, Plus, Video, Move, Sparkles, Check,
-  MessageSquare, ExternalLink, Loader2,
+  MessageSquare, ExternalLink, Loader2, Download,
 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
@@ -724,6 +724,14 @@ export default function ExhibitorHome() {
           </Link>
         )}
         {smsOpenError && <p className="text-xs text-red-500 w-full">{smsOpenError}</p>}
+        <a
+          href="/api/exhibitor-contacts/export.csv"
+          download
+          title="Download the exhibitor directory plus your own enquiry/meeting/job-applicant leads as a CSV"
+          className="flex items-center gap-1.5 flex-shrink-0 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" /> Download Contacts (CSV)
+        </a>
       </div>
 
       {/* Package Upgrade CTA — shown for non-Premium exhibitors */}

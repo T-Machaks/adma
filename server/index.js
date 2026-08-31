@@ -41,6 +41,7 @@ import cspReport from './routes/csp-report.js';
 import og from './routes/og.js';
 import ai from './routes/ai.js';
 import smsCredits from './routes/sms-credits.js';
+import exhibitorContacts from './routes/exhibitor-contacts.js';
 
 const app = express();
 
@@ -189,6 +190,7 @@ app.use('/api/collaborations',         collaborations);
 app.use('/api/csp-report',             cspReport);
 app.use('/api/ai',                     ai);
 app.use('/api/sms-credits',            smsCredits);
+app.use('/api/exhibitor-contacts',     exhibitorContacts);
 
 // Not under /api — this serves real HTML pages (Open Graph meta injection for exhibitor
 // link previews), reached only via an nginx location that proxies GET /exhibitors/:id
