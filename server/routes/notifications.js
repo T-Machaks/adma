@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { sendOtpEmail } from '../lib/mailer.js';
-import { sendSms } from '../lib/omniflex.js';
+import { sendSms, createSmsCampaign } from '../lib/omniflex.js';
 import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 
 const r = Router();
@@ -184,32 +184,34 @@ async function resolveBroadcastAudience(groups) {
   ]);
 
   const raw = [
-    ...(regsResult.Items || []),
-    ...(exhibitorsResult.Items || []).map(e => ({ email: e.contact_email, phone: e.phone })),
-    ...(usersResult.Items || []),
+    ...(regsResult.Items || []).map(r => ({ email: r.email, phone: r.phone, name: r.full_name })),
+    ...(exhibitorsResult.Items || []).map(e => ({ email: e.contact_email, phone: e.phone, name: e.name })),
+    ...(usersResult.Items || []).map(u => ({ email: u.email, phone: u.phone, name: u.full_name })),
   ];
 
   const emailSet = new Set();
-  const phoneSet = new Set();
+  const phoneMap = new Map(); // normalized phone -> name (first one seen), for {{name}} personalization
   for (const c of raw) {
     const email = c.email?.toLowerCase().trim();
     if (email && email.includes('@')) emailSet.add(email);
     const phone = normalizePhone(c.phone);
-    if (phone) phoneSet.add(phone);
+    if (phone && !phoneMap.has(phone)) phoneMap.set(phone, c.name || '');
   }
-  return { emails: [...emailSet], phones: [...phoneSet] };
+  return {
+    emails: [...emailSet],
+    phones: [...phoneMap.entries()].map(([phone, name]) => ({ phone, name })),
+  };
 }
 
-// Bounded concurrency — there's no bulk/campaign-send endpoint wired up for either
-// ADMA's own Graph mailbox or its direct OmniFlex account here, only one-at-a-time
-// sends, so this caps how many are in flight at once instead of firing them all
-// simultaneously. Email needs a much lower cap than SMS: Microsoft Graph enforces a
-// low per-mailbox concurrent-request limit (confirmed live 2026-09-01 — sending 10 in
+// Bounded concurrency for email — there's no bulk-send endpoint for ADMA's own Graph
+// mailbox, only one-at-a-time sends, so this caps how many are in flight at once
+// instead of firing them all simultaneously. Microsoft Graph enforces a low
+// per-mailbox concurrent-request limit (confirmed live 2026-09-01 — sending 10 in
 // parallel through the same NoReply@tyflex.co.zw mailbox threw "Application is over
-// its MailboxConcurrency limit" for a third of them). OmniFlex hasn't shown the same
-// issue at 10, so SMS keeps the higher cap.
+// its MailboxConcurrency limit" for a third of them). SMS doesn't need this — it goes
+// through OmniFlex's real Campaigns API (one call, all recipients — see
+// createSmsCampaign below), not a per-recipient loop.
 const EMAIL_CONCURRENCY = 3;
-const SMS_CONCURRENCY = 10;
 
 // One retry with a short randomized delay for exactly that transient throttle — a
 // concurrency cap alone reduces but doesn't eliminate the race (two workers can still
@@ -556,12 +558,16 @@ r.get('/broadcast-audience', requireRole('organizer', 'marketing_partner', 'supe
 // (email/sms/both) picks how. Email goes through the same Graph API flow used
 // everywhere else in this file (lib/mailer.js's sendOtpEmail, ADMA's own
 // NoReply@tyflex.co.zw mailbox). SMS goes through ADMA's own direct OmniFlex account
-// (lib/omniflex.js's sendSms, backed by OMNIFLEX_API_KEY) — deliberately NOT the
-// reseller SSO path (lib/omniflexReseller.js / makeLoginLink), which is built for a
-// human to open a browser session inside an exhibitor's own OmniFlex workspace, not a
-// server-triggered bulk send, and deliberately not routed through any exhibitor
+// via its real Campaigns API (lib/omniflex.js's createSmsCampaign, backed by
+// OMNIFLEX_API_KEY) — one campaign call carrying every recipient, not a per-recipient
+// loop (see RISK_REGISTER.md #23: the old per-recipient /api/sms/send endpoint isn't
+// valid for this account's key at all; confirmed live 2026-09-01, and the vendor's own
+// guidance is that bulk SMS is meant to go through /api/campaigns). Deliberately NOT
+// the reseller SSO path (lib/omniflexReseller.js / makeLoginLink), which is built for
+// a human to open a browser session inside an exhibitor's own OmniFlex workspace, not
+// a server-triggered bulk send, and deliberately not routed through any exhibitor
 // account — marketing@admadigital.co.zw specifically already collided with ADMA's own
-// OmniFlex house account once (see RISK_REGISTER.md).
+// OmniFlex house account once (see RISK_REGISTER.md #earlier entry).
 r.post('/broadcast', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
   try {
     const { channel, subject, message, campaign, groups } = req.body;
@@ -580,7 +586,19 @@ r.post('/broadcast', requireRole('organizer', 'marketing_partner', 'superadmin')
       );
     }
     if (channel === 'sms' || channel === 'both') {
-      result.sms = await sendBatch(phones, (phone) => sendSms(phone, message), SMS_CONCURRENCY);
+      if (phones.length) {
+        // One campaign, all recipients — OmniFlex dispatches it, so there's no
+        // synchronous per-recipient sent/failed count the way the email loop above
+        // has; `total_recipients` is what the creation call actually confirms.
+        const camp = await createSmsCampaign({
+          name: `${campaign || 'ADMA broadcast'} — ${new Date().toISOString()}`,
+          message_template: message,
+          recipients: phones,
+        });
+        result.sms = { targeted: phones.length, campaignId: camp.id, totalRecipients: camp.total_recipients, status: camp.status };
+      } else {
+        result.sms = { targeted: 0, campaignId: null, totalRecipients: 0, status: null };
+      }
     }
 
     console.log(`[broadcast] campaign="${campaign}" channel=${channel} groups=${selectedGroups.join(',')} result=${JSON.stringify(result)}`);
