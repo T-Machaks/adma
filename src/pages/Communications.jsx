@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Announcement } from '@/api/entities';
-import { AppSettings } from '@/api/entities/AppSettings';
 import { notifyAnnouncement } from '@/api/notify';
+import { apiFetch } from '@/api/client';
 import {
-  Bell, Plus, Trash2, AlertCircle, Clock, MapPin,
-  MessageSquare, Mail, Send, Megaphone, ChevronDown, ChevronUp, X, Sparkles,
-  Smartphone, Radio, Timer, ChevronRight, CheckCircle2,
+  Bell, Plus, Trash2, Edit2,
+  Mail, Send, Sparkles,
+  Smartphone, Radio, Timer, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,6 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppSettings } from '@/lib/AppSettingsContext';
-import { EVENT_CONFIG } from '@/lib/eventConfig';
 
 const TYPE_STYLES = {
   Important:   'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
@@ -30,13 +29,6 @@ const TYPE_STYLES = {
   Venue:       'border-violet-400 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-400',
   Directional: 'border-teal-400 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400',
 };
-
-const NOTICES = [
-  { id: 1, type: 'Important', title: 'Security & Accreditation', body: 'All attendees must collect their badge at the registration desk before entering any exhibition hall. Photo ID required. Uncollected badges will be cancelled after Day 1.', icon: AlertCircle, color: 'border-red-400 bg-red-50 dark:bg-red-950/30' },
-  { id: 2, type: 'Venue',     title: 'Parking & Transport',      body: `Parking is available at ${EVENT_CONFIG.venueShort} main lot. Entry via Pomona Road gate. Shuttle service from Avondale pick-up point available both days.`, icon: MapPin, color: 'border-blue-400 bg-blue-50 dark:bg-blue-950/30' },
-  { id: 3, type: 'Schedule',  title: 'Opening Ceremony Change',  body: 'The Opening Keynote has been moved from 09:00 to 09:30 on Day 1 to accommodate the VIP arrival programme.', icon: Clock, color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/30' },
-  { id: 4, type: 'Venue',     title: 'Wi-Fi Access',             body: `Complimentary Wi-Fi is available throughout the venue. Network: ${EVENT_CONFIG.eventName}${EVENT_CONFIG.eventYear} — Password will be displayed at the registration desk.`, icon: Megaphone, color: 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30' },
-];
 
 const EMPTY_FORM = { type: 'General', title: '', body: '', sponsored: false, sponsor_name: '' };
 
@@ -54,10 +46,11 @@ export default function Communications() {
   const { settings, updateSettings } = useAppSettings();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [openNotice, setOpenNotice] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [campaignDialog, setCampaignDialog] = useState(null);
   const [campaignForm, setCampaignForm] = useState({ subject: '', body: '' });
+  const [sendingCampaign, setSendingCampaign] = useState(false);
   const [eventDateInput, setEventDateInput] = useState(settings?.event_start_date ? settings.event_start_date.slice(0, 16) : '');
   const [savingDate, setSavingDate] = useState(false);
 
@@ -76,15 +69,28 @@ export default function Communications() {
 
   const sendCampaign = async (row) => {
     if (row.channel === 'sms') {
+      setSendingCampaign(true);
       try {
-        await fetch('/api/notifications/bulk-sms', {
+        // apiFetch (not raw fetch) — fetch() doesn't reject on a non-2xx response, so a
+        // real server-side failure (missing OMNIFLEX_API_KEY, etc.) would otherwise be
+        // silently swallowed and still show a success toast.
+        const result = await apiFetch('/api/notifications/bulk-sms', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: campaignForm.body, campaign: row.id }),
+          body: { message: campaignForm.body, campaign: row.id },
         });
-        toast({ title: 'SMS queued', description: 'Message handed to OmniFlex for delivery.' });
-      } catch {
-        toast({ title: 'Queued (offline)', description: 'Will retry when server is reachable.', variant: 'destructive' });
+        if (result.failed > 0) {
+          toast({
+            title: `Sent to ${result.sent} of ${result.targeted}`,
+            description: `${result.failed} failed to send${result.skipped ? `, ${result.skipped} skipped (no valid phone)` : ''}. Check server logs for details.`,
+            variant: 'destructive',
+          });
+        } else {
+          toast({ title: `Sent to ${result.sent} attendee${result.sent === 1 ? '' : 's'}`, description: result.skipped ? `${result.skipped} skipped (no valid phone).` : undefined });
+        }
+      } catch (e) {
+        toast({ title: 'Send failed', description: e.message, variant: 'destructive' });
+      } finally {
+        setSendingCampaign(false);
       }
     } else {
       toast({ title: `${row.channel === 'push' ? 'Push' : 'Email'} queued`, description: 'Integration coming soon — message logged.' });
@@ -107,6 +113,19 @@ export default function Communications() {
     },
   });
 
+  // Edit deliberately does NOT re-notify (notifyAnnouncement is only called from
+  // addMutation above) — fixing a typo in an existing announcement shouldn't push a
+  // fresh notification to every attendee the way a genuinely new one should.
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => Announcement.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['announcements'] });
+      setDialogOpen(false);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id) => Announcement.delete(id),
     onSuccess: () => {
@@ -115,10 +134,26 @@ export default function Communications() {
     },
   });
 
+  const openAddDialog = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (a) => {
+    setEditingId(a.id);
+    setForm({ type: a.type || 'General', title: a.title || '', body: a.body || '', sponsored: !!a.sponsored, sponsor_name: a.sponsor_name || '' });
+    setDialogOpen(true);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.body.trim()) return;
-    addMutation.mutate(form);
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: form });
+    } else {
+      addMutation.mutate(form);
+    }
   };
 
   return (
@@ -128,7 +163,7 @@ export default function Communications() {
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Communications</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Manage live announcements visible to attendees.</p>
         </div>
-        <Button onClick={() => { setForm(EMPTY_FORM); setDialogOpen(true); }} className="flex items-center gap-2">
+        <Button onClick={openAddDialog} className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
           Add
         </Button>
@@ -165,51 +200,27 @@ export default function Communications() {
                     <p className="text-sm font-semibold">{a.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{a.body}</p>
                   </div>
-                  <button
-                    onClick={() => setDeleteConfirm(a.id)}
-                    className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                    aria-label="Delete announcement"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex-shrink-0 flex items-center gap-1">
+                    <button
+                      onClick={() => openEditDialog(a)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      aria-label="Edit announcement"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(a.id)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      aria-label="Delete announcement"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
-      </section>
-
-      {/* Static notices (read-only reference) */}
-      <section className="mb-8">
-        <p className="font-heading text-base font-bold uppercase tracking-wide mb-3 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-amber" /> Static Notices
-          <span className="ml-1 text-xs font-normal text-muted-foreground normal-case tracking-normal">read-only</span>
-        </p>
-        <div className="space-y-2">
-          {NOTICES.map((n) => {
-            const Icon = n.icon;
-            return (
-              <div key={n.id} className={`rounded-xl border-l-4 overflow-hidden ${n.color}`}>
-                <button
-                  className="w-full flex items-center gap-3 p-3 text-left"
-                  onClick={() => setOpenNotice(openNotice === n.id ? null : n.id)}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0 text-foreground/60" />
-                  <div className="flex-1">
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground">{n.type}</span>
-                    <p className="text-sm font-semibold">{n.title}</p>
-                  </div>
-                  {openNotice === n.id
-                    ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-                </button>
-                {openNotice === n.id && (
-                  <div className="px-4 pb-3 text-xs text-muted-foreground leading-relaxed">{n.body}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
       </section>
 
       {/* Event date (countdown) */}
@@ -271,11 +282,11 @@ export default function Communications() {
         </div>
       </section>
 
-      {/* Add announcement dialog */}
+      {/* Add/Edit announcement dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>New Announcement</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit Announcement' : 'New Announcement'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
             <div>
@@ -338,8 +349,8 @@ export default function Communications() {
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={addMutation.isPending}>
-                {addMutation.isPending ? 'Saving…' : 'Add Announcement'}
+              <Button type="submit" disabled={addMutation.isPending || updateMutation.isPending}>
+                {addMutation.isPending || updateMutation.isPending ? 'Saving…' : editingId ? 'Save Changes' : 'Add Announcement'}
               </Button>
             </DialogFooter>
           </form>
@@ -377,14 +388,14 @@ export default function Communications() {
               {campaignDialog.channel !== 'push' && (
                 <p className="text-xs text-muted-foreground">
                   {campaignDialog.channel === 'sms'
-                    ? 'Will be routed via OmniFlex to all registered phone numbers.'
+                    ? 'Sent via OmniFlex to every Confirmed/Checked In attendee with a valid phone number.'
                     : 'Email integration placeholder — message will be logged server-side.'}
                 </p>
               )}
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCampaignDialog(null)}>Cancel</Button>
-                <Button onClick={() => sendCampaign(campaignDialog)} disabled={!campaignForm.body.trim()}>
-                  Send
+                <Button onClick={() => sendCampaign(campaignDialog)} disabled={!campaignForm.body.trim() || sendingCampaign}>
+                  {sendingCampaign ? 'Sending…' : 'Send'}
                 </Button>
               </DialogFooter>
             </div>

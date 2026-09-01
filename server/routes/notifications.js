@@ -440,13 +440,66 @@ r.post('/job-application', async (req, res) => {
   }
 });
 
-// Bulk SMS stub — logs payload, ready for OmniFlex mass-send when available
+// ── POST /api/notifications/bulk-sms — organizer broadcast to registered attendees ──
+// Sends via ADMA's own direct OmniFlex account (lib/omniflex.js's sendSms, backed by
+// OMNIFLEX_API_KEY) — deliberately NOT the reseller SSO path (lib/omniflexReseller.js
+// / makeLoginLink), which is built for a human to open a browser session inside an
+// exhibitor's own OmniFlex workspace, not a server-triggered bulk send, and
+// deliberately not routed through any exhibitor account — marketing@admadigital.co.zw
+// specifically already collided with ADMA's own OmniFlex house account once (see
+// RISK_REGISTER.md). This is a separate credential from both of those.
 r.post('/bulk-sms', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
-  const { message, campaign } = req.body;
-  if (!message) return res.status(400).json({ error: 'message required' });
-  console.log(`[bulk-sms] campaign="${campaign}" message="${message.slice(0, 80)}…"`);
-  // TODO: scan registrations, normalise phones, call sendSms for each
-  res.json({ queued: true, campaign });
+  try {
+    const { message, campaign } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'message required' });
+
+    const result = await ddb.send(new ScanCommand({
+      TableName: 'adma_registrations',
+      FilterExpression: '#s IN (:c, :ci)',
+      ExpressionAttributeNames: { '#s': 'status' },
+      ExpressionAttributeValues: { ':c': 'Confirmed', ':ci': 'Checked In' },
+    }));
+    const registrations = result.Items || [];
+
+    // Dedupe by normalized phone — a household/company can legitimately share one
+    // number across several registrations, and sending the same message to the same
+    // number twice just wastes credit for no benefit. Invalid/unparseable numbers are
+    // silently skipped (counted in `skipped`), same as smsSilent's existing behavior.
+    const seen = new Set();
+    const targets = [];
+    for (const reg of registrations) {
+      const p = normalizePhone(reg.phone);
+      if (!p || seen.has(p)) continue;
+      seen.add(p);
+      targets.push(p);
+    }
+    const skipped = registrations.length - targets.length;
+
+    // Bounded concurrency — there's no bulk/campaign-send endpoint wired up for
+    // ADMA's own direct OmniFlex account here, only sendSms() per recipient, so this
+    // caps how many are in flight at once instead of firing them all simultaneously.
+    const CONCURRENCY = 10;
+    let sent = 0, failed = 0;
+    let i = 0;
+    async function worker() {
+      while (i < targets.length) {
+        const phone = targets[i++];
+        try {
+          await sendSms(phone, message);
+          sent++;
+        } catch (e) {
+          failed++;
+          console.error(`[bulk-sms] send to ${phone} failed: ${e.message}`);
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
+
+    console.log(`[bulk-sms] campaign="${campaign}" targeted=${targets.length} sent=${sent} failed=${failed} skipped=${skipped}`);
+    res.json({ ok: true, campaign, targeted: targets.length, sent, failed, skipped });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default r;
