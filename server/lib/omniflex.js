@@ -1,5 +1,14 @@
 const BASE = process.env.OMNIFLEX_API_URL || 'https://omniflex.co.zw';
+// Two separate OmniFlex workspaces, two separate keys — do not merge these back into
+// one. OMNIFLEX_API_KEY belongs to "ADMA Digital OTPs & Notifications" (powers
+// sendSmsOtp/verifySmsOtp/sendSms below — login OTPs and one-off notification sends
+// like meeting confirmations). OMNIFLEX_CAMPAIGN_API_KEY belongs to the separate "ADMA
+// Digital main account" workspace, added 2026-09-01 specifically for bulk SMS
+// broadcasts (createSmsCampaign below) — confirmed live that a key valid in one
+// workspace is rejected outright ("This key does not belong to this workspace") when
+// used against the other's endpoints.
 const API_KEY = process.env.OMNIFLEX_API_KEY;
+const CAMPAIGN_API_KEY = process.env.OMNIFLEX_CAMPAIGN_API_KEY;
 const OTP_CAMPAIGN_ID = process.env.OMNIFLEX_OTP_CAMPAIGN_ID;
 
 // Normalize any Zim phone format (07XX…, +2637X…, 002637X…) to 263XXXXXXXXX.
@@ -15,11 +24,11 @@ function normalizePhone(phone) {
   return '263' + digits;
 }
 
-async function post(path, body) {
+async function post(path, body, key = API_KEY) {
   const r = await fetch(`${BASE}${path}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -55,6 +64,7 @@ export async function sendSms(phone, message) {
 // their own source data is in. status: 'active' dispatches immediately (no
 // scheduled_date) rather than sitting as a draft or a future-scheduled send.
 export async function createSmsCampaign({ name, message_template, recipients, sender_id }) {
+  if (!CAMPAIGN_API_KEY) throw new Error('OMNIFLEX_CAMPAIGN_API_KEY is not configured.');
   return post('/api/campaigns', {
     name,
     type: 'SMS',
@@ -62,5 +72,5 @@ export async function createSmsCampaign({ name, message_template, recipients, se
     sender_id: sender_id || undefined,
     status: 'active',
     recipients: recipients.map(r => ({ phone: normalizePhone(r.phone), name: r.name || undefined })),
-  });
+  }, CAMPAIGN_API_KEY);
 }
