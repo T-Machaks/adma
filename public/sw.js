@@ -6,7 +6,7 @@
 //   images                           → stale-while-revalidate
 //   navigation                       → network, fall back to cached shell
 
-const VERSION     = 'adma-2026-09-01-b';
+const VERSION     = 'adma-2026-09-01-c';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE  = `data-${VERSION}`;
 const IMG_CACHE   = `img-${VERSION}`;
@@ -19,6 +19,7 @@ const PRECACHE_URLS = [
   '/adma-logo-transparent.png',
   '/adma-favicon-192.png',
   '/adma-favicon-512.png',
+  '/apple-touch-startup-image.png',
   '/favicon.ico',
 ];
 

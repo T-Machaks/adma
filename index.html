@@ -14,6 +14,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ADMA Digital" />
     <link rel="apple-touch-icon" href="/adma-favicon-192.png" />
+    <!-- iOS ignores manifest.json's background_color entirely for its own native
+         launch screen (a long-standing Safari limitation) — without this, it falls
+         back to a plain white background with the icon + apple-mobile-web-app-title
+         text centered on it, which is what was actually being reported as "a page
+         with the logo with a white background and the text ADMA Digital" (2026-09-01).
+         No per-device media query — this is a single universal fallback image
+         (1284x2778), scaled/cropped by Safari to fit whichever device it's on. -->
+    <link rel="apple-touch-startup-image" href="/apple-touch-startup-image.png" />
 
     <!-- SEO / share -->
     <meta name="description" content="The digital platform for Zimbabwe's largest agricultural exhibition — ART Farm, Pomona, Harare." />
