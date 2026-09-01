@@ -587,17 +587,21 @@ r.post('/broadcast', requireRole('organizer', 'marketing_partner', 'superadmin')
     }
     if (channel === 'sms' || channel === 'both') {
       if (phones.length) {
-        // One campaign, all recipients — OmniFlex dispatches it, so there's no
-        // synchronous per-recipient sent/failed count the way the email loop above
-        // has; `total_recipients` is what the creation call actually confirms.
+        // One campaign, all recipients — OmniFlex dispatches it a few seconds later
+        // (see createSmsCampaign's own comment on the scheduled-dispatch requirement),
+        // so there's no synchronous per-recipient sent/failed count the way the email
+        // loop above has. `targeted` is phones.length, not the campaign creation
+        // response's own total_recipients/sent_count fields — confirmed live those
+        // stay 0 at creation time regardless of how many recipients were actually
+        // attached, only updating once OmniFlex's dispatcher has actually run.
         const camp = await createSmsCampaign({
           name: `${campaign || 'ADMA broadcast'} — ${new Date().toISOString()}`,
           message_template: message,
           recipients: phones,
         });
-        result.sms = { targeted: phones.length, campaignId: camp.id, totalRecipients: camp.total_recipients, status: camp.status };
+        result.sms = { targeted: phones.length, campaignId: camp.id, status: camp.status };
       } else {
-        result.sms = { targeted: 0, campaignId: null, totalRecipients: 0, status: null };
+        result.sms = { targeted: 0, campaignId: null, status: null };
       }
     }
 

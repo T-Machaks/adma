@@ -83,26 +83,25 @@ export async function sendSms(phone, message) {
 // not belong to this workspace"; the /api/campaigns/* Content-Type of call is what
 // this account's key is actually scoped for). recipients: [{ phone, name? }] — phone
 // normalized to OmniFlex's 263XXXXXXXXX form here since callers pass whatever form
-// their own source data is in. status: 'active' dispatches immediately (no
-// scheduled_date) rather than sitting as a draft or a future-scheduled send.
+// their own source data is in.
+//
+// status: 'scheduled' with scheduled_date a few seconds out — NOT 'active' with no
+// date, which is what this used to send. Confirmed live 2026-09-01: an 'active'
+// campaign with inline recipients creates fine (201, valid campaign object) but never
+// actually dispatches — total_recipients/sent_count stay 0 indefinitely, and the
+// message never arrives. The exact same request with status: 'scheduled' and a
+// near-immediate scheduled_date genuinely sends (confirmed delivered, delivery_rate
+// 100) — OmniFlex's dispatcher appears to only ever pick up campaigns through the
+// scheduled path, even for what amounts to "send right now".
 export async function createSmsCampaign({ name, message_template, recipients, sender_id }) {
   if (!CAMPAIGN_API_KEY) throw new Error('OMNIFLEX_CAMPAIGN_API_KEY is not configured.');
-  const senderId = sender_id || DEFAULT_SENDER_ID;
   return post('/api/campaigns', {
     name,
     type: 'SMS',
     message_template,
-    // Sent under both names — the documented field for this endpoint is snake_case
-    // sender_id, and it IS accepted (echoed back correctly in the create response),
-    // but confirmed live 2026-09-01 that the actual delivered SMS still used OmniFlex's
-    // generic default sender label, not ADMA, despite that. Sending camelCase senderId
-    // too (the casing that IS confirmed to work on /api/sms/send, a sibling endpoint on
-    // the same platform) is a pragmatic hedge against the same casing inconsistency,
-    // not a confirmed fix — revisit if OmniFlex clarifies which field the campaign
-    // dispatcher actually reads.
-    sender_id: senderId,
-    senderId,
-    status: 'active',
+    sender_id: sender_id || DEFAULT_SENDER_ID,
+    status: 'scheduled',
+    scheduled_date: new Date(Date.now() + 5000).toISOString(),
     recipients: recipients.map(r => ({ phone: normalizePhone(r.phone), name: r.name || undefined })),
   }, CAMPAIGN_API_KEY);
 }

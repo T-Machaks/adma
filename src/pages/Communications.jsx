@@ -118,8 +118,10 @@ export default function Communications() {
       if (result.email) parts.push(`Email: ${result.email.sent}/${result.email.targeted} sent${result.email.failed ? `, ${result.email.failed} failed` : ''}`);
       // SMS goes through one OmniFlex campaign covering every recipient, not a
       // per-recipient loop, so there's no synchronous sent/failed count the way email
-      // has — totalRecipients is what OmniFlex's own campaign-creation call confirmed.
-      if (result.sms) parts.push(result.sms.campaignId ? `SMS: campaign created for ${result.sms.totalRecipients} recipients` : 'SMS: no valid phone numbers in the selected audience');
+      // has — OmniFlex dispatches it a few seconds later. `targeted` is our own
+      // recipient count, not the campaign API's total_recipients/sent_count fields,
+      // which stay 0 at creation time regardless of how many recipients were attached.
+      if (result.sms) parts.push(result.sms.campaignId ? `SMS: campaign created for ${result.sms.targeted} recipients` : 'SMS: no valid phone numbers in the selected audience');
       const anyFailed = (result.email?.failed || 0) > 0;
       toast({
         title: anyFailed ? 'Broadcast sent with some failures' : 'Broadcast sent',
