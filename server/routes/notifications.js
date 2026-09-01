@@ -203,15 +203,35 @@ async function resolveBroadcastAudience(groups) {
 // Bounded concurrency — there's no bulk/campaign-send endpoint wired up for either
 // ADMA's own Graph mailbox or its direct OmniFlex account here, only one-at-a-time
 // sends, so this caps how many are in flight at once instead of firing them all
-// simultaneously.
-const BROADCAST_CONCURRENCY = 10;
-async function sendBatch(targets, sendOne) {
+// simultaneously. Email needs a much lower cap than SMS: Microsoft Graph enforces a
+// low per-mailbox concurrent-request limit (confirmed live 2026-09-01 — sending 10 in
+// parallel through the same NoReply@tyflex.co.zw mailbox threw "Application is over
+// its MailboxConcurrency limit" for a third of them). OmniFlex hasn't shown the same
+// issue at 10, so SMS keeps the higher cap.
+const EMAIL_CONCURRENCY = 3;
+const SMS_CONCURRENCY = 10;
+
+// One retry with a short randomized delay for exactly that transient throttle — a
+// concurrency cap alone reduces but doesn't eliminate the race (two workers can still
+// land in the same instant), and this is cheap insurance against it. Everything else
+// still fails immediately on the first attempt, same as before.
+async function sendOneWithRetry(sendOne, target) {
+  try {
+    await sendOne(target);
+  } catch (e) {
+    if (!/429|concurrency/i.test(e.message)) throw e;
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+    await sendOne(target);
+  }
+}
+
+async function sendBatch(targets, sendOne, concurrency) {
   let sent = 0, failed = 0, i = 0;
   async function worker() {
     while (i < targets.length) {
       const target = targets[i++];
       try {
-        await sendOne(target);
+        await sendOneWithRetry(sendOne, target);
         sent++;
       } catch (e) {
         failed++;
@@ -219,7 +239,7 @@ async function sendBatch(targets, sendOne) {
       }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(BROADCAST_CONCURRENCY, targets.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, worker));
   return { targeted: targets.length, sent, failed };
 }
 
@@ -555,11 +575,12 @@ r.post('/broadcast', requireRole('organizer', 'marketing_partner', 'superadmin')
     const result = {};
     if (channel === 'email' || channel === 'both') {
       result.email = await sendBatch(emails, (email) =>
-        sendOtpEmail(email, null, { subject: subject?.trim() || 'ADMA Digital', html: broadcastEmailHtml(message) })
+        sendOtpEmail(email, null, { subject: subject?.trim() || 'ADMA Digital', html: broadcastEmailHtml(message) }),
+        EMAIL_CONCURRENCY
       );
     }
     if (channel === 'sms' || channel === 'both') {
-      result.sms = await sendBatch(phones, (phone) => sendSms(phone, message));
+      result.sms = await sendBatch(phones, (phone) => sendSms(phone, message), SMS_CONCURRENCY);
     }
 
     console.log(`[broadcast] campaign="${campaign}" channel=${channel} groups=${selectedGroups.join(',')} result=${JSON.stringify(result)}`);
