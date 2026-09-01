@@ -23,6 +23,10 @@ const BASE = process.env.OMNIFLEX_TENANT_API_URL || 'https://adma.omniflex.co.zw
 const API_KEY = process.env.OMNIFLEX_API_KEY;
 const CAMPAIGN_API_KEY = process.env.OMNIFLEX_CAMPAIGN_API_KEY;
 const OTP_CAMPAIGN_ID = process.env.OMNIFLEX_OTP_CAMPAIGN_ID;
+// The OTP campaign (OMNIFLEX_OTP_CAMPAIGN_ID) already has this configured on OmniFlex's
+// side, which is why OTP texts show as ADMA — sendSms()/createSmsCampaign() don't have
+// an equivalent standing config, so they need to pass it explicitly on every call.
+const DEFAULT_SENDER_ID = 'ADMA';
 
 // Normalize any Zim phone format (07XX…, +2637X…, 002637X…) to 263XXXXXXXXX.
 // The 00-international-prefix case must be checked before the bare-0-trunk-prefix
@@ -64,7 +68,7 @@ export async function verifySmsOtp(phone, code) {
 }
 
 export async function sendSms(phone, message) {
-  return post('/api/sms/send', { phone: normalizePhone(phone), message });
+  return post('/api/sms/send', { phone: normalizePhone(phone), message, sender_id: DEFAULT_SENDER_ID });
 }
 
 // Bulk SMS via OmniFlex's actual Campaigns API — the real bulk-send mechanism, as
@@ -82,7 +86,7 @@ export async function createSmsCampaign({ name, message_template, recipients, se
     name,
     type: 'SMS',
     message_template,
-    sender_id: sender_id || undefined,
+    sender_id: sender_id || DEFAULT_SENDER_ID,
     status: 'active',
     recipients: recipients.map(r => ({ phone: normalizePhone(r.phone), name: r.name || undefined })),
   }, CAMPAIGN_API_KEY);
