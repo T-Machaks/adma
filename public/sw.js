@@ -6,7 +6,7 @@
 //   images                           → stale-while-revalidate
 //   navigation                       → network, fall back to cached shell
 
-const VERSION     = 'adma-2026-07-01-a';
+const VERSION     = 'adma-2026-09-01-a';
 const SHELL_CACHE = `shell-${VERSION}`;
 const DATA_CACHE  = `data-${VERSION}`;
 const IMG_CACHE   = `img-${VERSION}`;

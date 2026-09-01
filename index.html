@@ -46,6 +46,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
     <title>ADMA Digital</title>
+
+    <!-- Startup-screen fix (2026-09-01): sets the page background to the same dark
+         steel the home page hero and App.jsx's loading screen use, inline and before
+         any stylesheet loads — so there's no white flash between the native OS splash
+         (manifest background_color, a solid color only — the platform doesn't support
+         a gradient there) and the app's own loading screen painting in. #1b3729 is
+         --adma-steel (src/index.css) converted to hex, since this has to be a literal
+         value here, not a CSS variable that isn't defined yet at this point. -->
+    <style>html, body { background: #1b3729; }</style>
   </head>
   <body>
     <div id="root"></div>
