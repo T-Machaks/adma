@@ -1,12 +1,25 @@
-const BASE = process.env.OMNIFLEX_API_URL || 'https://omniflex.co.zw';
+// A DEDICATED base URL, deliberately NOT process.env.OMNIFLEX_API_URL (that one is
+// shared with lib/omniflexReseller.js, which must keep hitting the bare root — see
+// below for why this file can't use it too). Defaults to the adma.omniflex.co.zw
+// tenant subdomain.
+const BASE = process.env.OMNIFLEX_TENANT_API_URL || 'https://adma.omniflex.co.zw';
 // Two separate OmniFlex workspaces, two separate keys — do not merge these back into
 // one. OMNIFLEX_API_KEY belongs to "ADMA Digital OTPs & Notifications" (powers
 // sendSmsOtp/verifySmsOtp/sendSms below — login OTPs and one-off notification sends
 // like meeting confirmations). OMNIFLEX_CAMPAIGN_API_KEY belongs to the separate "ADMA
 // Digital main account" workspace, added 2026-09-01 specifically for bulk SMS
-// broadcasts (createSmsCampaign below) — confirmed live that a key valid in one
-// workspace is rejected outright ("This key does not belong to this workspace") when
-// used against the other's endpoints.
+// broadcasts (createSmsCampaign below).
+//
+// Both keys 403'd with {"code":"tenant_mismatch"} against the bare omniflex.co.zw root
+// (confirmed live 2026-09-01) — traced to marketing@admadigital.co.zw (the account
+// both keys belong to) having been separately upgraded to a reseller managing the
+// adma.omniflex.co.zw subdomain; per omniflex's own tenant-resolution model that
+// rejects a request whose org's reseller_id doesn't match the subdomain it came in on,
+// so anything hitting the bare root now needs to go through that subdomain instead.
+// This does NOT apply to lib/omniflexReseller.js's OMNIFLEX_RESELLER_API_KEY — that's
+// a third, already-reseller-scoped key that authenticates the reseller relationship
+// itself (provisioning exhibitor workspaces, SSO login-links) and keeps working
+// against the bare root; only this file's two tenant-scoped keys needed to move.
 const API_KEY = process.env.OMNIFLEX_API_KEY;
 const CAMPAIGN_API_KEY = process.env.OMNIFLEX_CAMPAIGN_API_KEY;
 const OTP_CAMPAIGN_ID = process.env.OMNIFLEX_OTP_CAMPAIGN_ID;
