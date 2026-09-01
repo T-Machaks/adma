@@ -68,7 +68,12 @@ export async function verifySmsOtp(phone, code) {
 }
 
 export async function sendSms(phone, message) {
-  return post('/api/sms/send', { phone: normalizePhone(phone), message, sender_id: DEFAULT_SENDER_ID });
+  // camelCase senderId here — confirmed from OmniFlex's own /api/sms/send docs
+  // (2026-09-01); this endpoint's field naming doesn't match /api/campaigns' snake_case
+  // sender_id below. Sending the wrong casing doesn't error, it just silently falls
+  // back to the account's generic default sender label instead of ADMA — confirmed
+  // live before this fix.
+  return post('/api/sms/send', { phone: normalizePhone(phone), message, senderId: DEFAULT_SENDER_ID });
 }
 
 // Bulk SMS via OmniFlex's actual Campaigns API — the real bulk-send mechanism, as
@@ -82,11 +87,21 @@ export async function sendSms(phone, message) {
 // scheduled_date) rather than sitting as a draft or a future-scheduled send.
 export async function createSmsCampaign({ name, message_template, recipients, sender_id }) {
   if (!CAMPAIGN_API_KEY) throw new Error('OMNIFLEX_CAMPAIGN_API_KEY is not configured.');
+  const senderId = sender_id || DEFAULT_SENDER_ID;
   return post('/api/campaigns', {
     name,
     type: 'SMS',
     message_template,
-    sender_id: sender_id || DEFAULT_SENDER_ID,
+    // Sent under both names — the documented field for this endpoint is snake_case
+    // sender_id, and it IS accepted (echoed back correctly in the create response),
+    // but confirmed live 2026-09-01 that the actual delivered SMS still used OmniFlex's
+    // generic default sender label, not ADMA, despite that. Sending camelCase senderId
+    // too (the casing that IS confirmed to work on /api/sms/send, a sibling endpoint on
+    // the same platform) is a pragmatic hedge against the same casing inconsistency,
+    // not a confirmed fix — revisit if OmniFlex clarifies which field the campaign
+    // dispatcher actually reads.
+    sender_id: senderId,
+    senderId,
     status: 'active',
     recipients: recipients.map(r => ({ phone: normalizePhone(r.phone), name: r.name || undefined })),
   }, CAMPAIGN_API_KEY);
