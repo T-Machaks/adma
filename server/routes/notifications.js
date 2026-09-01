@@ -148,6 +148,81 @@ function announcementHtml(a, recipientName) {
   ` + footer();
 }
 
+function broadcastEmailHtml(message) {
+  return header() + `
+    <p style="margin:0 0 20px;color:#444;font-size:14px;line-height:1.7;">${(message || '').replace(/\n/g, '<br>')}</p>
+  ` + footer();
+}
+
+// ── Broadcast audience resolution ───────────────────────────────────────────
+// Pulls contacts from whichever of the three groups the organizer selected —
+// registered attendees (Confirmed/Checked In only — Pending/Cancelled haven't
+// actually completed registration), exhibitor booths, and/or every adma_users
+// account regardless of role. Each channel dedupes independently against its own
+// normalized form (a person's email and phone don't need to trace back to the same
+// source record) so nobody who appears in more than one selected group gets the
+// same message twice.
+const AUDIENCE_GROUPS = ['attendees', 'exhibitors', 'users'];
+
+async function resolveBroadcastAudience(groups) {
+  const selected = groups.filter(g => AUDIENCE_GROUPS.includes(g));
+  const [regsResult, exhibitorsResult, usersResult] = await Promise.all([
+    selected.includes('attendees')
+      ? ddb.send(new ScanCommand({
+          TableName: 'adma_registrations',
+          FilterExpression: '#s IN (:c, :ci)',
+          ExpressionAttributeNames: { '#s': 'status' },
+          ExpressionAttributeValues: { ':c': 'Confirmed', ':ci': 'Checked In' },
+        }))
+      : Promise.resolve({ Items: [] }),
+    selected.includes('exhibitors')
+      ? ddb.send(new ScanCommand({ TableName: 'adma_exhibitors' }))
+      : Promise.resolve({ Items: [] }),
+    selected.includes('users')
+      ? ddb.send(new ScanCommand({ TableName: 'adma_users' }))
+      : Promise.resolve({ Items: [] }),
+  ]);
+
+  const raw = [
+    ...(regsResult.Items || []),
+    ...(exhibitorsResult.Items || []).map(e => ({ email: e.contact_email, phone: e.phone })),
+    ...(usersResult.Items || []),
+  ];
+
+  const emailSet = new Set();
+  const phoneSet = new Set();
+  for (const c of raw) {
+    const email = c.email?.toLowerCase().trim();
+    if (email && email.includes('@')) emailSet.add(email);
+    const phone = normalizePhone(c.phone);
+    if (phone) phoneSet.add(phone);
+  }
+  return { emails: [...emailSet], phones: [...phoneSet] };
+}
+
+// Bounded concurrency — there's no bulk/campaign-send endpoint wired up for either
+// ADMA's own Graph mailbox or its direct OmniFlex account here, only one-at-a-time
+// sends, so this caps how many are in flight at once instead of firing them all
+// simultaneously.
+const BROADCAST_CONCURRENCY = 10;
+async function sendBatch(targets, sendOne) {
+  let sent = 0, failed = 0, i = 0;
+  async function worker() {
+    while (i < targets.length) {
+      const target = targets[i++];
+      try {
+        await sendOne(target);
+        sent++;
+      } catch (e) {
+        failed++;
+        console.error(`[broadcast] send to ${target} failed: ${e.message}`);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(BROADCAST_CONCURRENCY, targets.length) }, worker));
+  return { targeted: targets.length, sent, failed };
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // Meeting request created / status changed
@@ -440,63 +515,55 @@ r.post('/job-application', async (req, res) => {
   }
 });
 
-// ── POST /api/notifications/bulk-sms — organizer broadcast to registered attendees ──
-// Sends via ADMA's own direct OmniFlex account (lib/omniflex.js's sendSms, backed by
-// OMNIFLEX_API_KEY) — deliberately NOT the reseller SSO path (lib/omniflexReseller.js
-// / makeLoginLink), which is built for a human to open a browser session inside an
-// exhibitor's own OmniFlex workspace, not a server-triggered bulk send, and
-// deliberately not routed through any exhibitor account — marketing@admadigital.co.zw
-// specifically already collided with ADMA's own OmniFlex house account once (see
-// RISK_REGISTER.md). This is a separate credential from both of those.
-r.post('/bulk-sms', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
+// ── GET /api/notifications/broadcast-audience?groups=attendees,exhibitors — recipient
+// counts for the confirm step, computed BEFORE any send happens. The frontend shows
+// these numbers so an organizer can see exactly how many people (and via which
+// channel) a broadcast will actually reach before committing to it — the send button
+// itself isn't a strong enough safeguard on its own for something this size.
+r.get('/broadcast-audience', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
   try {
-    const { message, campaign } = req.body;
+    const groups = String(req.query.groups || '').split(',').filter(Boolean);
+    if (!groups.length) return res.status(400).json({ error: 'groups required' });
+    const { emails, phones } = await resolveBroadcastAudience(groups);
+    res.json({ emailCount: emails.length, smsCount: phones.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/notifications/broadcast — organizer broadcast to a selected audience ──
+// `groups` (subset of attendees/exhibitors/users) picks who's targeted; `channel`
+// (email/sms/both) picks how. Email goes through the same Graph API flow used
+// everywhere else in this file (lib/mailer.js's sendOtpEmail, ADMA's own
+// NoReply@tyflex.co.zw mailbox). SMS goes through ADMA's own direct OmniFlex account
+// (lib/omniflex.js's sendSms, backed by OMNIFLEX_API_KEY) — deliberately NOT the
+// reseller SSO path (lib/omniflexReseller.js / makeLoginLink), which is built for a
+// human to open a browser session inside an exhibitor's own OmniFlex workspace, not a
+// server-triggered bulk send, and deliberately not routed through any exhibitor
+// account — marketing@admadigital.co.zw specifically already collided with ADMA's own
+// OmniFlex house account once (see RISK_REGISTER.md).
+r.post('/broadcast', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
+  try {
+    const { channel, subject, message, campaign, groups } = req.body;
     if (!message?.trim()) return res.status(400).json({ error: 'message required' });
+    if (!['email', 'sms', 'both'].includes(channel)) return res.status(400).json({ error: 'channel must be email, sms, or both' });
+    const selectedGroups = Array.isArray(groups) ? groups.filter(g => AUDIENCE_GROUPS.includes(g)) : [];
+    if (!selectedGroups.length) return res.status(400).json({ error: 'groups required' });
 
-    const result = await ddb.send(new ScanCommand({
-      TableName: 'adma_registrations',
-      FilterExpression: '#s IN (:c, :ci)',
-      ExpressionAttributeNames: { '#s': 'status' },
-      ExpressionAttributeValues: { ':c': 'Confirmed', ':ci': 'Checked In' },
-    }));
-    const registrations = result.Items || [];
+    const { emails, phones } = await resolveBroadcastAudience(selectedGroups);
 
-    // Dedupe by normalized phone — a household/company can legitimately share one
-    // number across several registrations, and sending the same message to the same
-    // number twice just wastes credit for no benefit. Invalid/unparseable numbers are
-    // silently skipped (counted in `skipped`), same as smsSilent's existing behavior.
-    const seen = new Set();
-    const targets = [];
-    for (const reg of registrations) {
-      const p = normalizePhone(reg.phone);
-      if (!p || seen.has(p)) continue;
-      seen.add(p);
-      targets.push(p);
+    const result = {};
+    if (channel === 'email' || channel === 'both') {
+      result.email = await sendBatch(emails, (email) =>
+        sendOtpEmail(email, null, { subject: subject?.trim() || 'ADMA Digital', html: broadcastEmailHtml(message) })
+      );
     }
-    const skipped = registrations.length - targets.length;
-
-    // Bounded concurrency — there's no bulk/campaign-send endpoint wired up for
-    // ADMA's own direct OmniFlex account here, only sendSms() per recipient, so this
-    // caps how many are in flight at once instead of firing them all simultaneously.
-    const CONCURRENCY = 10;
-    let sent = 0, failed = 0;
-    let i = 0;
-    async function worker() {
-      while (i < targets.length) {
-        const phone = targets[i++];
-        try {
-          await sendSms(phone, message);
-          sent++;
-        } catch (e) {
-          failed++;
-          console.error(`[bulk-sms] send to ${phone} failed: ${e.message}`);
-        }
-      }
+    if (channel === 'sms' || channel === 'both') {
+      result.sms = await sendBatch(phones, (phone) => sendSms(phone, message));
     }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
 
-    console.log(`[bulk-sms] campaign="${campaign}" targeted=${targets.length} sent=${sent} failed=${failed} skipped=${skipped}`);
-    res.json({ ok: true, campaign, targeted: targets.length, sent, failed, skipped });
+    console.log(`[broadcast] campaign="${campaign}" channel=${channel} groups=${selectedGroups.join(',')} result=${JSON.stringify(result)}`);
+    res.json({ ok: true, campaign, groups: selectedGroups, ...result });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

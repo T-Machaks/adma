@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Announcement } from '@/api/entities';
+import { Announcement, Campaign } from '@/api/entities';
 import { notifyAnnouncement } from '@/api/notify';
 import { apiFetch } from '@/api/client';
 import {
   Bell, Plus, Trash2, Edit2,
   Mail, Send, Sparkles,
-  Smartphone, Radio, Timer, CheckCircle2,
+  Smartphone, Timer, CheckCircle2,
+  Users, Building2, UserCog, Loader2, AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 
@@ -31,13 +33,12 @@ const TYPE_STYLES = {
 };
 
 const EMPTY_FORM = { type: 'General', title: '', body: '', sponsored: false, sponsor_name: '' };
+const EMPTY_CAMPAIGN_FORM = { label: '', subject: '', body: '' };
 
-const CAMPAIGN_ROWS = [
-  { id: 'email-pre', label: 'Pre-event reminder — 7 days before', channel: 'email', icon: Mail },
-  { id: 'email-welcome', label: 'Day 1 welcome message', channel: 'email', icon: Mail },
-  { id: 'sms-reminder', label: 'SMS day-of reminder', channel: 'sms', icon: Smartphone },
-  { id: 'push-session', label: 'Session start push alert', channel: 'push', icon: Radio },
-  { id: 'email-followup', label: 'Post-event follow-up', channel: 'email', icon: Mail },
+const AUDIENCE_GROUP_OPTIONS = [
+  { key: 'attendees',  label: 'Attendees',  desc: 'Confirmed / Checked In registrations', icon: Users },
+  { key: 'exhibitors', label: 'Exhibitors', desc: 'Exhibitor booth contacts',              icon: Building2 },
+  { key: 'users',      label: 'Accounts',   desc: 'Every login account, any role',         icon: UserCog },
 ];
 
 export default function Communications() {
@@ -48,11 +49,22 @@ export default function Communications() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [campaignDialog, setCampaignDialog] = useState(null);
-  const [campaignForm, setCampaignForm] = useState({ subject: '', body: '' });
-  const [sendingCampaign, setSendingCampaign] = useState(false);
   const [eventDateInput, setEventDateInput] = useState(settings?.event_start_date ? settings.event_start_date.slice(0, 16) : '');
   const [savingDate, setSavingDate] = useState(false);
+
+  // Campaign templates (editable, DB-backed — see server/routes/campaigns.js)
+  const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+  const [editingCampaignId, setEditingCampaignId] = useState(null);
+  const [campaignForm, setCampaignForm] = useState(EMPTY_CAMPAIGN_FORM);
+  const [deleteCampaignConfirm, setDeleteCampaignConfirm] = useState(null);
+
+  // Send dialog — channel + audience are chosen per-send, not fixed on the campaign
+  const [sendDialogCampaign, setSendDialogCampaign] = useState(null);
+  const [sendForm, setSendForm] = useState({ subject: '', body: '' });
+  const [sendEmail, setSendEmail] = useState(true);
+  const [sendSms, setSendSms] = useState(false);
+  const [sendGroups, setSendGroups] = useState({ attendees: true, exhibitors: false, users: false });
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   const saveEventDate = async () => {
     if (!eventDateInput) return;
@@ -67,41 +79,116 @@ export default function Communications() {
     }
   };
 
-  const sendCampaign = async (row) => {
-    if (row.channel === 'sms') {
-      setSendingCampaign(true);
-      try {
-        // apiFetch (not raw fetch) — fetch() doesn't reject on a non-2xx response, so a
-        // real server-side failure (missing OMNIFLEX_API_KEY, etc.) would otherwise be
-        // silently swallowed and still show a success toast.
-        const result = await apiFetch('/api/notifications/bulk-sms', {
-          method: 'POST',
-          body: { message: campaignForm.body, campaign: row.id },
-        });
-        if (result.failed > 0) {
-          toast({
-            title: `Sent to ${result.sent} of ${result.targeted}`,
-            description: `${result.failed} failed to send${result.skipped ? `, ${result.skipped} skipped (no valid phone)` : ''}. Check server logs for details.`,
-            variant: 'destructive',
-          });
-        } else {
-          toast({ title: `Sent to ${result.sent} attendee${result.sent === 1 ? '' : 's'}`, description: result.skipped ? `${result.skipped} skipped (no valid phone).` : undefined });
-        }
-      } catch (e) {
-        toast({ title: 'Send failed', description: e.message, variant: 'destructive' });
-      } finally {
-        setSendingCampaign(false);
-      }
-    } else {
-      toast({ title: `${row.channel === 'push' ? 'Push' : 'Email'} queued`, description: 'Integration coming soon — message logged.' });
+  const selectedGroups = useMemo(
+    () => Object.entries(sendGroups).filter(([, v]) => v).map(([k]) => k),
+    [sendGroups]
+  );
+  const channel = sendEmail && sendSms ? 'both' : sendEmail ? 'email' : sendSms ? 'sms' : null;
+
+  // Live recipient counts for the groups currently selected — fetched fresh every time
+  // the group selection changes, and shown before Send is even clickable. This is the
+  // actual safeguard for a broadcast this size: the organizer sees real numbers, not
+  // just a generic confirm dialog, before anything goes out.
+  const { data: audience, isFetching: loadingAudience } = useQuery({
+    queryKey: ['broadcast-audience', selectedGroups.join(',')],
+    queryFn: () => apiFetch(`/api/notifications/broadcast-audience?groups=${selectedGroups.join(',')}`),
+    enabled: !!sendDialogCampaign && selectedGroups.length > 0,
+  });
+
+  const openSendDialog = (campaign) => {
+    setSendForm({ subject: campaign.subject || '', body: campaign.body || '' });
+    setSendEmail(true);
+    setSendSms(false);
+    setSendGroups({ attendees: true, exhibitors: false, users: false });
+    setSendDialogCampaign(campaign);
+  };
+
+  const sendBroadcast = async () => {
+    if (!channel || !selectedGroups.length || !sendForm.body.trim()) return;
+    setSendingBroadcast(true);
+    try {
+      // apiFetch (not raw fetch) — fetch() doesn't reject on a non-2xx response, so a
+      // real server-side failure (missing OMNIFLEX_API_KEY/MAILER_*, etc.) would
+      // otherwise be silently swallowed and still show a success toast.
+      const result = await apiFetch('/api/notifications/broadcast', {
+        method: 'POST',
+        body: { channel, subject: sendForm.subject, message: sendForm.body, campaign: sendDialogCampaign.id, groups: selectedGroups },
+      });
+      const parts = [];
+      if (result.email) parts.push(`Email: ${result.email.sent}/${result.email.targeted} sent${result.email.failed ? `, ${result.email.failed} failed` : ''}`);
+      if (result.sms) parts.push(`SMS: ${result.sms.sent}/${result.sms.targeted} sent${result.sms.failed ? `, ${result.sms.failed} failed` : ''}`);
+      const anyFailed = (result.email?.failed || 0) + (result.sms?.failed || 0) > 0;
+      toast({
+        title: anyFailed ? 'Broadcast sent with some failures' : 'Broadcast sent',
+        description: parts.join(' · '),
+        variant: anyFailed ? 'destructive' : undefined,
+      });
+      setSendDialogCampaign(null);
+    } catch (e) {
+      toast({ title: 'Send failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSendingBroadcast(false);
     }
-    setCampaignDialog(null);
   };
 
   const { data: announcements = [] } = useQuery({
     queryKey: ['announcements'],
     queryFn: () => Announcement.list('-created_date'),
   });
+
+  const { data: campaigns = [] } = useQuery({
+    queryKey: ['campaigns'],
+    queryFn: () => Campaign.list('-created_date'),
+  });
+
+  const addCampaignMutation = useMutation({
+    mutationFn: (data) => Campaign.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['campaigns'] });
+      setCampaignDialogOpen(false);
+      setCampaignForm(EMPTY_CAMPAIGN_FORM);
+    },
+  });
+
+  const updateCampaignMutation = useMutation({
+    mutationFn: ({ id, data }) => Campaign.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['campaigns'] });
+      setCampaignDialogOpen(false);
+      setEditingCampaignId(null);
+      setCampaignForm(EMPTY_CAMPAIGN_FORM);
+    },
+  });
+
+  const deleteCampaignMutation = useMutation({
+    mutationFn: (id) => Campaign.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['campaigns'] });
+      setDeleteCampaignConfirm(null);
+    },
+  });
+
+  const openAddCampaignDialog = () => {
+    setEditingCampaignId(null);
+    setCampaignForm(EMPTY_CAMPAIGN_FORM);
+    setCampaignDialogOpen(true);
+  };
+
+  const openEditCampaignDialog = (c) => {
+    setEditingCampaignId(c.id);
+    setCampaignForm({ label: c.label || '', subject: c.subject || '', body: c.body || '' });
+    setCampaignDialogOpen(true);
+  };
+
+  const handleCampaignSubmit = (e) => {
+    e.preventDefault();
+    if (!campaignForm.label.trim() || !campaignForm.body.trim()) return;
+    if (editingCampaignId) {
+      updateCampaignMutation.mutate({ id: editingCampaignId, data: campaignForm });
+    } else {
+      addCampaignMutation.mutate(campaignForm);
+    }
+  };
 
   const addMutation = useMutation({
     mutationFn: (data) => Announcement.create(data),
@@ -250,36 +337,40 @@ export default function Communications() {
 
       {/* Campaign messaging */}
       <section className="bg-card border border-border rounded-xl p-5">
-        <p className="font-heading text-base font-bold uppercase tracking-wide mb-1 flex items-center gap-2">
-          <Send className="w-4 h-4 text-amber" /> Campaign Messaging
-        </p>
-        <p className="text-xs text-muted-foreground mb-4">Trigger email, SMS, and push broadcast campaigns to registered attendees.</p>
-        <div className="space-y-2">
-          {CAMPAIGN_ROWS.map(row => {
-            const Icon = row.icon;
-            const channelColor = { email: 'text-blue-500', sms: 'text-green-500', push: 'text-violet-500' }[row.channel] || 'text-muted-foreground';
-            const channelBadge = { email: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', sms: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', push: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' }[row.channel];
-            return (
-              <div key={row.id} className="flex items-center justify-between px-3 py-2.5 bg-muted rounded-lg gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${channelColor}`} />
-                  <span className="text-xs font-medium truncate">{row.label}</span>
+        <div className="flex items-start justify-between mb-1 gap-3">
+          <p className="font-heading text-base font-bold uppercase tracking-wide flex items-center gap-2">
+            <Send className="w-4 h-4 text-amber" /> Campaign Messaging
+          </p>
+          <Button size="sm" onClick={openAddCampaignDialog} className="flex items-center gap-1.5 flex-shrink-0">
+            <Plus className="w-3.5 h-3.5" /> New
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">Editable message templates — send each one by email, SMS, or both, to whichever of attendees / exhibitors / accounts you choose.</p>
+        {campaigns.length === 0 ? (
+          <div className="bg-muted/40 border border-dashed border-border rounded-xl p-6 text-center text-muted-foreground text-xs">
+            No campaigns yet. Click <strong>New</strong> to create one.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {campaigns.map(c => (
+              <div key={c.id} className="flex items-center justify-between px-3 py-2.5 bg-muted rounded-lg gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold truncate">{c.label}</p>
+                  {c.subject && <p className="text-[11px] text-muted-foreground truncate">{c.subject}</p>}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${channelBadge}`}>{row.channel}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 text-[10px] px-2"
-                    onClick={() => { setCampaignForm({ subject: row.label, body: '' }); setCampaignDialog(row); }}
-                  >
-                    Send
-                  </Button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button size="sm" className="h-6 text-[10px] px-2" onClick={() => openSendDialog(c)}>Send</Button>
+                  <button onClick={() => openEditCampaignDialog(c)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-background transition-colors" aria-label="Edit campaign">
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setDeleteCampaignConfirm(c.id)} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors" aria-label="Delete campaign">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Add/Edit announcement dialog */}
@@ -357,45 +448,135 @@ export default function Communications() {
         </DialogContent>
       </Dialog>
 
-      {/* Campaign send dialog */}
-      <Dialog open={!!campaignDialog} onOpenChange={open => !open && setCampaignDialog(null)}>
+      {/* Add/Edit campaign dialog */}
+      <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Send Campaign</DialogTitle>
+            <DialogTitle>{editingCampaignId ? 'Edit Campaign' : 'New Campaign'}</DialogTitle>
           </DialogHeader>
-          {campaignDialog && (
+          <form onSubmit={handleCampaignSubmit} className="space-y-4 pt-1">
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Label</label>
+              <Input
+                placeholder="e.g. Pre-event reminder — 7 days before"
+                value={campaignForm.label}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, label: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Email Subject</label>
+              <Input
+                placeholder="Used when sent by email — ignored for SMS-only sends"
+                value={campaignForm.subject}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, subject: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Message</label>
+              <Textarea
+                placeholder="Write the campaign message…"
+                rows={5}
+                value={campaignForm.body}
+                onChange={(e) => setCampaignForm((f) => ({ ...f, body: e.target.value }))}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCampaignDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={addCampaignMutation.isPending || updateCampaignMutation.isPending}>
+                {addCampaignMutation.isPending || updateCampaignMutation.isPending ? 'Saving…' : editingCampaignId ? 'Save Changes' : 'Add Campaign'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send broadcast dialog — channel + audience chosen here, at send time */}
+      <Dialog open={!!sendDialogCampaign} onOpenChange={open => !open && setSendDialogCampaign(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Send: {sendDialogCampaign?.label}</DialogTitle>
+          </DialogHeader>
+          {sendDialogCampaign && (
             <div className="space-y-4 pt-1">
-              <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
-                <campaignDialog.icon className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs font-medium">{campaignDialog.label}</span>
-                <span className="ml-auto text-[10px] font-bold uppercase text-muted-foreground">{campaignDialog.channel}</span>
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Channel</label>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border flex-1 cursor-pointer">
+                    <Checkbox checked={sendEmail} onCheckedChange={v => setSendEmail(!!v)} />
+                    <Mail className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-xs font-medium">Email</span>
+                  </label>
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border flex-1 cursor-pointer">
+                    <Checkbox checked={sendSms} onCheckedChange={v => setSendSms(!!v)} />
+                    <Smartphone className="w-3.5 h-3.5 text-green-500" />
+                    <span className="text-xs font-medium">SMS</span>
+                  </label>
+                </div>
               </div>
-              {campaignDialog.channel === 'email' && (
+
+              <div>
+                <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Audience</label>
+                <div className="space-y-1.5">
+                  {AUDIENCE_GROUP_OPTIONS.map(g => {
+                    const Icon = g.icon;
+                    return (
+                      <label key={g.key} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-border cursor-pointer">
+                        <Checkbox
+                          checked={sendGroups[g.key]}
+                          onCheckedChange={v => setSendGroups(s => ({ ...s, [g.key]: !!v }))}
+                        />
+                        <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium">{g.label}</p>
+                          <p className="text-[10px] text-muted-foreground">{g.desc}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {sendEmail && (
                 <div>
                   <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Subject</label>
-                  <Input value={campaignForm.subject} onChange={e => setCampaignForm(f => ({ ...f, subject: e.target.value }))} />
+                  <Input value={sendForm.subject} onChange={e => setSendForm(f => ({ ...f, subject: e.target.value }))} />
                 </div>
               )}
               <div>
                 <label className="text-xs font-semibold uppercase text-muted-foreground mb-1.5 block">Message</label>
                 <Textarea
                   rows={4}
-                  value={campaignForm.body}
-                  onChange={e => setCampaignForm(f => ({ ...f, body: e.target.value }))}
-                  placeholder="Write your message to attendees…"
+                  value={sendForm.body}
+                  onChange={e => setSendForm(f => ({ ...f, body: e.target.value }))}
+                  placeholder="Write your message…"
                 />
               </div>
-              {campaignDialog.channel !== 'push' && (
-                <p className="text-xs text-muted-foreground">
-                  {campaignDialog.channel === 'sms'
-                    ? 'Sent via OmniFlex to every Confirmed/Checked In attendee with a valid phone number.'
-                    : 'Email integration placeholder — message will be logged server-side.'}
-                </p>
-              )}
+
+              {/* Real recipient counts — the actual safeguard before Send is even
+                  clickable, not just a generic confirm dialog. */}
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-muted text-xs">
+                {selectedGroups.length === 0 ? (
+                  <span className="text-muted-foreground flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Select at least one audience group.</span>
+                ) : !channel ? (
+                  <span className="text-muted-foreground flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Select at least one channel.</span>
+                ) : loadingAudience ? (
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Counting recipients…</span>
+                ) : audience ? (
+                  <span className="font-medium">
+                    This will reach{sendEmail && ` ${audience.emailCount} by email`}{sendEmail && sendSms && ' and'}{sendSms && ` ${audience.smsCount} by SMS`}.
+                  </span>
+                ) : null}
+              </div>
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => setCampaignDialog(null)}>Cancel</Button>
-                <Button onClick={() => sendCampaign(campaignDialog)} disabled={!campaignForm.body.trim() || sendingCampaign}>
-                  {sendingCampaign ? 'Sending…' : 'Send'}
+                <Button variant="outline" onClick={() => setSendDialogCampaign(null)}>Cancel</Button>
+                <Button
+                  onClick={sendBroadcast}
+                  disabled={!channel || !selectedGroups.length || !sendForm.body.trim() || loadingAudience || !audience || sendingBroadcast}
+                >
+                  {sendingBroadcast ? 'Sending…' : 'Send Broadcast'}
                 </Button>
               </DialogFooter>
             </div>
@@ -403,7 +584,7 @@ export default function Communications() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm dialog */}
+      {/* Delete announcement confirm dialog */}
       <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -418,6 +599,26 @@ export default function Communications() {
               onClick={() => deleteMutation.mutate(deleteConfirm)}
             >
               {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete campaign confirm dialog */}
+      <Dialog open={!!deleteCampaignConfirm} onOpenChange={(open) => !open && setDeleteCampaignConfirm(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Campaign</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">This campaign template will be removed. This cannot be undone.</p>
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setDeleteCampaignConfirm(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteCampaignMutation.isPending}
+              onClick={() => deleteCampaignMutation.mutate(deleteCampaignConfirm)}
+            >
+              {deleteCampaignMutation.isPending ? 'Deleting…' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -26,3 +26,4 @@ export { Collaboration } from "./Collaboration";
 export { RateCard } from "./RateCard";
 export { Payment } from "./Payment";
 export { SmsCredits } from "./SmsCredits";
+export { Campaign } from "./Campaign";
