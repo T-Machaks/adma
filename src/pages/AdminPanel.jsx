@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, Exhibitor, User as UserEntity } from '@/api/entities';
-import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2, Plus, Eye, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { isSubscriptionExpired } from '@/lib/subscription';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const PACKAGES = ['Free', 'Basic', 'Enhanced', 'Premium'];
 
@@ -28,9 +31,12 @@ const MODULES = [
 ];
 
 export default function AdminPanel() {
-  const { user } = useAuth();
+  const { user, impersonateExhibitor } = useAuth();
   const isOrganizer = user?.role === 'organizer';
+  const isSuperadmin = user?.role === 'superadmin';
+  const canManageExhibitors = isOrganizer || isSuperadmin;
   const { settings, updateSettings } = useAppSettings();
+  const navigate = useNavigate();
 
   const [showOtp, setShowOtp] = useState(false);
   const queryClient = useQueryClient();
@@ -123,6 +129,45 @@ export default function AdminPanel() {
       setSaveError(err.message);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // New exhibitor, created directly by the organizer — no login account required up
+  // front. Everything else (login email, package, booth details) is filled in
+  // afterward, including via "Manage as Exhibitor" below.
+  const [showAddExhibitor, setShowAddExhibitor] = useState(false);
+  const [newExhibitorName, setNewExhibitorName] = useState('');
+  const [addingExhibitor, setAddingExhibitor] = useState(false);
+  const [addExhibitorError, setAddExhibitorError] = useState(null);
+  const addExhibitor = async () => {
+    if (!newExhibitorName.trim()) return;
+    setAddingExhibitor(true);
+    setAddExhibitorError(null);
+    try {
+      await Exhibitor.create({ name: newExhibitorName.trim() });
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+      setNewExhibitorName('');
+      setShowAddExhibitor(false);
+    } catch (e) {
+      setAddExhibitorError(e.message);
+    } finally {
+      setAddingExhibitor(false);
+    }
+  };
+
+  // "Manage as Exhibitor" — switches the organizer's own session into that exhibitor's
+  // portal (server/routes/auth.js) so they can set up the booth on the exhibitor's
+  // behalf. Server-enforced to organizer/superadmin only, same as this whole page.
+  const [impersonatingId, setImpersonatingId] = useState(null);
+  const manageAsExhibitor = async (e) => {
+    setImpersonatingId(e.id);
+    setSaveError(null);
+    const result = await impersonateExhibitor(e.id);
+    if (result.success) {
+      navigate('/exhibitor');
+    } else {
+      setSaveError(result.error);
+      setImpersonatingId(null);
     }
   };
 
@@ -314,9 +359,16 @@ export default function AdminPanel() {
 
       {/* Exhibitor Portal Logins */}
       <div className="bg-card border border-border rounded-xl overflow-hidden mb-5">
-        <div className="px-4 py-3 border-b border-border">
-          <p className="font-heading text-sm font-bold uppercase tracking-wide">Exhibitor Portal Logins</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Set the login email for each exhibitor so they only see their own meeting requests. Lock an exhibitor to block all portal access, including the superadmin override.</p>
+        <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-3">
+          <div>
+            <p className="font-heading text-sm font-bold uppercase tracking-wide">Exhibitor Portal Logins</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Set the login email for each exhibitor so they only see their own meeting requests. Lock an exhibitor to block all portal access, including the superadmin override.</p>
+          </div>
+          {canManageExhibitors && (
+            <Button type="button" size="sm" onClick={() => setShowAddExhibitor(true)} className="flex-shrink-0 gap-1.5">
+              <Plus className="w-3.5 h-3.5" /> Add Exhibitor
+            </Button>
+          )}
         </div>
 
         <div className="px-4 py-3 border-b border-border">
@@ -423,6 +475,18 @@ export default function AdminPanel() {
                         </button>
                       )}
                     </>
+                  )}
+                  {canManageExhibitors && (
+                    <button
+                      type="button"
+                      disabled={impersonatingId === e.id}
+                      onClick={() => manageAsExhibitor(e)}
+                      title="Log in as this exhibitor to set up their booth"
+                      className="flex-shrink-0 text-xs border border-border px-3 py-1.5 rounded-lg font-medium hover:bg-muted transition-colors disabled:opacity-60 flex items-center gap-1.5"
+                    >
+                      {impersonatingId === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                      Manage
+                    </button>
                   )}
                   <button
                     type="button"
@@ -775,6 +839,37 @@ export default function AdminPanel() {
           );
         })}
       </div>
+
+      {/* Add Exhibitor dialog */}
+      <Dialog open={showAddExhibitor} onOpenChange={(open) => { if (!open) { setShowAddExhibitor(false); setAddExhibitorError(null); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add Exhibitor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Company name</label>
+              <Input
+                autoFocus
+                value={newExhibitorName}
+                onChange={ev => setNewExhibitorName(ev.target.value)}
+                onKeyDown={ev => { if (ev.key === 'Enter') addExhibitor(); }}
+                placeholder="e.g. Greenfield Farms"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Creates the booth with no login yet — set a login email below, or use "Manage" to set the account up yourself first.</p>
+            {addExhibitorError && (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{addExhibitorError}</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { setShowAddExhibitor(false); setAddExhibitorError(null); }}>Cancel</Button>
+            <Button type="button" onClick={addExhibitor} disabled={addingExhibitor || !newExhibitorName.trim()}>
+              {addingExhibitor ? 'Adding…' : 'Add Exhibitor'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

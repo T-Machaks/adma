@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ChevronDown, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt, MessageSquare, Loader2 } from 'lucide-react';
+import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ChevronDown, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt, MessageSquare, Loader2, Eye } from 'lucide-react';
 import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
 import { SmsCredits } from '@/api/entities';
@@ -44,8 +45,20 @@ const navGroups = [
 export default function ExhibitorShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoadingAuth, logout } = useAuth();
+  const { user, isLoadingAuth, logout, exitImpersonation } = useAuth();
   const isHome = location.pathname === '/exhibitor';
+
+  const [exitingImpersonation, setExitingImpersonation] = useState(false);
+  const handleExitImpersonation = async () => {
+    setExitingImpersonation(true);
+    const result = await exitImpersonation();
+    if (result.success) {
+      navigate(result.redirectTo || '/console/admin');
+    } else {
+      setExitingImpersonation(false);
+      window.alert(result.error || 'Could not restore your organizer session.');
+    }
+  };
 
   // One-click SMS Dashboard access from anywhere in the portal, not just My Booth/Rate
   // Card. Smart pill: opens the workspace directly once one exists, otherwise sends the
@@ -72,6 +85,19 @@ export default function ExhibitorShell() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {user.impersonating && (
+        <div className="bg-amber text-white px-3 sm:px-4 py-1.5 flex items-center justify-center gap-2 text-xs font-medium flex-wrap">
+          <Eye className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Managing as <span className="font-bold">{user.company}</span> — changes here affect their live booth</span>
+          <button
+            onClick={handleExitImpersonation}
+            disabled={exitingImpersonation}
+            className="ml-1 underline underline-offset-2 font-bold hover:no-underline disabled:opacity-60"
+          >
+            {exitingImpersonation ? 'Exiting…' : 'Exit'}
+          </button>
+        </div>
+      )}
       <header className="sticky top-0 z-50 bg-steel border-b border-white/10">
         <div className="w-full px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-3">
           {!isHome && (

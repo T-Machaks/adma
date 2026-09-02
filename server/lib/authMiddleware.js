@@ -13,6 +13,10 @@ export async function attachUser(req, _res, next) {
       exhibitor_id: session.exhibitor_id,
       email: session.email,
       company: session.company,
+      // Only ever set on an organizer's "Manage as Exhibitor" session (see
+      // createImpersonationSession) — undefined for every ordinary login.
+      impersonating: session.impersonating || undefined,
+      impersonatedByEmail: session.impersonated_by_email || undefined,
     };
   }
   next();

@@ -8,7 +8,7 @@ import { sendOtpEmail } from '../lib/mailer.js';
 import { sendSmsOtp, verifySmsOtp } from '../lib/omniflex.js';
 import { generateSecret, generateQrDataUrl, verifyToken } from '../lib/totp.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
-import { createSession, revokeSession, revokeAllSessionsForUser, SESSION_COOKIE } from '../lib/session.js';
+import { createSession, createImpersonationSession, revokeSession, revokeAllSessionsForUser, validateSession, SESSION_COOKIE } from '../lib/session.js';
 import { createChallenge, getChallenge, updateChallenge, deleteChallenge } from '../lib/challengeStore.js';
 import { requireRole, requireAuth } from '../lib/authMiddleware.js';
 import { getMyExhibitorId, CONSOLE_ROLES } from '../lib/ownership.js';
@@ -1207,6 +1207,81 @@ router.post('/logout', async (req, res) => {
   await revokeSession(req.cookies?.[SESSION_COOKIE]);
   res.clearCookie(SESSION_COOKIE, { path: '/' });
   res.json({ ok: true });
+});
+
+// A second, separate cookie that only ever holds an organizer's own session token
+// while they're impersonating an exhibitor — lets them return to their real session
+// without re-authenticating. Never touched by any flow other than the two below.
+const ADMIN_SESSION_COOKIE = 'adma_admin_session';
+const cookieOpts = (req, expires) => ({ httpOnly: true, secure: req.secure, sameSite: 'lax', expires, path: '/' });
+
+// ── POST /api/auth/impersonate-exhibitor/:id  — "Manage as Exhibitor" ────────────
+// Organizer/superadmin only (requireRole below already excludes an impersonation
+// session itself, since that carries role: 'exhibitor' — no risk of nesting). Stashes
+// the organizer's own session token in a second cookie so exit-impersonation can
+// restore it, then overwrites the main session cookie with a short-lived (2h)
+// exhibitor-scoped one. See lib/session.js's createImpersonationSession for why this
+// reuses every existing exhibitor route/UI unchanged.
+router.post('/impersonate-exhibitor/:id', requireRole('organizer', 'superadmin'), async (req, res) => {
+  try {
+    const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+    const exhibitor = result.Item;
+    if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
+    if (exhibitor.deleted) return res.status(400).json({ error: 'This exhibitor has been deleted.' });
+
+    const adminToken = req.cookies?.[SESSION_COOKIE];
+    const { token, expiresAt } = await createImpersonationSession(req.user, exhibitor);
+
+    res.cookie(ADMIN_SESSION_COOKIE, adminToken, cookieOpts(req, new Date(Date.now() + 2 * 60 * 60 * 1000)));
+    res.cookie(SESSION_COOKIE, token, cookieOpts(req, expiresAt));
+
+    logSecurityEvent('exhibitor_impersonation_started', {
+      organizerId: req.user.id, organizerEmail: req.user.email,
+      exhibitorId: exhibitor.id, exhibitorName: exhibitor.name, ip: req.ip,
+    });
+
+    res.json({
+      id: req.user.id,
+      email: exhibitor.contact_email || '',
+      full_name: exhibitor.name,
+      role: 'exhibitor',
+      company: exhibitor.name,
+      impersonating: true,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/auth/exit-impersonation  — return to the organizer's own session ───
+router.post('/exit-impersonation', async (req, res) => {
+  try {
+    if (!req.user?.impersonating) return res.status(400).json({ error: 'Not currently managing as an exhibitor.' });
+
+    const adminToken = req.cookies?.[ADMIN_SESSION_COOKIE];
+    const adminSession = await validateSession(adminToken);
+    if (!adminSession) {
+      // The stashed admin session itself expired/was revoked in the meantime — nothing
+      // safe to restore. Clear both cookies and send them back to a normal login.
+      res.clearCookie(SESSION_COOKIE, { path: '/' });
+      res.clearCookie(ADMIN_SESSION_COOKIE, { path: '/' });
+      return res.status(401).json({ error: 'Your organizer session has expired. Please log in again.' });
+    }
+
+    logSecurityEvent('exhibitor_impersonation_ended', {
+      organizerId: adminSession.user_id, exhibitorId: req.user.exhibitor_id, ip: req.ip,
+    });
+
+    await revokeSession(req.cookies?.[SESSION_COOKIE]); // the impersonation session itself — no reason to keep it live
+    res.cookie(SESSION_COOKIE, adminToken, cookieOpts(req, new Date(adminSession.expires_at)));
+    res.clearCookie(ADMIN_SESSION_COOKIE, { path: '/' });
+
+    const organizer = await getById(adminSession.user_id);
+    if (!organizer) return res.status(404).json({ error: 'Organizer account not found.' });
+    res.json(sanitize(organizer));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;
