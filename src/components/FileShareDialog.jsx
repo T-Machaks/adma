@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileShare } from '@/api/entities';
-import { Link2, Copy, Check, Trash2, Ban, FileIcon, Loader2, Plus } from 'lucide-react';
+import { FileShare, Exhibitor } from '@/api/entities';
+import { Link2, Copy, Check, Trash2, Ban, FileIcon, Loader2, Plus, Image as ImageIcon, Building2, Images, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { normalizeGalleryItem } from '@/lib/imageUtils';
+import { getPackageLimits } from '@/lib/standTiers';
 
 function formatBytes(bytes) {
   if (!bytes) return '0 B';
@@ -42,6 +44,80 @@ function CopyButton({ text }) {
   );
 }
 
+// One-click "apply to profile" row for a single uploaded file — Logo, Booth Image, and
+// Gallery are the only three fields worth offering here (the rest of the exhibitor
+// profile is text, not images). Skips the crop/position step entirely and writes the
+// file's already-public S3 URL straight onto the profile, same as pasting a URL into
+// the Logo field's own "or paste an image URL…" box would — there's no meaningful
+// difference, this just removes the manual copy/open/paste round trip. Only shown for
+// image files; a PDF or video has nothing sensible to apply here.
+function ApplyToProfileActions({ file, exhibitorFull, exhibitorId, disabled }) {
+  const queryClient = useQueryClient();
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['exhibitor-full', exhibitorId] });
+    queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+    queryClient.invalidateQueries({ queryKey: ['exhibitor', exhibitorId] });
+  };
+
+  const setLogo = useMutation({
+    mutationFn: () => Exhibitor.update(exhibitorId, { logo_url: file.url }),
+    onSuccess: invalidate,
+  });
+  const setBoothImage = useMutation({
+    mutationFn: () => Exhibitor.update(exhibitorId, { booth_image_url: file.url, booth_image_position: null }),
+    onSuccess: invalidate,
+  });
+  const addToGallery = useMutation({
+    mutationFn: () => Exhibitor.update(exhibitorId, {
+      gallery: [...(exhibitorFull?.gallery || []), { url: file.url, caption: '' }],
+    }),
+    onSuccess: invalidate,
+  });
+
+  if (!exhibitorFull) return null;
+
+  const isLogo = exhibitorFull.logo_url === file.url;
+  const isBoothImage = exhibitorFull.booth_image_url === file.url;
+  const galleryMax = getPackageLimits(exhibitorFull).galleryMax;
+  const gallery = exhibitorFull.gallery || [];
+  const inGallery = gallery.some(g => normalizeGalleryItem(g).url === file.url);
+  const galleryFull = gallery.length >= galleryMax;
+
+  const pill = (active, pending, onClick, disabledReason, Icon, label) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={active || pending || disabled || !!disabledReason}
+      title={disabledReason || label}
+      className={`flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+        active
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+          : 'border-border text-muted-foreground hover:bg-amber/10 hover:text-amber hover:border-amber/30'
+      }`}
+    >
+      {pending ? <Loader2 className="w-3 h-3 animate-spin" /> : active ? <CheckCircle2 className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
+      {active ? `${label} ✓` : label}
+    </button>
+  );
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+      {pill(isLogo, setLogo.isPending, () => setLogo.mutate(), null, ImageIcon, 'Logo')}
+      {pill(isBoothImage, setBoothImage.isPending, () => setBoothImage.mutate(), null, Building2, 'Booth Image')}
+      {pill(
+        inGallery, addToGallery.isPending, () => addToGallery.mutate(),
+        galleryMax === 0 ? "This exhibitor's package has no gallery" : (!inGallery && galleryFull ? 'Gallery is full — remove one first' : null),
+        Images, 'Gallery'
+      )}
+      {(setLogo.isError || setBoothImage.isError || addToGallery.isError) && (
+        <span className="text-[10px] text-red-600 w-full">
+          {(setLogo.error || setBoothImage.error || addToGallery.error)?.message}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // Per-exhibitor list of ADMA's own expiring upload links — lets an organizer send a
 // new exhibitor one link instead of asking for a WeTransfer/SharePoint link back. Each
 // link works for 14 days with no login required on the exhibitor's end; files uploaded
@@ -54,6 +130,16 @@ export default function FileShareDialog({ exhibitor, open, onOpenChange }) {
   const { data: shares = [], isLoading } = useQuery({
     queryKey: ['file-shares', exhibitor?.id],
     queryFn: () => FileShare.list(exhibitor.id),
+    enabled: open && !!exhibitor,
+  });
+
+  // The exhibitor's current profile state (logo_url, booth_image_url, gallery, package)
+  // — fetched fresh here rather than trusting the row snapshot AdminPanel passed in, so
+  // the Apply buttons above always reflect what's really on the profile right now, and
+  // stay correct across several applies in a row within the same dialog session.
+  const { data: exhibitorFull } = useQuery({
+    queryKey: ['exhibitor-full', exhibitor?.id],
+    queryFn: () => Exhibitor.get(exhibitor.id),
     enabled: open && !!exhibitor,
   });
 
@@ -154,19 +240,26 @@ export default function FileShareDialog({ exhibitor, open, onOpenChange }) {
 
                   {share.files?.length > 0 && (
                     <div className="divide-y divide-border border-t border-border pt-1.5">
-                      {share.files.map(f => (
-                        <a
-                          key={f.id}
-                          href={f.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 py-1.5 text-xs hover:text-amber transition-colors"
-                        >
-                          <FileIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-                          <span className="truncate flex-1">{f.filename}</span>
-                          <span className="text-muted-foreground flex-shrink-0">{formatBytes(f.size)}</span>
-                        </a>
-                      ))}
+                      {share.files.map(f => {
+                        const isImage = f.content_type?.startsWith('image/');
+                        return (
+                          <div key={f.id} className="py-1.5">
+                            <a
+                              href={f.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-xs hover:text-amber transition-colors"
+                            >
+                              <FileIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+                              <span className="truncate flex-1">{f.filename}</span>
+                              <span className="text-muted-foreground flex-shrink-0">{formatBytes(f.size)}</span>
+                            </a>
+                            {isImage && (
+                              <ApplyToProfileActions file={f} exhibitorFull={exhibitorFull} exhibitorId={exhibitor.id} />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
