@@ -6,6 +6,13 @@ import { generateId } from '../lib/idgen.js';
 import { createPresignedPut } from '../lib/s3.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
 import { requireRole } from '../lib/authMiddleware.js';
+import { sendOtpEmail } from '../lib/mailer.js';
+
+// Fixed staff mailbox — deliberately hardcoded rather than an app-settings field like
+// the other notify-email cases in this codebase (newApplicationNotifyEmail etc.): this
+// one was requested as a specific, always-on address, not something an organizer should
+// be able to accidentally point elsewhere.
+const NOTIFY_EMAIL = 'exhibitors@admadigital.co.zw';
 
 // ADMA's own expiring-link file drop — replaces asking a brand-new exhibitor for a
 // WeTransfer/SharePoint link when the organizer is setting up their profile for them.
@@ -23,6 +30,45 @@ const router = Router();
 
 function isExpired(share) {
   return new Date(share.expires_at) < new Date();
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// One email per file (not batched per session — there's no reliable "the exhibitor is
+// done uploading" signal from the public page, just individual upload completions), so
+// staff see each file the moment it lands rather than waiting on an arbitrary timeout.
+async function notifyFileUploaded(share, file) {
+  // filename is exhibitor-controlled (typed on an unauthenticated page) — escaped before
+  // going into HTML, unlike exhibitor_name/note which are organizer-set at link-creation
+  // time and already trusted content elsewhere in the console.
+  const filename = escapeHtml(file.filename);
+  await sendOtpEmail(NOTIFY_EMAIL, null, {
+    subject: `ADMA Digital — ${share.exhibitor_name} uploaded a file`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+        <h2 style="margin:0 0 8px;color:#111">New file share upload</h2>
+        <p style="color:#555"><strong>${share.exhibitor_name}</strong> just uploaded a file via their ADMA file share link${share.note ? ` (${share.note})` : ''}.</p>
+        <div style="background:#f4f4f5;border-radius:8px;padding:16px;margin:16px 0">
+          <p style="margin:0;color:#111"><strong>${filename}</strong></p>
+          <p style="margin:4px 0 0;color:#888;font-size:13px">${formatBytes(file.size)}</p>
+        </div>
+        <p style="color:#555">
+          <a href="${file.url}" style="color:#1b3729">View / download the file directly</a>,
+          or open Admin &amp; Security → Exhibitor Portal Logins → Files for ${share.exhibitor_name}
+          to apply it straight to their profile as Logo, Booth Image, or Gallery.
+        </p>
+      </div>
+    `,
+  });
 }
 
 // ── Organizer/superadmin — create & manage links ──────────────────────────────────
@@ -188,6 +234,11 @@ router.post('/public/:token/register', async (req, res) => {
     }));
     logSecurityEvent('file_share_upload', { token: req.params.token, exhibitorId: share.exhibitor_id, filename, size, ip: req.ip });
     res.status(201).json(fileRecord);
+
+    // Fire-and-forget — the upload already succeeded and was already saved above; a
+    // mailer hiccup here must never turn that into a failure response to the exhibitor,
+    // who's already moved on by the time this resolves.
+    notifyFileUploaded(share, fileRecord).catch(e => console.error('file-share upload notify failed:', e.message));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
