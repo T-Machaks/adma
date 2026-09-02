@@ -4,6 +4,7 @@ import { Partner, Exhibitor } from '@/api/entities';
 import { Globe, Mail, Star, Award, MapPin, ChevronRight } from 'lucide-react';
 import { SponsorBannerCarousel } from '@/components/SponsorBannerCarousel';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useSEO } from '@/lib/useSEO';
 
 const BASE = EVENT_CONFIG.cdnBase;
 const S3   = EVENT_CONFIG.s3Base;
@@ -32,6 +33,11 @@ const TIER_STYLE = {
 };
 
 export default function Sponsors() {
+  useSEO({
+    title: 'Partners & Sponsors',
+    description: 'Meet the partners and sponsors supporting the ADMA Agri Show.',
+    path: '/partners',
+  });
   const { data: dbSponsors = [], isLoading } = useQuery({
     queryKey: ['partners'],
     queryFn: () => Partner.list('-created_date'),

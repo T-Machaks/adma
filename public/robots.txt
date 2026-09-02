@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /console
+Disallow: /exhibitor/
+Disallow: /file-share/
+Disallow: /api/
+Disallow: /payment/
+Disallow: /login
+Disallow: /signup
+Disallow: /console/login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /exhibitor-login
+
+Sitemap: https://admadigital.co.zw/sitemap.xml

@@ -15,9 +15,11 @@ import QAPanel from '@/components/video/QAPanel';
 import PollWidget from '@/components/video/PollWidget';
 import ModeratorBar from '@/components/video/ModeratorBar';
 import { AdSlot } from '@/api/entities';
+import { useSEO } from '@/lib/useSEO';
 
 export default function LiveRoom() {
   const { id } = useParams();
+  useSEO({ title: 'Live Session', path: `/sessions/${id}`, noindex: true });
   const { user } = useAuth();
   const qc = useQueryClient();
   const isOrganizer = user?.role === 'organizer' || user?.role === 'superadmin';

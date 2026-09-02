@@ -6,6 +6,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import AdBannerCarousel from '@/components/home/AdBannerCarousel';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useSEO } from '@/lib/useSEO';
 
 const SESSIONS = [
   { id: 's1', title: 'Opening Keynote: Future of Mining in Southern Africa', time: '09:00', day: 'Day 1', location: 'Main Stage' },
@@ -17,6 +18,7 @@ const SESSIONS = [
 ];
 
 export default function AttendeeDashboard() {
+  useSEO({ title: 'My Dashboard', path: '/attendee-dashboard', noindex: true });
   const { user, isAuthenticated, isLoadingAuth } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('saved');

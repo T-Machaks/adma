@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ScheduleContent } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { useSEO } from '@/lib/useSEO';
 
 const typeConfig = {
   keynote: { color: 'border-amber-400 bg-amber-50 dark:bg-amber-950/30', icon: Star, label: 'Keynote', dot: 'bg-amber-400' },
@@ -18,6 +19,11 @@ const typeConfig = {
 };
 
 export default function Schedule() {
+  useSEO({
+    title: 'Event Schedule',
+    description: 'Full programme for the ADMA Agri Show — keynotes, panels, and sessions across all three days at ART Farm, Pomona.',
+    path: '/schedule',
+  });
   const [activeDay, setActiveDay] = useState(null);
   const { settings } = useAppSettings();
   const { data, isLoading } = useQuery({

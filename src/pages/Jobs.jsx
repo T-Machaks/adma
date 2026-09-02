@@ -4,6 +4,7 @@ import { JobListing } from '@/api/entities';
 import { Search, Briefcase, MapPin, Clock } from 'lucide-react';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import ListingCard from '@/components/shared/ListingCard';
+import { useSEO } from '@/lib/useSEO';
 
 const CATEGORIES = ['All', ...JOB_CATEGORIES];
 const TYPES = ['All', ...JOB_TYPES];
@@ -14,6 +15,11 @@ function fmtDate(iso) {
 }
 
 export default function Jobs() {
+  useSEO({
+    title: 'Jobs',
+    description: 'Agricultural sector job openings posted by exhibitors at the ADMA Agri Show.',
+    path: '/jobs',
+  });
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [type, setType] = useState('All');

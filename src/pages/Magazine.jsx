@@ -7,6 +7,7 @@ import { track } from '@/lib/tracking';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { toEmbedUrl, isEmbedVideoUrl } from '@/lib/videoUtils';
+import { useSEO } from '@/lib/useSEO';
 
 const M = '/magazines';
 
@@ -1388,6 +1389,11 @@ function MagazineLibrary({ onSelect, showGuide }) {
 
 // ── Root component ────────────────────────────────────────────────────────────
 export default function Magazine() {
+  useSEO({
+    title: 'Digital Magazine',
+    description: 'Read the official ADMA Agri Show digital magazine and event guide online.',
+    path: '/magazine',
+  });
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [view, setView] = useState(null); // null | 'guide' | 'adma'
   const { settings } = useAppSettings();

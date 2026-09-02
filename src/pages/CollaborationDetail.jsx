@@ -9,6 +9,7 @@ import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
   ArrowLeft, Clock, Send, CheckCircle, Lock, LogIn, UserPlus, ExternalLink,
 } from 'lucide-react';
+import { useSEO } from '@/lib/useSEO';
 
 function fmtDate(iso) {
   if (!iso) return null;
@@ -24,6 +25,12 @@ export default function CollaborationDetail() {
   const { data: collab, isLoading } = useQuery({
     queryKey: ['collaboration', id],
     queryFn: () => Collaboration.get(id),
+  });
+
+  useSEO({
+    title: collab ? `${collab.title}${collab.company_name ? ` — ${collab.company_name}` : ''}` : 'Collaboration',
+    description: collab?.description?.trim()?.slice(0, 200) || (collab ? `${collab.title} — collaboration opportunity on ADMA Digital.` : undefined),
+    path: `/collaborations/${id}`,
   });
 
   const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', message: '' });

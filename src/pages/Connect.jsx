@@ -4,6 +4,7 @@ import { MeetingRequest, Exhibitor } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
 import { Users, Calendar, BarChart2, Bell, Shield, BookOpen, Star, MessageSquare, FileText, Map, Clock, Smartphone, TrendingUp, ChevronRight, Zap } from 'lucide-react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useSEO } from '@/lib/useSEO';
 
 const MODULES = [
   {
@@ -47,6 +48,7 @@ const MODULES = [
 ];
 
 export default function Connect() {
+  useSEO({ title: 'Connect', path: '/connect', noindex: true });
   const { hasConsoleAccess } = useAuth();
   const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => MeetingRequest.list() });
   const { data: exhibitors = [] } = useQuery({ queryKey: ['exhibitors'], queryFn: () => Exhibitor.list() });

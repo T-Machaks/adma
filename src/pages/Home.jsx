@@ -10,6 +10,7 @@ import VirtualBanner from '@/components/VirtualBanner';
 import CountdownBanner from '@/components/CountdownBanner';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useSEO } from '@/lib/useSEO';
 
 const quickActions = [
   { label: 'Exhibitors', path: '/exhibitors', icon: Users, color: 'bg-gradient-to-br from-blue-500 to-blue-700', shadow: 'shadow-blue-500/30' },
@@ -35,6 +36,11 @@ const typeColor = {
 };
 
 export default function Home() {
+  useSEO({
+    title: 'ADMA Digital — The Digital Platform for the ADMA Agri Show',
+    description: "Zimbabwe's largest agricultural exhibition, digital-first — explore exhibitors, book meetings, and get event updates for the ADMA Agri Show, 05-07 June 2026, ART Farm, Pomona, Harare.",
+    path: '/',
+  });
   const { settings } = useAppSettings();
   const { isAuthenticated } = useAuth();
   const { data: announcements = [] } = useQuery({

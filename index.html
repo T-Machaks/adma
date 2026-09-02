@@ -44,6 +44,41 @@
     <meta name="twitter:description" content="Connecting machinery dealers, input suppliers, and service providers with farmers and buyers across Zimbabwe's agricultural value chain." />
     <meta name="twitter:image"       content="https://adma-zw.s3.af-south-1.amazonaws.com/marketing-images/adma-logo-500x500.png" />
 
+    <!-- Structured data (Google Event rich results). Static and server-rendered
+         deliberately — these are fixed event facts (not per-user/per-route), so this is
+         the single most reliable way to guarantee Google's very first fetch of the page
+         sees them, no JS execution required. Per-page structured data (e.g. exhibitor
+         Organization schema) is added separately, either client-side via useSEO.js or
+         server-side in server/routes/og.js for the exhibitor-detail case specifically. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      "name": "ADMA Agri Show 2026",
+      "description": "Zimbabwe's largest agricultural exhibition, connecting machinery dealers, input suppliers, and service providers with farmers and buyers across the agricultural value chain.",
+      "startDate": "2026-06-05",
+      "endDate": "2026-06-07",
+      "eventAttendanceMode": "https://schema.org/MixedEventAttendanceMode",
+      "eventStatus": "https://schema.org/EventScheduled",
+      "location": {
+        "@type": "Place",
+        "name": "ART Farm, Pomona",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Harare",
+          "addressCountry": "ZW"
+        }
+      },
+      "image": ["https://adma-zw.s3.af-south-1.amazonaws.com/marketing-images/adma-logo-500x500.png"],
+      "organizer": {
+        "@type": "Organization",
+        "name": "ADMA Digital",
+        "url": "https://admadigital.co.zw"
+      },
+      "url": "https://admadigital.co.zw"
+    }
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="192x192" href="/adma-favicon-192.png" />

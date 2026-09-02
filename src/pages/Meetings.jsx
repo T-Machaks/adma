@@ -8,6 +8,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { useSEO } from '@/lib/useSEO';
 
 const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
@@ -134,6 +135,7 @@ function MyMeetings({ email }) {
 }
 
 export default function Meetings() {
+  useSEO({ title: 'Meetings', path: '/meetings', noindex: true });
   const location = useLocation();
   const prefill = location.state?.exhibitor;
   const queryClient = useQueryClient();

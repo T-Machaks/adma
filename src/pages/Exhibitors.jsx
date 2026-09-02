@@ -10,12 +10,18 @@ import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG, getExhibitorCategories } from '@/lib/eventConfig';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { getPackageLimits } from '@/lib/standTiers';
+import { useSEO } from '@/lib/useSEO';
 
 const CATEGORIES = ['All', ...EVENT_CONFIG.exhibitorCategories];
 const PACKAGES   = ['All', 'Premium', 'Enhanced', 'Basic'];
 const SECTIONS   = ['All', ...EVENT_CONFIG.exhibitorSections];
 
 export default function Exhibitors() {
+  useSEO({
+    title: 'Exhibitors',
+    description: 'Browse machinery dealers, input suppliers, and service providers exhibiting at the ADMA Agri Show — filter by category, tier, and section.',
+    path: '/exhibitors',
+  });
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [pkg, setPkg] = useState('All');

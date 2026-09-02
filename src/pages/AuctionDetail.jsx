@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Radio, Package, Gavel, ExternalLink } from 'lucide-r
 import CountdownTimer from '@/components/auction/CountdownTimer';
 import { LOT_CATEGORIES } from '@/lib/auctionConstants';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { useSEO } from '@/lib/useSEO';
 
 const CATEGORIES = ['All', ...LOT_CATEGORIES];
 
@@ -18,6 +19,12 @@ export default function AuctionDetail() {
   const { data: auction, isLoading } = useQuery({
     queryKey: ['auction', id],
     queryFn: () => Auction.get(id),
+  });
+
+  useSEO({
+    title: auction ? auction.title : 'Auction',
+    description: auction?.description?.trim()?.slice(0, 200) || (auction ? `${auction.title} — livestock auction on ADMA Digital.` : undefined),
+    path: `/auctions/${id}`,
   });
 
   const { data: lots = [] } = useQuery({

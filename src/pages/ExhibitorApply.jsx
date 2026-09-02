@@ -9,6 +9,7 @@ import { renderPdfFirstPageToBlob, IMAGE_PRESETS, MAX_IMAGE_MB, IMAGE_INPUT_HINT
 import { uploadFileToS3 } from '@/lib/uploadFile';
 import { Progress } from '@/components/ui/progress';
 import ImageCropModal from '@/components/shared/ImageCropModal';
+import { useSEO } from '@/lib/useSEO';
 
 // Physical-booth applications are stubbed out for now — this page only handles
 // virtual-only registration. The backend (server/routes/exhibitor-applications.js)
@@ -24,6 +25,11 @@ const PACKAGES = [
 const MAX_DESC = 150;
 
 export default function ExhibitorApply() {
+  useSEO({
+    title: 'Become an Exhibitor',
+    description: 'Apply to exhibit at the ADMA Agri Show — reach machinery dealers, input suppliers, and buyers across Zimbabwe\'s agricultural value chain.',
+    path: '/exhibitor-apply',
+  });
   const navigate = useNavigate();
   const fileRef  = useRef(null);
 

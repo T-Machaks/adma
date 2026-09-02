@@ -2,11 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { JobListing, TenderListing, Auction, Collaboration } from '@/api/entities';
 import { Briefcase, FileText, Gavel, Handshake, DollarSign, ChevronRight } from 'lucide-react';
+import { useSEO } from '@/lib/useSEO';
 
 // Live counts give each card a freshness signal ("12 open now") instead of a static
 // label — cheap to fetch (same list queries the destination pages already run) and
 // makes the hub feel like an active marketplace, not just a menu.
 export default function Marketplace() {
+  useSEO({
+    title: 'Marketplace',
+    description: 'Jobs, tenders, auctions, and collaboration opportunities across the ADMA Agri Show exhibitor network.',
+    path: '/marketplace',
+  });
   const { data: jobs = [] } = useQuery({ queryKey: ['job-listings'], queryFn: () => JobListing.list() });
   const { data: tenders = [] } = useQuery({ queryKey: ['tender-listings'], queryFn: () => TenderListing.list() });
   const { data: auctions = [] } = useQuery({ queryKey: ['auctions'], queryFn: () => Auction.list() });

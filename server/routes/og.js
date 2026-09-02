@@ -94,6 +94,27 @@ r.get('/exhibitors/:id', async (req, res) => {
       html = setMetaContent(html, 'name', 'twitter:description', description);
       html = setMetaContent(html, 'name', 'twitter:image', image);
       html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`);
+      // No canonical tag exists in the base shell (a static one there would wrongly tell
+      // every other CSR route it's a duplicate of whatever it pointed to — see useSEO.js's
+      // comment) — inserted fresh here since this route serves real, distinct HTML per
+      // exhibitor and non-JS crawlers (the ones this route exists for) never see the
+      // client-side hook's version.
+      const jsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: ex.name,
+        ...(ex.description?.trim() ? { description: ex.description.trim() } : {}),
+        ...(ex.logo_url ? { logo: ex.logo_url } : {}),
+        url,
+      };
+      // JSON.stringify output is otherwise unescaped — an exhibitor description
+      // containing a literal "</script>" would close the tag early and inject whatever
+      // followed as live HTML. < sidesteps that without touching the JSON's meaning.
+      const jsonLdScript = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+      html = html.replace(
+        '</head>',
+        `  <link rel="canonical" href="${escapeHtml(url)}" />\n  <script type="application/ld+json">${jsonLdScript}</script>\n</head>`
+      );
       // Only the fixed 500x500 logo preset has known dimensions — the booth-image/
       // generic fallback cases keep the page's default width/height (a harmless
       // mismatch; most crawlers re-derive real dimensions from the image itself).

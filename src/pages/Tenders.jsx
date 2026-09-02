@@ -4,6 +4,7 @@ import { TenderListing } from '@/api/entities';
 import { Search, FileText, Clock } from 'lucide-react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import ListingCard from '@/components/shared/ListingCard';
+import { useSEO } from '@/lib/useSEO';
 
 const CATEGORIES = ['All', ...EVENT_CONFIG.exhibitorCategories];
 
@@ -19,6 +20,11 @@ function daysLeft(iso) {
 }
 
 export default function Tenders() {
+  useSEO({
+    title: 'Tenders',
+    description: 'Open tenders posted by exhibitors and suppliers at the ADMA Agri Show.',
+    path: '/tenders',
+  });
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
 

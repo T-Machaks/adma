@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, Download } from 'lucide-react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAuth } from '@/lib/AuthContext';
+import { useSEO } from '@/lib/useSEO';
 
 const SECTIONS = [
   {
@@ -79,6 +80,7 @@ their own profile data directly from the Exhibitor Portal without needing to con
 ];
 
 export default function PrivacyPolicy() {
+  useSEO({ title: 'Privacy Policy', description: 'ADMA Digital privacy policy.', path: '/privacy' });
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 

@@ -3,6 +3,7 @@ import { Announcement } from '@/api/entities';
 import { Megaphone, AlertCircle, Clock, Bell, Pin, Sparkles, MapPin, Navigation } from 'lucide-react';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { useSEO } from '@/lib/useSEO';
 
 const typeIcon = { Important: AlertCircle, Reminder: Clock, General: Megaphone, Update: Bell, Venue: MapPin, Directional: Navigation };
 const typeColor = {
@@ -23,6 +24,12 @@ const typeBadge = {
 };
 
 export default function Announcements() {
+  useSEO({
+    title: 'Announcements',
+    description: 'Official announcements and updates for the ADMA Agri Show.',
+    path: '/announcements',
+    noindex: true,
+  });
   const { settings } = useAppSettings();
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ['announcements'],

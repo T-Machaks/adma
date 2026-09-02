@@ -19,6 +19,7 @@ import {
   Video, Send, CheckCircle, FileText, ExternalLink, ImagePlus, Lock, LogIn, UserPlus,
   Images, MessageCircle, Award, HelpCircle, Sparkles, Star,
 } from 'lucide-react';
+import { useSEO } from '@/lib/useSEO';
 
 export default function ExhibitorDetail() {
   const { id } = useParams();
@@ -29,6 +30,24 @@ export default function ExhibitorDetail() {
   const { data: ex, isLoading } = useQuery({
     queryKey: ['exhibitor', id],
     queryFn: () => Exhibitor.get(id),
+  });
+
+  // Server-side og.js already pre-renders these same tags for crawlers that don't run
+  // JS (see that file) — this keeps the client-rendered version (what Google's own
+  // indexer sees after executing JS, and what the tab title shows) in agreement with it.
+  useSEO({
+    title: ex ? ex.name : 'Exhibitors',
+    description: ex ? ((ex.description && ex.description.trim()) || `${ex.name} on ADMA Digital — the digital platform for the ADMA Agri Show.`) : undefined,
+    path: `/exhibitors/${id}`,
+    image: ex?.logo_url || ex?.booth_image_url,
+    jsonLd: ex ? {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: ex.name,
+      description: (ex.description && ex.description.trim()) || undefined,
+      logo: ex.logo_url || undefined,
+      url: `https://admadigital.co.zw/exhibitors/${id}`,
+    } : undefined,
   });
 
   const { user, isAuthenticated } = useAuth();

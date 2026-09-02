@@ -39,6 +39,7 @@ import bids from './routes/bids.js';
 import collaborations from './routes/collaborations.js';
 import cspReport from './routes/csp-report.js';
 import og from './routes/og.js';
+import sitemap from './routes/sitemap.js';
 import ai from './routes/ai.js';
 import smsCredits from './routes/sms-credits.js';
 import exhibitorContacts from './routes/exhibitor-contacts.js';
@@ -210,6 +211,7 @@ app.use('/api/file-shares',            fileShares);
 // link previews), reached only via an nginx location that proxies GET /exhibitors/:id
 // here instead of the static dist/ files. See server/routes/og.js.
 app.use(og);
+app.use(sitemap);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 

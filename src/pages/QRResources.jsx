@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import QRScanner from '@/components/QRScanner';
+import { useSEO } from '@/lib/useSEO';
 import {
   QrCode, ScanLine, Info, CheckCircle2, AlertCircle,
   Calendar, MapPin, ChevronRight, Ticket, Lock, LogIn, UserPlus,
@@ -27,6 +28,7 @@ function getOrCreateVisitorId() {
 }
 
 export default function QRResources() {
+  useSEO({ title: 'QR Resources', path: '/qr-resources', noindex: true });
   const { user, isAuthenticated, isLoadingAuth } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState('badge');
