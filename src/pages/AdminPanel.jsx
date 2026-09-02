@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, Exhibitor, User as UserEntity } from '@/api/entities';
-import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2, Plus, Eye, Loader2 } from 'lucide-react';
+import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2, Plus, Eye, Loader2, FolderUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
@@ -9,6 +9,7 @@ import { isSubscriptionExpired } from '@/lib/subscription';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import FileShareDialog from '@/components/FileShareDialog';
 
 const PACKAGES = ['Free', 'Basic', 'Enhanced', 'Premium'];
 
@@ -170,6 +171,9 @@ export default function AdminPanel() {
       setImpersonatingId(null);
     }
   };
+
+  // File Share — see src/components/FileShareDialog.jsx for the per-exhibitor link list.
+  const [fileShareExhibitor, setFileShareExhibitor] = useState(null);
 
   const [showDeleted, setShowDeleted] = useState(false);
   const { data: deletedExhibitors = [], isLoading: loadingDeleted } = useQuery({
@@ -475,6 +479,16 @@ export default function AdminPanel() {
                         </button>
                       )}
                     </>
+                  )}
+                  {canManageExhibitors && (
+                    <button
+                      type="button"
+                      onClick={() => setFileShareExhibitor(e)}
+                      title="Send this exhibitor a file upload link"
+                      className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:text-amber hover:bg-amber/10 transition-colors"
+                    >
+                      <FolderUp className="w-3.5 h-3.5" />
+                    </button>
                   )}
                   {canManageExhibitors && (
                     <button
@@ -870,6 +884,12 @@ export default function AdminPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FileShareDialog
+        exhibitor={fileShareExhibitor}
+        open={!!fileShareExhibitor}
+        onOpenChange={(open) => { if (!open) setFileShareExhibitor(null); }}
+      />
     </div>
   );
 }

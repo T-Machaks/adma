@@ -43,6 +43,7 @@ import ai from './routes/ai.js';
 import smsCredits from './routes/sms-credits.js';
 import exhibitorContacts from './routes/exhibitor-contacts.js';
 import campaigns from './routes/campaigns.js';
+import fileShares from './routes/file-shares.js';
 
 const app = express();
 
@@ -203,6 +204,7 @@ app.use('/api/ai',                     ai);
 app.use('/api/sms-credits',            smsCredits);
 app.use('/api/exhibitor-contacts',     exhibitorContacts);
 app.use('/api/campaigns',              campaigns);
+app.use('/api/file-shares',            fileShares);
 
 // Not under /api — this serves real HTML pages (Open Graph meta injection for exhibitor
 // link previews), reached only via an nginx location that proxies GET /exhibitors/:id

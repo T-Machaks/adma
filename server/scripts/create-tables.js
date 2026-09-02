@@ -63,5 +63,7 @@ await ensureTable('adma_schedule',       { hashKey: 'pk' });
 await ensureTable('adma_site_plan_spots', { hashKey: 'pk' });
 await ensureTable('adma_rate_card',       { hashKey: 'pk' });
 await ensureTable('adma_payments',        { gsis: [{ attr: 'exhibitor_id', index: 'exhibitor-index' }] });
+await ensureTable('adma_campaigns');
+await ensureTable('adma_file_shares',     { hashKey: 'token', gsis: [{ attr: 'exhibitor_id', index: 'exhibitor-index' }] });
 
 console.log('\nAll ADMA tables ready.');

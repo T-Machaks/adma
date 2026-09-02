@@ -88,6 +88,7 @@ import ExhibitorRateCard from '@/pages/exhibitor/ExhibitorRateCard';
 import PaymentHistory from '@/pages/PaymentHistory';
 import PaymentStub from '@/pages/PaymentStub';
 import PaymentReturn from '@/pages/PaymentReturn';
+import FileShareUpload from '@/pages/FileShareUpload';
 
 // Layout wrappers (give each shell access to Outlet)
 const AttendeeLayout = () => (
@@ -150,6 +151,7 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password"   element={<ResetPassword />} />
       <Route path="/privacy"          element={<PrivacyPolicy />} />
       <Route path="/payment/stub/:id" element={<PaymentStub />} />
+      <Route path="/file-share/:token" element={<FileShareUpload />} />
       <Route path="/payment/return"   element={<PaymentReturn />} />
 
       {/* ── Management Console (organizer + marketing_partner only) ── */}
