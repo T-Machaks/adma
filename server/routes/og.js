@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
+import { generateExhibitorOgCard } from '../lib/ogCard.js';
+import { putObject } from '../lib/s3.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // The built SPA shell — same file nginx serves as static HTML for every other route.
@@ -13,7 +15,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // matching pm2 restart.
 const DIST_INDEX = path.join(__dirname, '../../dist/index.html');
 const APP_URL = 'https://admadigital.co.zw';
-const FALLBACK_IMAGE = 'https://adma-zw.s3.af-south-1.amazonaws.com/marketing-images/adma-logo-500x500.png';
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -84,7 +85,20 @@ r.get('/exhibitors/:id', async (req, res) => {
       const title = `${ex.name} — ADMA Digital`;
       const description = (ex.description && ex.description.trim())
         || `${ex.name} on ADMA Digital — the digital platform for the ADMA Agri Show.`;
-      const image = ex.logo_url || ex.booth_image_url || FALLBACK_IMAGE;
+      // A proper 1200x630 share card, generated fresh on every request (this route's
+      // whole reason to exist — social-preview crawlers and cold un-JS'd hits — is low
+      // traffic, so there's no meaningful cost to always reflecting the exhibitor's
+      // current name/logo rather than caching and risking staleness) and uploaded to a
+      // stable per-exhibitor key so the meta tag below is a normal static image URL,
+      // same as every other page. Falls through to the outer catch (below) on any
+      // failure — which serves the plain shell, whose own default og:image is already
+      // the same 1200x630 branded image, so a card-generation failure is never the
+      // reason a shared link looks broken, only the reason it looks generic.
+      const image = await putObject(
+        `og-cards/${req.params.id}.png`,
+        await generateExhibitorOgCard(ex),
+        'image/png'
+      );
 
       html = setMetaContent(html, 'property', 'og:url', url);
       html = setMetaContent(html, 'property', 'og:title', title);
@@ -115,13 +129,11 @@ r.get('/exhibitors/:id', async (req, res) => {
         '</head>',
         `  <link rel="canonical" href="${escapeHtml(url)}" />\n  <script type="application/ld+json">${jsonLdScript}</script>\n</head>`
       );
-      // Only the fixed 500x500 logo preset has known dimensions — the booth-image/
-      // generic fallback cases keep the page's default width/height (a harmless
-      // mismatch; most crawlers re-derive real dimensions from the image itself).
-      if (ex.logo_url) {
-        html = setMetaContent(html, 'property', 'og:image:width', '500');
-        html = setMetaContent(html, 'property', 'og:image:height', '500');
-      }
+      // Every generated card is the same fixed 1200x630 size — no longer conditional
+      // on which image source was used, since generateExhibitorOgCard always produces
+      // that size regardless of whether the exhibitor has their own logo.
+      html = setMetaContent(html, 'property', 'og:image:width', '1200');
+      html = setMetaContent(html, 'property', 'og:image:height', '630');
     }
   } catch (e) {
     console.error('OG meta injection failed for exhibitor', req.params.id, ':', e.message);

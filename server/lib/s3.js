@@ -12,6 +12,14 @@ export async function createPresignedPut(key, contentType) {
   return { uploadUrl, publicUrl };
 }
 
+// Server-side direct upload (as opposed to createPresignedPut, which hands the client
+// a URL to PUT to itself) — for content the server generates itself, like og.js's
+// exhibitor share-card images. Returns the same public-URL shape as createPresignedPut.
+export async function putObject(key, body, contentType) {
+  await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }));
+  return `https://${BUCKET}.s3.af-south-1.amazonaws.com/${key.split('/').map(encodeURIComponent).join('/')}`;
+}
+
 export async function deleteS3Object(key) {
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
