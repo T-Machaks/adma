@@ -99,15 +99,16 @@ export async function generateExhibitorOgCard(exhibitor) {
   if (name !== (exhibitor.name || 'ADMA Exhibitor')) name = name.trimEnd() + '…';
   ctx.fillText(name, MARGIN, 340);
 
-  // Tagline
+  // Tagline — names the actual product (ADMA Digital's virtual exhibition), not the
+  // physical show, since this card is for the online platform specifically.
   ctx.fillStyle = '#eab308';
   ctx.font = '600 30px InterSemiBold';
-  ctx.fillText('Exhibiting at the ADMA Agri Show', MARGIN, 390);
+  ctx.fillText('ADMA Digital Virtual Exhibitor', MARGIN, 390);
 
   // CTA
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
   ctx.font = '600 26px InterSemiBold';
-  ctx.fillText('View Booth  ·  Book a Meeting', MARGIN, 450);
+  ctx.fillText('View Virtual Booth  ·  Book a Meeting', MARGIN, 450);
 
   return canvas.encode('png');
 }
