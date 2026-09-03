@@ -387,8 +387,12 @@ export default function ExhibitorDetail() {
 
         {/* Right: contacts + CTAs + brochure + enquiry (2/5 on desktop) */}
         <div className="lg:col-span-2 space-y-4 mt-4 lg:mt-0">
-          {/* Contact & links — Enhanced+ */}
-          {isEnhancedPlus && (ex.website || ex.contact_email || ex.phone) && (
+          {/* Contact & links — Basic+ (same threshold as the Request Info form below,
+              which stays available alongside this for every tier that has it — this
+              doesn't replace it, just stops making a visitor go through the form for
+              something as basic as an email address). Free stays without any contact
+              channel at all, same as before. */}
+          {hasContactForm && (ex.website || ex.contact_email || ex.phone) && (
             <div className="bg-card border border-border rounded-2xl p-4">
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3">Contact</h2>
               <div className="flex flex-wrap gap-2">
