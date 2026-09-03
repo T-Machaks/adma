@@ -5,11 +5,19 @@ name: Deploy to production
 # so a deploy should be a deliberate, auditable action, not implicit continuous
 # deployment. Trigger it from the Actions tab, or `gh workflow run deploy.yml`.
 #
-# Runs the exact same sequence proven by hand all along — cd, git pull (as ec2-user),
-# npm run build (as ec2-user), pm2 restart, health check — on BOTH EC2 instances
-# (primary + warm-standby backup) via a single AWS SSM Send-Command call, so they
-# can never drift out of sync with each other the way a manual per-instance process
-# risks.
+# Two jobs: `build` compiles the frontend on GitHub's runner and ships only the built
+# dist/ as a tarball; `deploy` pulls server source + that tarball onto both EC2
+# instances and restarts. Before 2026-09-02 this ran `npm install && npm run build`
+# directly on the live instances — see security/RISK_REGISTER.md #26. Both instances
+# are 912Mi with no swap, and that combination routinely pegged CPU/RAM near 100% for
+# anywhere from a few minutes to nearly 45, occasionally leaving the SSM agent itself
+# briefly `Undeliverable`. The ALB always failed over to the other instance correctly
+# (no user-facing downtime, confirmed every time), but an on-instance build was never
+# actually necessary — server/ has its own separate package.json/node_modules that
+# deploys never touch anyway (installed once, long since stable); the entire cost was
+# always the frontend's `npm install` + `vite build`. Building that on a GitHub Actions
+# runner instead removes it from the live path entirely — the instances now only ever
+# do a cheap git pull (source only) + an S3 download + a pm2 restart.
 on:
   workflow_dispatch:
 
@@ -17,9 +25,42 @@ env:
   AWS_REGION: af-south-1
   PRIMARY_INSTANCE_ID: i-0a3174c66880b0e04
   BACKUP_INSTANCE_ID: i-0b3233db9d8a576e6
+  ARTIFACT_BUCKET: adma-deploy-artifacts
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Package dist/
+        run: tar -czf dist.tar.gz -C dist .
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ADMA_DEPLOY_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ADMA_DEPLOY_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload build artifact to S3
+        run: aws s3 cp dist.tar.gz "s3://${{ env.ARTIFACT_BUCKET }}/${{ github.sha }}/dist.tar.gz"
+
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,15 +74,21 @@ jobs:
 
       # Written to a file (not passed as a CLI argument) so there is zero shell-quoting
       # to get wrong — the heredoc's quoted delimiter ('EOF') means this is copied
-      # completely literally, no expansion of any kind.
+      # completely literally, no expansion of any kind (github.sha is substituted by
+      # Actions before the shell ever sees this text, same as always).
       #
-      # `git checkout -- package-lock.json` right before the pull: the servers run
-      # Linux, dev is Windows, and `npm install` normalizes a handful of
-      # platform-specific fields in package-lock.json differently on each — so every
-      # server-side npm install leaves a small uncommitted diff there, which blocks
-      # the *next* git pull with "local changes would be overwritten by merge".
-      # Discarding it first is safe: package-lock.json should only ever come from git
-      # here, never be hand-edited on the server.
+      # `git checkout -- package-lock.json` right before the pull: package-lock.json
+      # used to pick up small platform-specific diffs from server-side `npm install`
+      # runs (Linux vs the Windows dev machine) — the instance no longer runs npm
+      # install at all now, but this stays as a harmless no-op safety net in case
+      # anything ever touches it by hand again.
+      #
+      # dist is replaced via extract-to-a-fresh-directory-then-atomic-rename rather
+      # than extracting on top of the live one — nginx serves straight off disk with
+      # no build step of its own, so a visitor mid-request during a naive in-place
+      # extract could be served a half-written file. `mv` within the same filesystem
+      # is atomic; this way nginx only ever sees either the old dist/ or the new one,
+      # never a partial one.
       #
       # Health check retries for up to 15s instead of one `sleep 2` + single curl —
       # a real deploy hit this exact one-shot check too early on a colder instance
@@ -56,8 +103,14 @@ jobs:
               "cd /home/ec2-user/adma",
               "sudo -u ec2-user git checkout -- package-lock.json",
               "sudo -u ec2-user git pull",
-              "sudo -u ec2-user npm install",
-              "sudo -u ec2-user npm run build",
+              "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ github.sha }}/dist.tar.gz /tmp/dist.tar.gz",
+              "sudo -u ec2-user rm -rf dist.new && sudo -u ec2-user mkdir dist.new",
+              "sudo -u ec2-user tar -xzf /tmp/dist.tar.gz -C dist.new",
+              "rm -f /tmp/dist.tar.gz",
+              "sudo -u ec2-user rm -rf dist.old",
+              "sudo -u ec2-user mv dist dist.old 2>/dev/null || true",
+              "sudo -u ec2-user mv dist.new dist",
+              "sudo -u ec2-user rm -rf dist.old",
               "sudo -u ec2-user pm2 restart adma-api",
               "for i in $(seq 1 15); do curl -sf localhost:3001/api/health && ok=1 && break; sleep 1; done; [ \"$ok\" = \"1\" ]"
             ]
