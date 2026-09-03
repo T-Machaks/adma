@@ -57,7 +57,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Upload build artifact to S3
-        run: aws s3 cp dist.tar.gz "s3://${{ env.ARTIFACT_BUCKET }}/${{ github.sha }}/dist.tar.gz"
+        run: aws s3 cp dist.tar.gz "s3://${{ env.ARTIFACT_BUCKET }}/${{ github.sha }}/dist.tar.gz" --no-progress
 
   deploy:
     needs: build
@@ -103,7 +103,7 @@ jobs:
               "cd /home/ec2-user/adma",
               "sudo -u ec2-user git checkout -- package-lock.json",
               "sudo -u ec2-user git pull",
-              "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ github.sha }}/dist.tar.gz /tmp/dist.tar.gz",
+              "aws s3 cp s3://${{ env.ARTIFACT_BUCKET }}/${{ github.sha }}/dist.tar.gz /tmp/dist.tar.gz --no-progress",
               "sudo -u ec2-user rm -rf dist.new && sudo -u ec2-user mkdir dist.new",
               "sudo -u ec2-user tar -xzf /tmp/dist.tar.gz -C dist.new",
               "rm -f /tmp/dist.tar.gz",
