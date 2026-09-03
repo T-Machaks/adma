@@ -319,7 +319,13 @@ export default function ExhibitorDetail() {
               </div>
             </div>
 
-            {isEnhancedPlus && description && (
+            {/* Every tier's own perk, not just Enhanced+ — Free/Basic's "brief company
+                profile" already shows on the directory card (Exhibitors.jsx), truncated
+                to the same package descChars limit as `description` already is above;
+                this just stops the detail page from hiding it a click later. Enhanced+
+                gets the longer limit and everything else on this page still gates on
+                isEnhancedPlus below (gallery, products, contact info, media). */}
+            {description && (
               <p className="mt-4 text-sm text-foreground/80 leading-relaxed">{description}</p>
             )}
           </div>
