@@ -825,7 +825,9 @@ router.post('/organizer/add-user', async (req, res) => {
 });
 
 // ── POST /api/auth/organizer/set-exhibitor-email  — provision a real exhibitor login ──
-// Sets the login email on an exhibitor's linked account and, unless send_email is
+// Sets the login email on an exhibitor's linked account — creating that account first
+// if the exhibitor doesn't have one yet (e.g. one added via "Add Exhibitor", which
+// deliberately creates a bare profile with no login) — and, unless send_email is
 // explicitly false, emails them a password-reset link (the same one /forgot-password
 // sends) so they set their own password — the organizer never handles or knows it.
 // send_email defaults true for the explicit "Send Login Email" action; the plain Save
@@ -839,7 +841,6 @@ router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadm
     const exhResult = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: exhibitor_id } }));
     const exhibitor = exhResult.Item;
     if (!exhibitor) return res.status(404).json({ error: 'Exhibitor not found.' });
-    if (!exhibitor.user_id) return res.status(400).json({ error: 'This exhibitor has no linked login account.' });
 
     const normalizedEmail = email.toLowerCase();
     const existing = await findByEmail(normalizedEmail);
@@ -881,7 +882,10 @@ router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadm
       // The old linked account (typically a placeholder stub created when the exhibitor
       // record was set up) is deliberately left untouched, not deleted — it's just no
       // longer this exhibitor's login.
-    } else {
+    } else if (exhibitor.user_id) {
+      // No *different* account owns this email (existing is either null — a fresh
+      // address — or the exhibitor's own current account being re-saved) — either
+      // way, the account to update is the one already linked.
       const currentLinked = await getById(exhibitor.user_id);
       if (!currentLinked) return res.status(404).json({ error: 'Linked login account not found.' });
       await ddb.send(new UpdateCommand({
@@ -898,6 +902,34 @@ router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadm
       }));
       logSecurityEvent('exhibitor_login_email_set', { exhibitorId: exhibitor_id, userId: currentLinked.id, sentEmail: !!send_email, ip: req.ip });
       linkedUser = { ...currentLinked, email: normalizedEmail };
+    } else {
+      // No linked account at all, and no existing account owns this email either —
+      // this exhibitor was created with no login to begin with (via "Add Exhibitor",
+      // or restored from a delete of one of those — DELETE never sets user_id if it
+      // was never set, so there's nothing for restore to relink). Create its first
+      // login account from scratch rather than erroring, since this is exactly the
+      // situation "Set Login Email" exists to resolve.
+      const password_hash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10);
+      const newUser = {
+        id: generateId(),
+        created_date: new Date().toISOString(),
+        full_name: exhibitor.name || 'Exhibitor',
+        email: normalizedEmail,
+        company: exhibitor.name || '',
+        role: 'exhibitor',
+        status: 'active',
+        password_hash, // random and never used directly — they set their own via the emailed reset link
+        password_changed_at: new Date().toISOString(),
+      };
+      await ddb.send(new PutCommand({ TableName: TABLE, Item: newUser }));
+      await ddb.send(new UpdateCommand({
+        TableName: 'adma_exhibitors',
+        Key: { id: exhibitor_id },
+        UpdateExpression: 'SET user_id = :u, contact_email = :e',
+        ExpressionAttributeValues: { ':u': newUser.id, ':e': normalizedEmail },
+      }));
+      logSecurityEvent('exhibitor_login_created', { exhibitorId: exhibitor_id, newUserId: newUser.id, ip: req.ip });
+      linkedUser = newUser;
     }
 
     if (send_email) await sendPasswordResetLink(linkedUser, req);
