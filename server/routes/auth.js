@@ -78,7 +78,7 @@ function teamMemberInviteHtml(user, companyName, resetUrl) {
       </div>
       <p style="margin:0 0 20px;color:#555">Set a password to finish activating your account:</p>
       <a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Set Password &amp; Log In →</a>
-      <p style="margin:24px 0 0;font-size:13px;color:#888">This link expires in 30 minutes. If you weren't expecting this, you can safely ignore it.</p>
+      <p style="margin:24px 0 0;font-size:13px;color:#888">This link expires in 14 days. If you weren't expecting this, you can safely ignore it.</p>
     </div>`;
 }
 
@@ -114,13 +114,29 @@ function resetPasswordHtml(resetUrl) {
     </div>`;
 }
 
+// Organizer/superadmin-initiated "here's your exhibitor login" email — distinct from
+// resetPasswordHtml (a self-service "I forgot my password" flow, deliberately short-
+// lived) because this one is sent on someone else's behalf, often while setting up a
+// brand-new exhibitor's profile before they've ever logged in. They may not check
+// email for days, so the link needs real runway, not 30 minutes — see newInviteExpiry.
+function exhibitorWelcomeHtml(exhibitorName, resetUrl) {
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+      <h2 style="margin:0 0 8px;color:#111">Welcome to ADMA Digital</h2>
+      <p style="margin:0 0 24px;color:#555">Your exhibitor profile for <strong>${exhibitorName}</strong> has been set up on ADMA Digital — the digital platform for the ADMA Agri Show. Set a password below to log in and manage it.</p>
+      <a href="${resetUrl}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Set Password &amp; Log In →</a>
+      <p style="margin:24px 0 0;font-size:13px;color:#888">This link expires in 14 days. If you weren't expecting this, please contact ADMA Digital support.</p>
+    </div>`;
+}
+
 // Challenge store (email/SMS OTP, TOTP, forced password change, password reset) is
 // DynamoDB-backed — see lib/challengeStore.js for why (in-memory doesn't survive
 // landing on either of the two EC2 instances behind the ALB).
 
 function newToken() { return crypto.randomUUID(); }
 function newExpiry() { return Date.now() + 10 * 60 * 1000; } // 10 min
-function newResetExpiry() { return Date.now() + 30 * 60 * 1000; } // 30 min — email link, not an in-session OTP
+function newResetExpiry() { return Date.now() + 30 * 60 * 1000; } // 30 min — self-service "forgot password", the person is actively waiting on it right now
+function newInviteExpiry() { return Date.now() + 14 * 24 * 60 * 60 * 1000; } // 14 days — someone else set this account up on their behalf; they may not check email for days
 function generateOtp() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
 // Organizer/superadmin accounts require TOTP no matter which login path got them
@@ -541,6 +557,25 @@ async function sendPasswordResetLink(user, req) {
   }
 }
 
+// Used by POST /organizer/set-exhibitor-email instead of sendPasswordResetLink above —
+// same underlying challenge/reset-password mechanism, but with copy and a 14-day
+// expiry appropriate to an organizer setting this exhibitor's account up on their
+// behalf, rather than a self-service "I forgot my password right now" request.
+async function sendExhibitorWelcomeLink(user, exhibitorName, req) {
+  const token = newToken();
+  await createChallenge(token, { type: 'password_reset', userId: user.id, expiresAt: newInviteExpiry() });
+  logSecurityEvent('exhibitor_welcome_link_sent', { userId: user.id, email: user.email, exhibitorName, ip: req.ip });
+  const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+  try {
+    await sendOtpEmail(user.email, null, {
+      subject: 'ADMA Digital — Welcome, set up your exhibitor account',
+      html: exhibitorWelcomeHtml(exhibitorName, resetUrl),
+    });
+  } catch (mailErr) {
+    console.error('Exhibitor welcome email failed:', mailErr.message);
+  }
+}
+
 // ── POST /api/auth/forgot-password  — request a reset link by email ──────
 router.post('/forgot-password', async (req, res) => {
   try {
@@ -828,10 +863,13 @@ router.post('/organizer/add-user', async (req, res) => {
 // Sets the login email on an exhibitor's linked account — creating that account first
 // if the exhibitor doesn't have one yet (e.g. one added via "Add Exhibitor", which
 // deliberately creates a bare profile with no login) — and, unless send_email is
-// explicitly false, emails them a password-reset link (the same one /forgot-password
-// sends) so they set their own password — the organizer never handles or knows it.
-// send_email defaults true for the explicit "Send Login Email" action; the plain Save
-// button (fixing a typo, etc.) passes false so it doesn't re-email on every edit.
+// explicitly false, emails them a welcome/set-password link (sendExhibitorWelcomeLink —
+// a 14-day link, not the 30-minute one /forgot-password sends, since this is the
+// organizer setting the account up on the exhibitor's behalf, not the exhibitor
+// requesting it themselves) so they set their own password — the organizer never
+// handles or knows it. send_email defaults true for the explicit "Send Login Email"
+// action; the plain Save button (fixing a typo, etc.) passes false so it doesn't
+// re-email on every edit.
 router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadmin'), async (req, res) => {
   try {
     const { exhibitor_id, email, send_email = true } = req.body;
@@ -932,7 +970,7 @@ router.post('/organizer/set-exhibitor-email', requireRole('organizer', 'superadm
       linkedUser = newUser;
     }
 
-    if (send_email) await sendPasswordResetLink(linkedUser, req);
+    if (send_email) await sendExhibitorWelcomeLink(linkedUser, exhibitor.name || 'your booth', req);
 
     res.json({ ok: true, email: normalizedEmail });
   } catch (e) {
@@ -1008,7 +1046,7 @@ async function upgradeToExhibitor(req, res, { existing, full_name, normalizedEma
         // Account exists but was never activated (no password set) — same combined
         // invite+set-password email a brand-new account gets.
         const token = newToken();
-        await createChallenge(token, { type: 'password_reset', userId: existing.id, expiresAt: newResetExpiry() });
+        await createChallenge(token, { type: 'password_reset', userId: existing.id, expiresAt: newInviteExpiry() });
         const resetUrl = `${APP_URL}/reset-password?token=${token}`;
         await sendOtpEmail(normalizedEmail, null, {
           subject: `ADMA Digital — You've been added to ${companyName || 'the'} team`,
@@ -1145,7 +1183,7 @@ router.post('/invite-team-member', requireAuth, async (req, res) => {
     await ddb.send(new PutCommand({ TableName: 'adma_registrations', Item: registration }));
 
     const token = newToken();
-    await createChallenge(token, { type: 'password_reset', userId: newUser.id, expiresAt: newResetExpiry() });
+    await createChallenge(token, { type: 'password_reset', userId: newUser.id, expiresAt: newInviteExpiry() });
     logSecurityEvent('team_member_invited', { invitedBy: req.user.id, newUserId: newUser.id, email: normalizedEmail, ip: req.ip });
     const resetUrl = `${APP_URL}/reset-password?token=${token}`;
     try {
@@ -1220,7 +1258,7 @@ router.post('/resend-team-invite', requireAuth, async (req, res) => {
     }
 
     const token = newToken();
-    await createChallenge(token, { type: 'password_reset', userId: target.id, expiresAt: newResetExpiry() });
+    await createChallenge(token, { type: 'password_reset', userId: target.id, expiresAt: newInviteExpiry() });
     logSecurityEvent('team_member_invite_resent', { requestedBy: req.user.id, userId: target.id, email: target.email, ip: req.ip });
     const resetUrl = `${APP_URL}/reset-password?token=${token}`;
     await sendOtpEmail(target.email, null, {
