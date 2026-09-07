@@ -1,36 +1,90 @@
 # ADMA Digital — CSA CAIQ v4.0.3 Self-Assessment & Security Improvement Plan
 
-**Date:** 2026-08-04 (baseline) — **re-scored 2026-08-05** after executing Phases 1–3
-**Scope:** ADMA Digital platform (React/Vite/Tailwind PWA + Express/DynamoDB API, single AWS EC2 instance, region af-south-1)
+**Date:** 2026-08-04 (baseline) — **re-scored 2026-08-05, 2026-08-28, 2026-08-31** after executing Phases 1–3 plus ongoing work
+**Scope:** ADMA Digital platform (React/Vite/Tailwind PWA + Express/DynamoDB API, two AWS EC2 instances + a video-compression Lambda, region af-south-1)
 **Framework:** Cloud Security Alliance Consensus Assessments Initiative Questionnaire (CAIQ) v4.0.3 — 263 questions across 17 Cloud Controls Matrix (CCM) domains
 **Prepared as:** Level 1 self-assessment (no independent/third-party verification yet — see [Methodology & Limitations](#methodology--limitations))
 
 ---
 
-## 0. Re-score — overall: 31.7% → 60.8% → 64.2% → **64.8%** (2026-08-04 through 2026-08-06)
+## 0. Re-score — overall: 31.7% → 60.8% → 64.2% → 64.8% → 65.4% → 66.1% → 66.5% → **66.9%** (2026-08-04 through 2026-08-31)
 
-The full 263-question questionnaire was re-scored, question by question, against everything shipped across Phases 1–3 plus the CloudShell-executed AWS infrastructure work (CloudTrail, CloudWatch log shipping, automated snapshots/auto-recovery). This was a **real re-score, not an estimate** — every one of the 117 changed answers cites the specific document or verified technical artifact behind it (see the updated `ADMA_CAIQ_v4.0.3_Completed_2026-08-05.xlsx`, kept alongside the original 2026-08-04 file for audit trail rather than overwriting it).
+The full 263-question questionnaire was re-scored, question by question, against everything shipped across Phases 1–3 plus the CloudShell-executed AWS infrastructure work (CloudTrail, CloudWatch log shipping, automated snapshots/auto-recovery). This was a **real re-score, not an estimate** — every one of the changed answers cites the specific document or verified technical artifact behind it (see the updated `ADMA_CAIQ_v4.0.3_Completed_2026-08-31.xlsx`, kept alongside every prior dated file for audit trail rather than overwriting them; Round 5 and 5b share this same file, same-day-round convention from Round 4/4b).
 
-| | 2026-08-04 | Round 1 | Round 2 | **Round 3** |
-|---|---:|---:|---:|---:|
-| **Overall score** | 31.7% | 60.8% | 64.2% | **64.8%** |
-| Answered Yes | 30 | 95 | 104 | 106 |
-| Answered Partial | 96 | 109 | 108 | 107 |
-| Answered No | 120 | 42 | 34 | 33 |
-| N/A | 17 | 17 | 17 | 17 |
+| | 2026-08-04 | Round 1 | Round 2 | Round 3 | Round 4 | Round 4b | Round 5 | **Round 5b** |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **Overall score** | 31.7% | 60.8% | 64.2% | 64.8% | 65.4% | 66.1% | 66.5% | **66.9%** |
+| Answered Yes | 30 | 95 | 104 | 106 | 106 | 108 | 110 | 112 |
+| Answered Partial | 96 | 109 | 108 | 107 | 110 | 109 | 107 | 105 |
+| Answered No | 120 | 42 | 34 | 33 | 30 | 29 | 29 | 29 |
+| N/A | 17 | 17 | 17 | 17 | 17 | 17 | 17 | 17 |
+
+### Round 4 (2026-08-28) — a small, honest movement
+
+This round is deliberately modest — 10 rows touched, only 3 of which actually moved an answer (all No→Partial), against real new evidence from a genuine multi-day gap of production work rather than a dedicated remediation sprint. See `ADMA_CAIQ_v4.0.3_Completed_2026-08-28.xlsx` for the full sheet; every change is marked "UPDATE 2026-08-28" in its notes column, same convention as prior rounds.
+
+**What moved an answer:**
+- **STA-10.1, STA-13.1** (No → Partial) — `VENDOR_DEPENDENCY_REVIEW.md`'s "at minimum annually" review commitment is a real, if partial, analog to "supply chain agreements reviewed annually" and "partner governance reviewed periodically," matching the reasoning already applied to STA-05.1/STA-14.1 in Round 3 but never extended to these two.
+- **TVM-10.1** (No → Partial) — a **consistency correction**, not new evidence: `.github/workflows/security-audit.yml` running on every push/PR plus weekly already justified TVM-03.1/05.1/07.1 moving to Yes/Partial in Round 3, but was never applied to this near-identical sub-question about reporting metrics at defined intervals. Found while reviewing the domain for unrelated reasons — flagged and fixed rather than left inconsistent.
+
+**What got stronger evidence without changing the answer** (DSP-05.2, IAM-01.2, IAM-03.1, SEF-01.1, SEF-04.1, SEF-06.1, CCC-02.1) — real events genuinely worth recording even though none were enough alone to flip Partial→Yes:
+- **A real IAM access review happened** (not just a policy statement about one): the interactive/CLI credential (`adma-vscode-cli`) was found holding two AWS-managed FullAccess policies far broader than anything it actually used, replaced with scoped equivalents, and the tightening was verified with real denied-access tests — not assumed. (IAM-01.2, IAM-03.1)
+- **A second real incident was logged and, unlike the first, directly drove a same-day process change** — a SEV1 memory-exhaustion outage, caused by maintenance work run directly on the production instances, led immediately to a concrete change (disk-backed paths, targeted installs instead of full reinstalls) rather than just a written retro. That's real evidence the incident response plan is a living process, not a document read once and filed. (SEF-01.1, SEF-04.1, SEF-06.1)
+- **A new data flow was documented at the moment it was introduced**, not after the fact: AWS Bedrock (`server/lib/ai.js`) sends exhibitor business text to an AI model in **us-east-1** — a genuine cross-border transfer distinct from the rest of the AWS footprint (af-south-1) — and `DATA_CLASSIFICATION_AND_RETENTION.md`, `VENDOR_DEPENDENCY_REVIEW.md`, and the public Privacy Policy were all updated the same day, before this re-score, not as part of it. (DSP-05.2)
+- **A concrete example of the change-testing standard**: every change this session went through an isolated build-check (a disk-backed copy with symlinked `node_modules`, ESLint + a full `vite build`) on its own branch before merging and deploying — applied consistently across 6+ separate changes, not asserted once. (CCC-02.1)
+
+**A correction that went the other way, outside the spreadsheet:** `RISK_REGISTER.md` #7 previously stated `pdfjs-dist`'s known CVE "has no live attack surface" since it was only used in offline scripts. That's no longer true — a PDF-logo-upload feature now runs the same library against user-supplied files directly in the browser. No CAIQ question hinges narrowly enough on this to flip, but the risk register and this document's own prior TVM narrative were both corrected rather than left stating something now false. This is exactly the kind of finding CAIQ's honesty is supposed to surface — a security posture correctly *decreasing* somewhere, alongside genuine gains elsewhere.
+
+**New infrastructure this round, documented but not yet claimed as a CAIQ positive anywhere:** a video-compression Lambda (`adma-video-compress`, S3-triggered, its own scoped IAM role, a custom ffmpeg layer) — see `security/VIDEO_COMPRESSION_LAMBDA.md`. Deliberately not cited toward any specific answer above; it's new enough, and its own "known gaps" section (no failure alerting, built by hand not IaC) honest enough, that claiming it as evidence this round would be premature.
+
+### Round 4b (same day) — the flagged stale blocks, fixed
+
+Round 4 flagged two pre-existing stale blocks rather than rushing them; asked directly whether to fix them or move to something else, the answer was to finish them. 27 rows reviewed individually (same per-question rigor as every other round — no bulk find-replace), 3 more answers moved:
+
+- **DSP block** (11 of the 12 flagged rows) — `DATA_CLASSIFICATION_AND_RETENTION.md`'s four sections (classification, retention, deletion, encryption) turned out to substantively answer most of them once actually cited: DSP-06.2 moved **Partial→Yes** (identical §5 annual-review evidence already credited to DSP-01.2, just never cross-applied — a consistency fix), DSP-12.1 moved **No→Partial** (the Privacy Policy's declared-purposes section plus per-record ownership scoping). The rest kept their answer but got real citations replacing the stale boilerplate — including DSP-10.1, which now cites the very AWS Bedrock disclosure work from earlier in this same round. **Left alone on purpose:** DSP-15.1 (production-data-in-non-production) — no real evidence either way, not worth stretching for.
+- **LOG block** (all 10 flagged rows) — the false "no... AWS CloudTrail" claim (wrong since 2026-08-05) removed from every row. LOG-06.1 moved **Partial→Yes** (reliable time source is inherited from AWS's own NTP infrastructure, same SSRM basis as Datacenter Security's 100%) — a clean, direct match once actually checked. The rest correctly stayed Partial: collection existing isn't the same as active anomaly monitoring/alerting, which genuinely still doesn't exist (LOG-03.2 stays "No" for the same reason, untouched).
+- **BCR block** (6 of 7 rows, found while reviewing LOG) — "no failover/redundancy" was itself stale, unchanged since before the warm-standby instance went live (2026-08-06). Corrected to reflect what's real: a manually-promoted (not automatic) standby, verified reachable end-to-end. No answers moved — a real capability gap (manual vs. automatic) remains, just described accurately now instead of as "nothing exists." **Left alone:** BCR-10.2 (local emergency authorities in DR exercises) — not a realistic fit for this team's actual DR testing, no evidence to cite.
+
+Net effect: 66.1%, and — as important as the number — DSP (72.9%) and LOG (66.7%) domains no longer contain a demonstrably false factual claim anywhere in this document.
 
 **Round 2** added a batch of low-cost, zero-risk documentation: `security/INTEROPERABILITY_AND_API_POLICY.md` and `security/GOVERNANCE_ADDENDUM.md` (new), plus explicit annual-review-cadence commitments added to five existing policy docs that were previously missing one. 15 more answers changed. **Interoperability & Portability alone moved from 37.5% to 68.8%** — the export feature did the heavy lifting in round 1, and formalizing the surrounding policy closed most of the rest.
 
 **Round 3** followed the go-ahead to pursue real multi-AZ infrastructure. A warm-standby EC2 instance is now live in a different availability zone (`security/PROMOTION_RUNBOOK.md`), verified reachable and healthy end-to-end from outside — not just launched. That's a direct, clean match for BCR-11.1 ("redundant equipment independently located"), which had been a correctly-honest "No" through rounds 1–2 since no such redundancy existed yet. **Business Continuity Management moved from 69.4% to 77.8%.**
 
+### Round 5 (2026-08-31) — the ALB/WAF cutover, and a correction to the earlier estimate
+
+The infrastructure this document's own "Is 80% reachable?" section (below) said would move the score most — ALB + WAF fronting both instances — is now genuinely live: `adma-alb` load-balances both EC2 instances (both `healthy`), terminates TLS with a real ACM cert, redirects HTTP→HTTPS, sits behind WAF (AWS Managed Rule Groups), and the shared security group is restricted to ALB-only. Not provisioned-and-idle — real production traffic (`admadigital.co.zw`) has been cut over to it and verified end-to-end.
+
+**The honest result: +0.4 points (66.1% → 66.5%), not the +5–6 points estimated below.** Reviewing all 14 Infrastructure & Virtualization Security rows individually (not a bulk find-replace) found the earlier estimate was optimistic: the shared evidence blurb on those rows lists several gaps together ("no formal hardening baseline, network segmentation, WAF, or IDS/IPS"), but WAF/segmentation was only ever the *specific* blocker for one of them:
+
+- **IVS-03.5** (Partial→Yes) — "network configurations supported by documented justification of all allowed services/protocols/ports" — the SG lockdown plus its documented justification (`RISK_REGISTER.md` #17–#19) is a direct, clean match.
+- The other 8 Partial IVS rows are Partial for reasons WAF/segmentation doesn't touch at all: no formal *written* policy document (IVS-01.1/01.2), no annual network-config review cadence (IVS-03.4), the ALB→instance leg now being unencrypted internally — a new nuance worth flagging honestly, not something to gloss over (IVS-03.2), no OS/hypervisor hardening baseline like a CIS benchmark (IVS-04.1), no non-production environment (IVS-05.1), multi-tenant infrastructure isolation being a different concept from public→ALB→backend segmentation (IVS-06.1), and cloud-migration-specific encryption (IVS-07.1). Each got an honest `UPDATE 2026-08-31` note correcting the stale "no WAF/segmentation" framing without inflating the verdict.
+
+**Business Continuity Management moved similarly** — one row, not several. **BCR-04.1** (Partial→Yes) specifically asked whether "operational resilience capability results" are incorporated into the BC plan; the ALB's automatic health-check-driven traffic failover is a real new capability, now also documented in `PROMOTION_RUNBOOK.md`'s new "ALB automatic traffic failover" section (not just infrastructure existing — the plan document was updated to actually incorporate it). BCR-01.1, BCR-02.1, and BCR-07.1 got the same honest correction as the IVS rows above without their verdicts moving — they're Partial for a broader policy-completeness bar than one new capability satisfies.
+
+**Two real incidents happened during this rollout, both caught and fixed within minutes, both recorded honestly in `RISK_REGISTER.md`** (#19, and the ordering mistake noted in #2) rather than omitted because the outcome was ultimately good: a stray second IP on the DNS A record (inherited from the original DirectAdmin migration, never questioned until it started serving an unrelated certificate) caused a real "connection not private" warning for a live visitor; and the security group was tightened once *before* DNS actually pointed at the ALB, causing a brief self-inflicted outage until reverted and redone in the correct order.
+
+**The lesson for future estimates in this document**: a shared evidence blurb across many rows describing several gaps together doesn't mean fixing one of those gaps moves all the rows — check each question's actual bar individually before estimating impact, the same discipline this document already applies when actually scoring.
+
+### Round 5b (same day) — the Cryptography domain's own stale block, found while checking for more
+
+Asked directly what else could move the score, rather than guess, the answer was to actually check the domains this document hadn't recently reviewed row-by-row — Cryptography, Governance/Risk, and Supply Chain. Governance and Supply Chain turned out to already be accurate (every Partial/No row already cites real, current evidence — nothing stale found). **Cryptography had the exact same stale-block pattern Round 4b found in DSP/LOG/BCR**: `KEY_MANAGEMENT_POLICY.md` has existed since 2026-08-05 (26 days), cross-applied to 9 of 23 rows at the time, but never extended to the other 14 — 13 of which still said "no formal key management policy... relies on AWS-managed default keys" verbatim, describing a document that had existed for weeks.
+
+Checked all 23 rows individually against what the policy actually covers (not a bulk find-replace):
+- **CEK-03.1** (Partial→Yes) — "data at-rest/in-transit cryptographically protected using approved-standard libraries" — Policy §1/§2 (AES-256 at rest, TLS 1.2+ in transit) is a direct match, same reasoning already credited to the near-identical CEK-04.1.
+- **CEK-11.1** (Partial→Yes) — "private keys provisioned for a unique purpose... managed" — Policy §3's per-secret-type table is a direct match, same reasoning already credited to CEK-10.1 and CEK-21.1.
+- **The other 11 stale rows kept their verdict** (CEK-06.1, 08.1, 09.1, 09.2, 12.1, 14.1, 15.1–20.1) but got the same false-claim removed and replaced with the *real* reason they're still Partial/No — mostly genuine gaps the policy itself honestly flags as open (no rotation schedule, no destruction process, no formal lifecycle-state procedures for suspension/activation/compromise, self-review isn't the same as independent audit). One (CEK-08.1) turned out to be Partial for an entirely different reason than the stale text implied — it's about giving *customers* self-service key management, not about ADMA's own internal documentation, which the stale text had conflated.
+
+**Cryptography moved 50.0% → 54.3%.** Net effect this round: **66.5% → 66.9%.**
+
 ### Is 80% realistically reachable?
 
 Ran the math honestly rather than assuming yes because it was asked for. **80% is not reachable through more documentation or infrastructure work alone.** Three domains are structurally capped by things that take calendar time, not engineering effort:
-- **Threat & Vulnerability Management (45.8%)** — capped without an independent pentest (TVM-06.1 alone, plus the malware-protection sub-questions, which are genuinely not applicable without a managed endpoint fleet).
+- **Threat & Vulnerability Management (50.0%)** — capped without an independent pentest (TVM-06.1 alone, plus the malware-protection sub-questions, which are genuinely not applicable without a managed endpoint fleet).
 - **Audit & Assurance (31.3%)** — three of its eight questions (A&A-02/03/04) specifically require an *independent* assessment; no amount of internal documentation satisfies "independent."
 - **Human Resources (27.5%)** — background-check and formal-employment-agreement questions that only make sense once hiring grows past people already known personally.
 
-Real multi-AZ infrastructure (CAIQ Phase 3 item 16, options 2–3 in `security/INFRASTRUCTURE_RESILIENCE_OUTLINE.md`) would help — mainly Business Continuity Management (currently 69.4%) and Infrastructure & Virtualization Security (67.9%) — but the honest estimate is **roughly +5–6 points**, landing around **69–70%**, not 80%. See the question in this conversation for the go/no-go on that spend.
+**Update 2026-08-31 — this paragraph originally estimated real multi-AZ infrastructure (ALB + WAF) would add roughly +5–6 points; see Round 5 above for what actually happened once it was built and cut over to real traffic: +0.4 points (66.1%→66.5%), not +5–6.** The estimate assumed most of Infrastructure & Virtualization Security's Partial rows were Partial specifically *because* of missing WAF/segmentation; checking each row's actual bar individually found only one genuinely was. Infrastructure & Virtualization Security moved 67.9%→71.4% and Business Continuity Management 77.8%→80.6% — real, honest gains, just smaller than first estimated. The ALB/WAF work was still worth doing independently of CAIQ — it's the infrastructure the 2026-08-28 SEV1 incident (`INCIDENT_RESPONSE_PLAN.md`) argued for on its own merits (no load balancer meant one instance's resource exhaustion was a full outage, which is exactly what happened) — it just wasn't the path to 80% this document once thought it was.
 
 **The highest-leverage next step toward 80% is the pentest** (`security/PENTEST_SCOPE.md`, ~$1,500–4,000) — it's the only lever that unlocks meaningful movement in both Threat & Vulnerability Management *and* Audit & Assurance at once, and it's evidence a market/exhibitor audience actually recognizes, unlike another internal policy document.
 
@@ -57,27 +111,29 @@ ADMA Digital is a small, fast-moving team operating a real production platform w
 
 ## 2. Score by CCM Domain
 
-**All three snapshots shown** — 2026-08-04 (original), 2026-08-05 round 1, 2026-08-05 round 2 (current) — sorted by the current score, lowest → highest.
+**All snapshots shown** — 2026-08-04 (original) through Round 5 (current) — sorted by the current score, lowest → highest.
 
-| Domain | 2026-08-04 | Round 1 | Round 2 | **Round 3 (current)** | Qs |
-|---|---:|---:|---:|---:|---:|
-| Human Resources | 0.0% | 25.0% | 27.5% | **27.5%** | 20 |
-| Audit & Assurance | 0.0% | 31.3% | 31.3% | **31.3%** | 8 |
-| Threat & Vulnerability Management | 0.0% | 45.8% | 45.8% | **45.8%** | 12 |
-| Supply Chain Mgmt, Transparency & Accountability | 0.0% | 43.3% | 46.7% | **46.7%** | 15 |
-| Cryptography, Encryption & Key Management | 21.7% | 47.8% | 50.0% | **50.0%** | 23 |
-| Governance, Risk and Compliance | 0.0% | 44.4% | 50.0% | **50.0%** | 9 |
-| Logging and Monitoring | 47.2% | 63.9% | 63.9% | **63.9%** | 18 |
-| Infrastructure & Virtualization Security | 50.0% | 67.9% | 67.9% | **67.9%** | 14 |
-| Data Security and Privacy Lifecycle Management | 43.8% | 66.7% | 68.8% | **68.8%** | 24 |
-| Interoperability & Portability | 0.0% | 37.5% | 68.8% | **68.8%** | 8 |
-| Application & Interface Security | 50.0% | 72.7% | 72.7% | **72.7%** | 11 |
-| Security Incident Mgmt, E-Discovery & Cloud Forensics | 0.0% | 59.1% | 72.7% | **72.7%** | 11 |
-| Business Continuity Mgmt & Operational Resilience | 0.0% | 61.1% | 69.4% | **77.8%** | 18 |
-| Identity & Access Management | 54.8% | 81.0% | 81.0% | **81.0%** | 21 |
-| Change Control and Configuration Management | 63.6% | 86.4% | 90.9% | **90.9%** | 11 |
-| Datacenter Security | 100.0% | 100.0% | 100.0% | **100.0%** | 23 |
-| Universal Endpoint Management | N/A | N/A | N/A | **N/A** | 17 |
+| Domain | 2026-08-04 | Round 1 | Round 2 | Round 3 | Round 4 | Round 4b | Round 5 | **Round 5b (current)** | Qs |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Human Resources | 0.0% | 25.0% | 27.5% | 27.5% | 27.5% | 27.5% | 27.5% | **27.5%** | 20 |
+| Audit & Assurance | 0.0% | 31.3% | 31.3% | 31.3% | 31.3% | 31.3% | 31.3% | **31.3%** | 8 |
+| Threat & Vulnerability Management | 0.0% | 45.8% | 45.8% | 45.8% | 50.0% | 50.0% | 50.0% | **50.0%** | 12 |
+| Governance, Risk and Compliance | 0.0% | 44.4% | 50.0% | 50.0% | 50.0% | 50.0% | 50.0% | **50.0%** | 9 |
+| Supply Chain Mgmt, Transparency & Accountability | 0.0% | 43.3% | 46.7% | 46.7% | 53.3% | 53.3% | 53.3% | **53.3%** | 15 |
+| Cryptography, Encryption & Key Management | 21.7% | 47.8% | 50.0% | 50.0% | 50.0% | 50.0% | 50.0% | **54.3%** | 23 |
+| Logging and Monitoring | 47.2% | 63.9% | 63.9% | 63.9% | 63.9% | 66.7% | 66.7% | **66.7%** | 18 |
+| Interoperability & Portability | 0.0% | 37.5% | 68.8% | 68.8% | 68.8% | 68.8% | 68.8% | **68.8%** | 8 |
+| Infrastructure & Virtualization Security | 50.0% | 67.9% | 67.9% | 67.9% | 67.9% | 67.9% | 71.4% | **71.4%** | 14 |
+| Application & Interface Security | 50.0% | 72.7% | 72.7% | 72.7% | 72.7% | 72.7% | 72.7% | **72.7%** | 11 |
+| Security Incident Mgmt, E-Discovery & Cloud Forensics | 0.0% | 59.1% | 72.7% | 72.7% | 72.7% | 72.7% | 72.7% | **72.7%** | 11 |
+| Data Security and Privacy Lifecycle Management | 43.8% | 66.7% | 68.8% | 68.8% | 68.8% | 72.9% | 72.9% | **72.9%** | 24 |
+| Business Continuity Mgmt & Operational Resilience | 0.0% | 61.1% | 69.4% | 77.8% | 77.8% | 77.8% | 80.6% | **80.6%** | 18 |
+| Identity & Access Management | 54.8% | 81.0% | 81.0% | 81.0% | 81.0% | 81.0% | 81.0% | **81.0%** | 21 |
+| Change Control and Configuration Management | 63.6% | 86.4% | 90.9% | 90.9% | 90.9% | 90.9% | 90.9% | **90.9%** | 11 |
+| Datacenter Security | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | **100.0%** | 23 |
+| Universal Endpoint Management | N/A | N/A | N/A | N/A | N/A | N/A | N/A | **N/A** | 17 |
+
+Round 4 moved Threat & Vulnerability Management and Supply Chain Management. Round 4b (same day, the flagged-stale-block follow-up) moved Data Security and Privacy (68.8%→72.9%) and Logging and Monitoring (63.9%→66.7%). Round 5 (2026-08-31, the ALB/WAF cutover) moved Infrastructure & Virtualization Security (67.9%→71.4%, one row of 14) and Business Continuity Mgmt (77.8%→80.6%, one row of 18). Round 5b (same day, checking Cryptography/Governance/Supply Chain for the same staleness) moved Cryptography (50.0%→54.3%, 2 rows of 23) — Governance and Supply Chain were already accurate, nothing to fix. Every other domain is carried forward unchanged.
 
 **Datacenter Security scores 100%** because it is fully inherited from AWS — ADMA runs no physical infrastructure, so this domain is answered "Yes, inherited from AWS's own SOC 2 / ISO 27001 certifications." That's legitimate but worth flagging in any customer-facing use of this CAIQ: cite AWS's compliance reports as the evidence, don't imply ADMA itself was audited for it.
 
@@ -188,8 +244,10 @@ Phase 1 alone (documentation-heavy, ~1 week of focused effort) should meaningful
 - Answers were derived from: direct code inspection (`server/index.js`, `server/lib/*`, `server/routes/*`, `package.json` dependencies), prior verified project history (session/RBAC rollout, Paynow integration, CSP incident), and reasonable defaults for organizational/HR/governance questions where no counter-evidence exists in the repo (mostly answered "No" — absence of a policy doc was treated as absence of the control, which is the standard conservative CAIQ convention).
 - Some answers may be **more pessimistic than reality** if a policy or process exists outside this repository (e.g. verbally agreed, or documented elsewhere) that wasn't visible to this review — worth a manual pass over the "No" rows in the spreadsheet to correct any of those.
 - Some answers may be **more optimistic than reality** if a control that "looks" implemented in code has a bug or isn't actually active in production (e.g. DynamoDB PITR — flagged above as "not confirmed," deliberately not assumed either way).
-- The completed questionnaire (`ADMA_CAIQ_v4.0.3_Completed_2026-08-04.xlsx`, the original baseline snapshot, and `ADMA_CAIQ_v4.0.3_Completed_2026-08-05.xlsx`, the re-scored version — both kept, not overwritten, for audit trail) preserves the standard CAIQ v4.0.3 question set and CCM control mapping, with three added columns: **CAIQ Answer** (Yes/Partial/No/N/A), **SSRM Control Ownership** (who owns the control — ADMA vs. inherited from AWS vs. shared), and **Implementation Notes/Evidence** (the specific reasoning behind each answer, referencing real files/systems where applicable — every 2026-08-05 change is prefixed "UPDATE 2026-08-05:" in that column so the diff from baseline is traceable within the sheet itself). Filter/sort by the "No" answers in either sheet to work the backlog directly.
-- The 2026-08-05 re-score changed 117 of 263 answers. Every change is a question-level judgment grounded in a specific, named, real artifact (a document, a verified deployed feature, a directly-tested IAM permission) — not a blanket domain-wide bump. Where no new evidence existed for a specific question, its answer was left exactly as it was, even within domains that moved substantially overall (e.g. Threat & Vulnerability Management's pentest question, TVM-06.1, stayed "No").
+- The completed questionnaire — `ADMA_CAIQ_v4.0.3_Completed_2026-08-04.xlsx` (original baseline), `ADMA_CAIQ_v4.0.3_Completed_2026-08-05.xlsx` (Round 1–3), and `ADMA_CAIQ_v4.0.3_Completed_2026-08-28.xlsx` (**Round 4 + 4b, current**) — all kept, none overwritten, for audit trail — preserves the standard CAIQ v4.0.3 question set and CCM control mapping, with three added columns: **CAIQ Answer** (Yes/Partial/No/N/A), **SSRM Control Ownership** (who owns the control — ADMA vs. inherited from AWS vs. shared), and **Implementation Notes/Evidence** (the specific reasoning behind each answer, referencing real files/systems where applicable — every change is prefixed "UPDATE \<date\>:" in that column so the diff from baseline is traceable within the sheet itself). Filter/sort by the "No" answers in the current sheet to work the backlog directly.
+- The 2026-08-05 re-score changed 117 of 263 answers; the combined 2026-08-28 rounds changed 37 (Round 4: 10 rows, 3 answer flips; Round 4b: 27 rows, 3 more answer flips — 6 total this session, all No→Partial or Partial→Yes, never the reverse except the one deliberate correction below). Every change is a question-level judgment grounded in a specific, named, real artifact (a document, a verified deployed feature, a directly-tested IAM permission) — not a blanket domain-wide bump. Where no new evidence existed for a specific question, its answer was left exactly as it was, even within domains that moved substantially overall (e.g. Threat & Vulnerability Management's pentest question, TVM-06.1, stayed "No").
+- Round 4b closed out the two stale blocks Round 4 had flagged rather than rushed (see Section 0) — three rows were deliberately left untouched even after review (DSP-15.1, BCR-10.2, LOG-03.2) because no real evidence existed to cite either way, not because they were skipped.
+- Separately, `RISK_REGISTER.md` #7 moved in the *other* direction this session — a prior "no live attack surface" claim about `pdfjs-dist` became false partway through the day once a PDF-upload feature shipped, and was corrected rather than left standing. Not reflected as a CAIQ answer change (no single question hinges narrowly enough on it), but recorded here since a re-score that only ever reports gains isn't a credible one.
 
 ---
-*Generated 2026-08-04. Re-scored 2026-08-05 — see Section 0. Next re-score due after CSP flips to enforcing, a pentest is commissioned, or the next major phase of work lands, whichever comes first.*
+*Generated 2026-08-04. Re-scored 2026-08-05 (Rounds 1–3), 2026-08-28 (Round 4 + 4b), 2026-08-31 (Round 5 — ALB/WAF cutover; Round 5b — Cryptography stale-block correction) — see Section 0. Next re-score due after CSP flips to enforcing, a pentest is commissioned, or the next major phase of work lands, whichever comes first.*

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createPresignedPut, deleteS3Object } from '../lib/s3.js';
+import { createPresignedPut, deleteS3Object, getS3ObjectMetadata } from '../lib/s3.js';
 import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 import { getMyExhibitorId } from '../lib/ownership.js';
 
@@ -156,6 +156,58 @@ r.post('/video-ad-url', requireAuth, async (req, res) => {
     const key = `video-ads/${purpose || 'misc'}/${ownerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`;
     const { uploadUrl, publicUrl } = await createPresignedPut(key, 'video/mp4');
     res.json({ uploadUrl, publicUrl });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/upload/video-ad-cleanup — deletes an old video-ad S3 object by URL.
+// NOT currently called from the frontend (removed 2026-08-31 from
+// VideoUploadOrUrlField.jsx — see that file's handleFile comment and
+// RISK_REGISTER.md for the incident). It used to fire right after every new
+// upload succeeded, using whatever the field's local draft value was as "old" —
+// but a draft isn't necessarily what's actually saved/live, so a second upload
+// before the first was ever saved (or a Cancel after one upload) deleted the
+// still-DB-referenced, live video out from under an exhibitor. Left in place
+// (unused) for whichever call site is retrofitted first with a correct
+// "delete only after a confirmed save, comparing against the pre-save DB value"
+// version of this cleanup — do not wire this back up to fire on upload alone.
+r.post('/video-ad-cleanup', requireAuth, async (req, res) => {
+  try {
+    const { oldVideoUrl } = req.body;
+    if (oldVideoUrl) {
+      try {
+        const url = new URL(oldVideoUrl);
+        await deleteS3Object(decodeURIComponent(url.pathname.slice(1)));
+      } catch {
+        // oldVideoUrl wasn't a parseable S3 URL (e.g. a YouTube/Vimeo link) —
+        // nothing to delete, not an error.
+      }
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/upload/video-status — polled by VideoUploadOrUrlField.jsx right after a
+// video-ad-url upload finishes, to find out whether server/lambda/video-compress.js
+// (an S3-triggered Lambda, deployed separately from this app server, see that
+// file's header comment) has finished re-encoding the video down to size yet.
+// Exists because the presigned-PUT flow used to mean "PUT succeeds -> publicUrl is
+// immediately the final asset" — that's no longer true once a background
+// compression step can still be rewriting the object in place after the upload
+// returns, so the frontend needs a real way to ask "is it actually done" instead
+// of assuming.
+r.get('/video-status', requireAuth, async (req, res) => {
+  try {
+    const { publicUrl } = req.query;
+    if (!publicUrl) return res.status(400).json({ error: 'publicUrl required' });
+    const url = new URL(publicUrl);
+    const key = decodeURIComponent(url.pathname.slice(1));
+    const metadata = await getS3ObjectMetadata(key);
+    if (!metadata) return res.status(404).json({ error: 'Not found' });
+    res.json({ processed: metadata.processed === 'true' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

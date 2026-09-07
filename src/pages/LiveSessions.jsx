@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import SponsoredSessionBadge from '@/components/video/SponsoredSessionBadge';
 import ViewerCounter from '@/components/video/ViewerCounter';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useSEO } from '@/lib/useSEO';
 
 const STATUS_STYLES = {
   live:      { label: 'LIVE', class: 'bg-red-500 text-white animate-pulse' },
@@ -73,6 +74,7 @@ function SessionCard({ session }) {
 }
 
 export default function LiveSessions() {
+  useSEO({ title: 'Live Sessions', path: '/sessions', noindex: true });
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['sessions'],
     queryFn: () => Session.list('start_time'),

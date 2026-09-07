@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   ArrowLeft, Briefcase, MapPin, Clock, Mail, Send, CheckCircle, Lock, LogIn, UserPlus, FileUp, ExternalLink,
 } from 'lucide-react';
+import { useSEO } from '@/lib/useSEO';
 
 function fmtDate(iso) {
   if (!iso) return null;
@@ -25,6 +26,12 @@ export default function JobDetail() {
   const { data: job, isLoading } = useQuery({
     queryKey: ['job-listing', id],
     queryFn: () => JobListing.get(id),
+  });
+
+  useSEO({
+    title: job ? `${job.title}${job.company_name ? ` at ${job.company_name}` : ''}` : 'Job Listing',
+    description: job?.description?.trim()?.slice(0, 200) || (job ? `${job.title} — job listing on ADMA Digital.` : undefined),
+    path: `/jobs/${id}`,
   });
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });

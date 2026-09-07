@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Auction, Lot } from '@/api/entities';
 import { Gavel, MapPin, Package, Radio, ChevronRight } from 'lucide-react';
 import CountdownTimer from '@/components/auction/CountdownTimer';
+import { useSEO } from '@/lib/useSEO';
 
 const TABS = [
   { id: 'Live', label: 'Live' },
@@ -17,6 +18,11 @@ function fmtDate(iso) {
 }
 
 export default function Auctions() {
+  useSEO({
+    title: 'Livestock Auctions',
+    description: 'Live and upcoming livestock auctions at the ADMA Agri Show.',
+    path: '/auctions',
+  });
   const [tab, setTab] = useState('Live');
 
   const { data: auctions = [], isLoading } = useQuery({

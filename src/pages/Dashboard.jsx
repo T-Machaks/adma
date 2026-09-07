@@ -9,10 +9,10 @@ import { useState, useMemo } from 'react';
 import { EVENT_CONFIG, getExhibitorCategories } from '@/lib/eventConfig';
 
 const VALID_SECTIONS = EVENT_CONFIG.exhibitorSections;
-// ADMA Digital virtual package tiers (Basic/Enhanced/Premium) — independent of the
+// ADMA Digital virtual package tiers (Free/Basic/Enhanced/Premium) — independent of the
 // physical show's booth tier (Platinum/Gold/Silver/Bronze). Colors match TierBadge.jsx.
-const PACKAGE_TIERS = ['Basic', 'Enhanced', 'Premium'];
-const PACKAGE_COLORS = { Basic: '#64748b', Enhanced: '#3b82f6', Premium: '#f59e0b' };
+const PACKAGE_TIERS = ['Free', 'Basic', 'Enhanced', 'Premium'];
+const PACKAGE_COLORS = { Free: '#94a3b8', Basic: '#64748b', Enhanced: '#3b82f6', Premium: '#f59e0b' };
 
 export default function Dashboard() {
   const { user } = useAuth();

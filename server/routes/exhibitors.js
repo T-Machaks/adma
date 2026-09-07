@@ -1,6 +1,7 @@
-import { GetCommand, ScanCommand, QueryCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, ScanCommand, QueryCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { crudRouter } from '../lib/crudRouter.js';
+import { generateId } from '../lib/idgen.js';
 import { nextMay30ISO } from '../lib/subscription.js';
 import { logSecurityEvent } from '../lib/securityLog.js';
 import { revokeAllSessionsForExhibitor, revokeAllSessionsForUser } from '../lib/session.js';
@@ -55,6 +56,36 @@ export default crudRouter('adma_exhibitors', {
   // frontend filtering needed anywhere.
   filterItems: (item) => !item.deleted,
   extraRoutes(r) {
+    // Overrides crudRouter's generic POST / — restricts exhibitor creation to
+    // organizer/superadmin. crudRouter can't express this on its own: `write: ownsBooth`
+    // is a function, and buildAccessMiddleware collapses any function to a bare
+    // requireAuth for POST (there's no existing item yet to check ownership against) —
+    // meaning ANY authenticated user, including an attendee, could otherwise create a
+    // bare exhibitor record. Closes that gap, and doubles as the "Add Exhibitor" tool
+    // an organizer uses to create a profile directly with no linked login account yet,
+    // so they can start setting it up (via POST /api/auth/impersonate-exhibitor/:id)
+    // without first creating a fake exhibitorname@admadigital.co.zw account just to
+    // push something through the public application flow.
+    r.post('/', requireRole('organizer', 'superadmin'), async (req, res) => {
+      try {
+        if (!req.body.name?.trim()) return res.status(400).json({ error: 'name is required.' });
+        const item = {
+          id: generateId(),
+          created_date: new Date().toISOString(),
+          featured: false,
+          package: 'Basic',
+          subscription_expires_at: nextMay30ISO(),
+          status: 'active',
+          ...req.body,
+        };
+        await ddb.send(new PutCommand({ TableName: 'adma_exhibitors', Item: item }));
+        logSecurityEvent('exhibitor_created_by_organizer', { exhibitorId: item.id, name: item.name, createdBy: req.user.id, ip: req.ip });
+        res.status(201).json(item);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
     // Overrides crudRouter's generic DELETE — never calls next(), so the generic
     // handler (registered after extraRoutes runs) never fires for this path. Soft-
     // deletes the exhibitor itself (recoverable, not physically removed), downgrades

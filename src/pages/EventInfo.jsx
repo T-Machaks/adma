@@ -4,8 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { EventInfo as EventInfoEntity } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { useSEO } from '@/lib/useSEO';
 
 export default function EventInfo() {
+  useSEO({
+    title: 'Event Info',
+    description: 'Dates, venue, tickets, and everything you need to know about attending the ADMA Agri Show at ART Farm, Pomona, Harare.',
+    path: '/event-info',
+  });
   const [openFaq, setOpenFaq] = useState(null);
   const { settings } = useAppSettings();
   const { data, isLoading } = useQuery({

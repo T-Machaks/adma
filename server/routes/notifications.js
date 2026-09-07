@@ -2,18 +2,23 @@ import { Router } from 'express';
 import { GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '../lib/dynamo.js';
 import { sendOtpEmail } from '../lib/mailer.js';
-import { sendSms } from '../lib/omniflex.js';
+import { sendSms, createSmsCampaign } from '../lib/omniflex.js';
 import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 
 const r = Router();
 const APP_URL = 'https://admadigital.co.zw';
 
+// Accepts 07XXXXXXXX, +263XXXXXXXXX, or 00263XXXXXXXXX — anything else is treated
+// as invalid and returns null so smsSilent() skips the send rather than guessing.
 function normalizePhone(phone) {
   if (!phone) return null;
-  const clean = phone.replace(/[\s\-\(\)]/g, '');
-  if (clean.startsWith('07') && clean.length === 10) return '+263' + clean.slice(1);
-  if (clean.startsWith('+263')) return clean;
-  return null;
+  const digits = String(phone).replace(/\D/g, '');
+  let national;
+  if (digits.startsWith('00263') && digits.length === 14) national = digits.slice(5);
+  else if (digits.startsWith('263') && digits.length === 12) national = digits.slice(3);
+  else if (digits.startsWith('0') && digits.length === 10) national = digits.slice(1);
+  else return null;
+  return '+263' + national;
 }
 
 async function emailSilent(to, subject, html) {
@@ -141,6 +146,103 @@ function announcementHtml(a, recipientName) {
     <p style="margin:0 0 20px;color:#444;font-size:14px;line-height:1.7;">${(a.body || '').replace(/\n/g, '<br>')}</p>
     <a href="${APP_URL}" style="display:inline-block;background:#f59e0b;color:#1a2332;font-weight:700;font-size:13px;padding:10px 24px;border-radius:8px;text-decoration:none;">Open ADMA Digital App →</a>
   ` + footer();
+}
+
+function broadcastEmailHtml(message) {
+  return header() + `
+    <p style="margin:0 0 20px;color:#444;font-size:14px;line-height:1.7;">${(message || '').replace(/\n/g, '<br>')}</p>
+  ` + footer();
+}
+
+// ── Broadcast audience resolution ───────────────────────────────────────────
+// Pulls contacts from whichever of the three groups the organizer selected —
+// registered attendees (Confirmed/Checked In only — Pending/Cancelled haven't
+// actually completed registration), exhibitor booths, and/or every adma_users
+// account regardless of role. Each channel dedupes independently against its own
+// normalized form (a person's email and phone don't need to trace back to the same
+// source record) so nobody who appears in more than one selected group gets the
+// same message twice.
+const AUDIENCE_GROUPS = ['attendees', 'exhibitors', 'users'];
+
+async function resolveBroadcastAudience(groups) {
+  const selected = groups.filter(g => AUDIENCE_GROUPS.includes(g));
+  const [regsResult, exhibitorsResult, usersResult] = await Promise.all([
+    selected.includes('attendees')
+      ? ddb.send(new ScanCommand({
+          TableName: 'adma_registrations',
+          FilterExpression: '#s IN (:c, :ci)',
+          ExpressionAttributeNames: { '#s': 'status' },
+          ExpressionAttributeValues: { ':c': 'Confirmed', ':ci': 'Checked In' },
+        }))
+      : Promise.resolve({ Items: [] }),
+    selected.includes('exhibitors')
+      ? ddb.send(new ScanCommand({ TableName: 'adma_exhibitors' }))
+      : Promise.resolve({ Items: [] }),
+    selected.includes('users')
+      ? ddb.send(new ScanCommand({ TableName: 'adma_users' }))
+      : Promise.resolve({ Items: [] }),
+  ]);
+
+  const raw = [
+    ...(regsResult.Items || []).map(r => ({ email: r.email, phone: r.phone, name: r.full_name })),
+    ...(exhibitorsResult.Items || []).map(e => ({ email: e.contact_email, phone: e.phone, name: e.name })),
+    ...(usersResult.Items || []).map(u => ({ email: u.email, phone: u.phone, name: u.full_name })),
+  ];
+
+  const emailSet = new Set();
+  const phoneMap = new Map(); // normalized phone -> name (first one seen), for {{name}} personalization
+  for (const c of raw) {
+    const email = c.email?.toLowerCase().trim();
+    if (email && email.includes('@')) emailSet.add(email);
+    const phone = normalizePhone(c.phone);
+    if (phone && !phoneMap.has(phone)) phoneMap.set(phone, c.name || '');
+  }
+  return {
+    emails: [...emailSet],
+    phones: [...phoneMap.entries()].map(([phone, name]) => ({ phone, name })),
+  };
+}
+
+// Bounded concurrency for email — there's no bulk-send endpoint for ADMA's own Graph
+// mailbox, only one-at-a-time sends, so this caps how many are in flight at once
+// instead of firing them all simultaneously. Microsoft Graph enforces a low
+// per-mailbox concurrent-request limit (confirmed live 2026-09-01 — sending 10 in
+// parallel through the same NoReply@tyflex.co.zw mailbox threw "Application is over
+// its MailboxConcurrency limit" for a third of them). SMS doesn't need this — it goes
+// through OmniFlex's real Campaigns API (one call, all recipients — see
+// createSmsCampaign below), not a per-recipient loop.
+const EMAIL_CONCURRENCY = 3;
+
+// One retry with a short randomized delay for exactly that transient throttle — a
+// concurrency cap alone reduces but doesn't eliminate the race (two workers can still
+// land in the same instant), and this is cheap insurance against it. Everything else
+// still fails immediately on the first attempt, same as before.
+async function sendOneWithRetry(sendOne, target) {
+  try {
+    await sendOne(target);
+  } catch (e) {
+    if (!/429|concurrency/i.test(e.message)) throw e;
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+    await sendOne(target);
+  }
+}
+
+async function sendBatch(targets, sendOne, concurrency) {
+  let sent = 0, failed = 0, i = 0;
+  async function worker() {
+    while (i < targets.length) {
+      const target = targets[i++];
+      try {
+        await sendOneWithRetry(sendOne, target);
+        sent++;
+      } catch (e) {
+        failed++;
+        console.error(`[broadcast] send to ${target} failed: ${e.message}`);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, worker));
+  return { targeted: targets.length, sent, failed };
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -435,13 +537,79 @@ r.post('/job-application', async (req, res) => {
   }
 });
 
-// Bulk SMS stub — logs payload, ready for OmniFlex mass-send when available
-r.post('/bulk-sms', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
-  const { message, campaign } = req.body;
-  if (!message) return res.status(400).json({ error: 'message required' });
-  console.log(`[bulk-sms] campaign="${campaign}" message="${message.slice(0, 80)}…"`);
-  // TODO: scan registrations, normalise phones, call sendSms for each
-  res.json({ queued: true, campaign });
+// ── GET /api/notifications/broadcast-audience?groups=attendees,exhibitors — recipient
+// counts for the confirm step, computed BEFORE any send happens. The frontend shows
+// these numbers so an organizer can see exactly how many people (and via which
+// channel) a broadcast will actually reach before committing to it — the send button
+// itself isn't a strong enough safeguard on its own for something this size.
+r.get('/broadcast-audience', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
+  try {
+    const groups = String(req.query.groups || '').split(',').filter(Boolean);
+    if (!groups.length) return res.status(400).json({ error: 'groups required' });
+    const { emails, phones } = await resolveBroadcastAudience(groups);
+    res.json({ emailCount: emails.length, smsCount: phones.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── POST /api/notifications/broadcast — organizer broadcast to a selected audience ──
+// `groups` (subset of attendees/exhibitors/users) picks who's targeted; `channel`
+// (email/sms/both) picks how. Email goes through the same Graph API flow used
+// everywhere else in this file (lib/mailer.js's sendOtpEmail, ADMA's own
+// NoReply@tyflex.co.zw mailbox). SMS goes through ADMA's own direct OmniFlex account
+// via its real Campaigns API (lib/omniflex.js's createSmsCampaign, backed by
+// OMNIFLEX_API_KEY) — one campaign call carrying every recipient, not a per-recipient
+// loop (see RISK_REGISTER.md #23: the old per-recipient /api/sms/send endpoint isn't
+// valid for this account's key at all; confirmed live 2026-09-01, and the vendor's own
+// guidance is that bulk SMS is meant to go through /api/campaigns). Deliberately NOT
+// the reseller SSO path (lib/omniflexReseller.js / makeLoginLink), which is built for
+// a human to open a browser session inside an exhibitor's own OmniFlex workspace, not
+// a server-triggered bulk send, and deliberately not routed through any exhibitor
+// account — marketing@admadigital.co.zw specifically already collided with ADMA's own
+// OmniFlex house account once (see RISK_REGISTER.md #earlier entry).
+r.post('/broadcast', requireRole('organizer', 'marketing_partner', 'superadmin'), async (req, res) => {
+  try {
+    const { channel, subject, message, campaign, groups } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'message required' });
+    if (!['email', 'sms', 'both'].includes(channel)) return res.status(400).json({ error: 'channel must be email, sms, or both' });
+    const selectedGroups = Array.isArray(groups) ? groups.filter(g => AUDIENCE_GROUPS.includes(g)) : [];
+    if (!selectedGroups.length) return res.status(400).json({ error: 'groups required' });
+
+    const { emails, phones } = await resolveBroadcastAudience(selectedGroups);
+
+    const result = {};
+    if (channel === 'email' || channel === 'both') {
+      result.email = await sendBatch(emails, (email) =>
+        sendOtpEmail(email, null, { subject: subject?.trim() || 'ADMA Digital', html: broadcastEmailHtml(message) }),
+        EMAIL_CONCURRENCY
+      );
+    }
+    if (channel === 'sms' || channel === 'both') {
+      if (phones.length) {
+        // One campaign, all recipients — OmniFlex dispatches it a few seconds later
+        // (see createSmsCampaign's own comment on the scheduled-dispatch requirement),
+        // so there's no synchronous per-recipient sent/failed count the way the email
+        // loop above has. `targeted` is phones.length, not the campaign creation
+        // response's own total_recipients/sent_count fields — confirmed live those
+        // stay 0 at creation time regardless of how many recipients were actually
+        // attached, only updating once OmniFlex's dispatcher has actually run.
+        const camp = await createSmsCampaign({
+          name: `${campaign || 'ADMA broadcast'} — ${new Date().toISOString()}`,
+          message_template: message,
+          recipients: phones,
+        });
+        result.sms = { targeted: phones.length, campaignId: camp.id, status: camp.status };
+      } else {
+        result.sms = { targeted: 0, campaignId: null, status: null };
+      }
+    }
+
+    console.log(`[broadcast] campaign="${campaign}" channel=${channel} groups=${selectedGroups.join(',')} result=${JSON.stringify(result)}`);
+    res.json({ ok: true, campaign, groups: selectedGroups, ...result });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default r;

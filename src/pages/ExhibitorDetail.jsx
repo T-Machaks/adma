@@ -19,6 +19,7 @@ import {
   Video, Send, CheckCircle, FileText, ExternalLink, ImagePlus, Lock, LogIn, UserPlus,
   Images, MessageCircle, Award, HelpCircle, Sparkles, Star,
 } from 'lucide-react';
+import { useSEO } from '@/lib/useSEO';
 
 export default function ExhibitorDetail() {
   const { id } = useParams();
@@ -29,6 +30,24 @@ export default function ExhibitorDetail() {
   const { data: ex, isLoading } = useQuery({
     queryKey: ['exhibitor', id],
     queryFn: () => Exhibitor.get(id),
+  });
+
+  // Server-side og.js already pre-renders these same tags for crawlers that don't run
+  // JS (see that file) — this keeps the client-rendered version (what Google's own
+  // indexer sees after executing JS, and what the tab title shows) in agreement with it.
+  useSEO({
+    title: ex ? ex.name : 'Exhibitors',
+    description: ex ? ((ex.description && ex.description.trim()) || `${ex.name} on ADMA Digital — the digital platform for the ADMA Agri Show.`) : undefined,
+    path: `/exhibitors/${id}`,
+    image: ex?.logo_url || ex?.booth_image_url,
+    jsonLd: ex ? {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: ex.name,
+      description: (ex.description && ex.description.trim()) || undefined,
+      logo: ex.logo_url || undefined,
+      url: `https://admadigital.co.zw/exhibitors/${id}`,
+    } : undefined,
   });
 
   const { user, isAuthenticated } = useAuth();
@@ -130,6 +149,9 @@ export default function ExhibitorDetail() {
   const standTier = getStandTier(ex);
   const isEnhancedPlus = standTierAtLeast(ex, 'Enhanced');
   const isPremiumStand = standTier === 'Premium';
+  // Free tier (2026-08-31) sits below Basic and drops the contact form specifically —
+  // everything else on this page Basic already hides too (see isEnhancedPlus gates below).
+  const hasContactForm = standTierAtLeast(ex, 'Basic');
   const limits = getPackageLimits(ex);
 
   const expired = isSubscriptionExpired(ex) || isPackageBillingExpired(ex);
@@ -275,10 +297,20 @@ export default function ExhibitorDetail() {
                     <TierBadge package={ex.package} />
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
-                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                  <span>Booth <span className="font-bold text-foreground">{ex.booth}</span> · {ex.section || 'General'}</span>
-                </div>
+                {/* Physical booth/section — only for exhibitors also registered for a physical
+                    ADMA show. Omitted entirely for virtual-only accounts (Free tier and
+                    beyond); a bare "Booth · General" line for an exhibitor with neither field
+                    isn't meaningful for what's essentially a virtual workspace. */}
+                {(ex.booth || ex.section) && (
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                    <MapPin className="w-3 h-3 flex-shrink-0" />
+                    <span>
+                      {ex.booth && <>Booth <span className="font-bold text-foreground">{ex.booth}</span></>}
+                      {ex.booth && ex.section && ' · '}
+                      {ex.section}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                   {getExhibitorCategories(ex).map(c => (
                     <span key={c} className="text-[11px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{c}</span>
@@ -287,7 +319,13 @@ export default function ExhibitorDetail() {
               </div>
             </div>
 
-            {isEnhancedPlus && description && (
+            {/* Every tier's own perk, not just Enhanced+ — Free/Basic's "brief company
+                profile" already shows on the directory card (Exhibitors.jsx), truncated
+                to the same package descChars limit as `description` already is above;
+                this just stops the detail page from hiding it a click later. Enhanced+
+                gets the longer limit and everything else on this page still gates on
+                isEnhancedPlus below (gallery, products, contact info, media). */}
+            {description && (
               <p className="mt-4 text-sm text-foreground/80 leading-relaxed">{description}</p>
             )}
           </div>
@@ -349,8 +387,12 @@ export default function ExhibitorDetail() {
 
         {/* Right: contacts + CTAs + brochure + enquiry (2/5 on desktop) */}
         <div className="lg:col-span-2 space-y-4 mt-4 lg:mt-0">
-          {/* Contact & links — Enhanced+ */}
-          {isEnhancedPlus && (ex.website || ex.contact_email || ex.phone) && (
+          {/* Contact & links — Basic+ (same threshold as the Request Info form below,
+              which stays available alongside this for every tier that has it — this
+              doesn't replace it, just stops making a visitor go through the form for
+              something as basic as an email address). Free stays without any contact
+              channel at all, same as before. */}
+          {hasContactForm && (ex.website || ex.contact_email || ex.phone) && (
             <div className="bg-card border border-border rounded-2xl p-4">
               <h2 className="font-heading text-sm font-bold uppercase tracking-wide mb-3">Contact</h2>
               <div className="flex flex-wrap gap-2">
@@ -422,8 +464,9 @@ export default function ExhibitorDetail() {
             </a>
           )}
 
-          {/* Request Info form — Basic-tier contact channel. Enhanced+ gets live chat instead (below), not both. */}
-          {settings.virtualExhibitionOpen && !isEnhancedPlus && (
+          {/* Request Info form — Basic-tier contact channel. Enhanced+ gets live chat instead
+              (below), not both. Free tier gets neither — see hasContactForm above. */}
+          {settings.virtualExhibitionOpen && hasContactForm && !isEnhancedPlus && (
             <div className="bg-card border border-border rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Send className="w-4 h-4 text-amber" />
@@ -508,7 +551,7 @@ export default function ExhibitorDetail() {
                 <MessageCircle className="w-4 h-4 text-amber" />
                 <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Chat with {ex.name}</h2>
               </div>
-              <p className="text-xs text-muted-foreground mb-3">Message the exhibitor directly — replies appear here.</p>
+              <p className="text-xs text-muted-foreground mb-3">Quick questions? Message the exhibitor directly — replies appear here. For a formal pricing request, use Request a Quote below instead.</p>
               {!isAuthenticated ? (
                 <div className="flex flex-col items-center gap-3 py-4 text-center">
                   <Lock className="w-6 h-6 text-muted-foreground" />
@@ -541,7 +584,7 @@ export default function ExhibitorDetail() {
                 <Sparkles className="w-4 h-4 text-amber" />
                 <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Request a Quote</h2>
               </div>
-              <p className="text-xs text-muted-foreground mb-4">Send a qualified enquiry with your budget and timeline — {ex.name} treats these as priority leads.</p>
+              <p className="text-xs text-muted-foreground mb-4">A separate channel from live chat above — send a qualified enquiry with your budget and timeline, and {ex.name} treats it as a priority lead.</p>
 
               {leadSubmitted ? (
                 <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">

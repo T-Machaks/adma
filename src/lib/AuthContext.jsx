@@ -268,6 +268,7 @@ export const AuthProvider = ({ children }) => {
       full_name: userData.full_name,
       role: userData.role,
       company: userData.company || '',
+      impersonating: userData.impersonating || undefined,
     };
     localStorage.setItem(EVENT_CONFIG.storageUserKey, JSON.stringify(session));
     setUser(session);
@@ -280,6 +281,34 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem(EVENT_CONFIG.storageUserKey);
     setUser(null);
     setIsAuthenticated(false);
+  };
+
+  // "Manage as Exhibitor" — organizer/superadmin only. Swaps the cached identity to the
+  // target exhibitor (via setSession, same as a normal login) while the server keeps the
+  // organizer's real session parked in a second cookie for exitImpersonation to restore.
+  const impersonateExhibitor = async (exhibitorId) => {
+    try {
+      const res = await fetch(`/api/auth/impersonate-exhibitor/${exhibitorId}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.error || 'Could not switch into that exhibitor account.' };
+      return setSession(data);
+    } catch (e) {
+      return { success: false, error: e.message || 'Could not switch into that exhibitor account.' };
+    }
+  };
+
+  const exitImpersonation = async () => {
+    try {
+      const res = await fetch('/api/auth/exit-impersonation', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) return { success: false, error: data.error || 'Could not restore your organizer session.' };
+      return setSession(data);
+    } catch (e) {
+      return { success: false, error: e.message || 'Could not restore your organizer session.' };
+    }
   };
 
   const hasConsoleAccess = () => user && CONSOLE_ROLES.includes(user.role);
@@ -308,6 +337,8 @@ export const AuthProvider = ({ children }) => {
       resetPassword,
       register,
       setSession,
+      impersonateExhibitor,
+      exitImpersonation,
       logout,
       navigateToLogin,
       checkUserAuth,

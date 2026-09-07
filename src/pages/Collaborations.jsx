@@ -4,6 +4,7 @@ import { Collaboration } from '@/api/entities';
 import { Search, Handshake, Clock } from 'lucide-react';
 import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ListingCard from '@/components/shared/ListingCard';
+import { useSEO } from '@/lib/useSEO';
 
 const TYPES = ['All', ...COLLABORATION_TYPES];
 
@@ -13,6 +14,11 @@ function fmtDate(iso) {
 }
 
 export default function Collaborations() {
+  useSEO({
+    title: 'Collaborations',
+    description: 'Partnership and collaboration opportunities between exhibitors at the ADMA Agri Show.',
+    path: '/collaborations',
+  });
   const [search, setSearch] = useState('');
   const [type, setType] = useState('All');
 

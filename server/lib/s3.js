@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3 = new S3Client({ region: 'af-south-1' });
@@ -12,10 +12,32 @@ export async function createPresignedPut(key, contentType) {
   return { uploadUrl, publicUrl };
 }
 
+// Server-side direct upload (as opposed to createPresignedPut, which hands the client
+// a URL to PUT to itself) — for content the server generates itself, like og.js's
+// exhibitor share-card images. Returns the same public-URL shape as createPresignedPut.
+export async function putObject(key, body, contentType) {
+  await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: body, ContentType: contentType }));
+  return `https://${BUCKET}.s3.af-south-1.amazonaws.com/${key.split('/').map(encodeURIComponent).join('/')}`;
+}
+
 export async function deleteS3Object(key) {
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
   } catch {
     // best-effort delete — don't fail the request if cleanup fails
+  }
+}
+
+// Object metadata, or null if the key doesn't exist. Used by /api/upload/video-status
+// to poll whether server/lambda/video-compress.js (S3-triggered, see that file's
+// header comment for the full pipeline) has finished re-encoding an uploaded video
+// down to size — it tags the object `processed: true` once done.
+export async function getS3ObjectMetadata(key) {
+  try {
+    const res = await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+    return res.Metadata || {};
+  } catch (err) {
+    if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) return null;
+    throw err;
   }
 }

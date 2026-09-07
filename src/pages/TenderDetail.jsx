@@ -9,6 +9,7 @@ import EmbeddedVideo from '@/components/shared/EmbeddedVideo';
 import {
   ArrowLeft, FileText, Clock, Download, Send, CheckCircle, Lock, LogIn, UserPlus, ExternalLink,
 } from 'lucide-react';
+import { useSEO } from '@/lib/useSEO';
 
 function fmtDate(iso) {
   if (!iso) return null;
@@ -24,6 +25,12 @@ export default function TenderDetail() {
   const { data: tender, isLoading } = useQuery({
     queryKey: ['tender-listing', id],
     queryFn: () => TenderListing.get(id),
+  });
+
+  useSEO({
+    title: tender ? `${tender.title}${tender.company_name ? ` — ${tender.company_name}` : ''}` : 'Tender',
+    description: tender?.description?.trim()?.slice(0, 200) || (tender ? `${tender.title} — tender listing on ADMA Digital.` : undefined),
+    path: `/tenders/${id}`,
   });
 
   const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', message: '' });

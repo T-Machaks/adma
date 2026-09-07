@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../lib/authMiddleware.js';
-import { suggestFaqs } from '../lib/ai.js';
+import { suggestFaqs, suggestDescription, suggestListingCopy } from '../lib/ai.js';
 
 const router = Router();
 
@@ -17,6 +17,34 @@ router.post('/suggest-faq', requireAuth, async (req, res) => {
     const { name, description, categories } = req.body;
     const suggestions = await suggestFaqs({ name, description, categories });
     res.json({ suggestions });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// POST /api/ai/suggest-description — rewrites a company description to fit a
+// character budget (see suggestDescription's doc comment for why this is a real,
+// reachable need and not just a "nice to have"). Same stateless in-progress-form
+// shape as suggest-faq.
+router.post('/suggest-description', requireAuth, async (req, res) => {
+  try {
+    const { name, description, categories, maxChars } = req.body;
+    const description_ = await suggestDescription({ name, description, categories, maxChars });
+    res.json({ description: description_ });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// POST /api/ai/suggest-listing — shared drafter behind Job/Tender/Collaboration
+// postings. `kind` must be one of the keys suggestListingCopy actually recognizes
+// (validated server-side, not just trusted from the client) so this can't be
+// pointed at an arbitrary prompt.
+router.post('/suggest-listing', requireAuth, async (req, res) => {
+  try {
+    const { kind, title, category, extra } = req.body;
+    const result = await suggestListingCopy({ kind, title, category, extra });
+    res.json(result);
   } catch (e) {
     res.status(400).json({ error: e.message });
   }

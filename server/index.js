@@ -39,7 +39,12 @@ import bids from './routes/bids.js';
 import collaborations from './routes/collaborations.js';
 import cspReport from './routes/csp-report.js';
 import og from './routes/og.js';
+import sitemap from './routes/sitemap.js';
 import ai from './routes/ai.js';
+import smsCredits from './routes/sms-credits.js';
+import exhibitorContacts from './routes/exhibitor-contacts.js';
+import campaigns from './routes/campaigns.js';
+import fileShares from './routes/file-shares.js';
 
 const app = express();
 
@@ -81,15 +86,21 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       // blob: — file-upload preview images (URL.createObjectURL) use img src="blob:...",
       // confirmed via a real Report-Only violation on /console/marketplace-listings.
-      // i.ytimg.com — YouTube thumbnail images, confirmed via real ongoing violations on
-      // the homepage (not a one-off — recurring daily until this fix).
-      imgSrc: ["'self'", 'data:', 'blob:', 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com', 'https://i.ytimg.com'],
+      // https: (2026-08-31) — organizers/exhibitors paste arbitrary external image URLs
+      // into marketplace/tender/collaboration listings (confirmed via real, recurring
+      // Report-Only violations against Bing/Yahoo/random third-party image hosts over a
+      // 14-day window) — no static whitelist can cover this, and images can't execute
+      // code, so broadening is the accepted tradeoff over blocking legitimate content or
+      // forcing every listing to re-upload through S3.
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
       mediaSrc: ["'self'", 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com'],
       // www.google.com (not just accounts.google.com) hosts the Google Identity Services
       // iframe relay used by the Google login button — confirmed via a real Report-Only
       // violation, not guessed. Zoom domains — Live Sessions embeds a Zoom meeting
-      // iframe, confirmed via real violations on /sessions/:id.
-      frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://accounts.google.com', 'https://www.google.com', 'https://us05web.zoom.us', 'https://app.zoom.us'],
+      // iframe, confirmed via real violations on /sessions/:id. The S3 buckets (2026-08-31)
+      // — exhibitor detail pages iframe S3-hosted content directly (confirmed via real,
+      // recurring violations on /exhibitors/:id).
+      frameSrc: ["'self'", 'https://www.youtube.com', 'https://player.vimeo.com', 'https://accounts.google.com', 'https://www.google.com', 'https://us05web.zoom.us', 'https://app.zoom.us', 'https://adma-zw.s3.af-south-1.amazonaws.com', 'https://adma.s3.af-south-1.amazonaws.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       // 'unsafe-inline' for styles only — the app uses inline style={{...}} props and a
       // couple of inline <style> blocks (e.g. AdBannerCarousel's keyframes) extensively;
@@ -99,11 +110,15 @@ app.use(helmet({
       // connect-src governs fetch()/XHR — including the service worker's own runtime-
       // caching fetches (public/sw.js) of S3 images/video, YouTube thumbnails, and Google
       // Fonts files, which img-src/media-src/font-src DON'T cover (those only gate native
-      // <img>/<video>/@font-face loads, not fetch() calls). Confirmed via real Report-Only
-      // violations — this omission is the likely root cause of the original CSP rollout
-      // breaking images/video.
+      // <img>/<video>/@font-face loads, not fetch() calls). https: added 2026-08-31 — even
+      // with i.ytimg.com already explicitly listed, real violations kept recurring from
+      // sw.js's own execution context over a 14-day observation window (a service worker's
+      // CSP is evaluated against the response that served the worker script itself, not
+      // the registering page — a narrow whitelist here proved unreliable in practice).
+      // Broadened alongside img-src for the same pasted-external-URL reason (the service
+      // worker also tries to cache whatever image URLs appear in listing content).
       connectSrc: [
-        "'self'",
+        "'self'", 'https:',
         'https://accounts.google.com', 'https://www.googleapis.com',
         'https://login.microsoftonline.com', 'https://graph.microsoft.com',
         'https://graph.facebook.com', 'https://connect.facebook.net',
@@ -187,11 +202,16 @@ app.use('/api/bids',                   bids);
 app.use('/api/collaborations',         collaborations);
 app.use('/api/csp-report',             cspReport);
 app.use('/api/ai',                     ai);
+app.use('/api/sms-credits',            smsCredits);
+app.use('/api/exhibitor-contacts',     exhibitorContacts);
+app.use('/api/campaigns',              campaigns);
+app.use('/api/file-shares',            fileShares);
 
 // Not under /api — this serves real HTML pages (Open Graph meta injection for exhibitor
 // link previews), reached only via an nginx location that proxies GET /exhibitors/:id
 // here instead of the static dist/ files. See server/routes/og.js.
 app.use(og);
+app.use(sitemap);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 

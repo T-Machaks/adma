@@ -9,9 +9,10 @@ import { isMarketplaceAddonActive } from '@/lib/rateCard';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import { uploadFileToS3 } from '@/lib/uploadFile';
 import { Progress } from '@/components/ui/progress';
+import { apiFetch } from '@/api/client';
 import {
   FileText, Plus, X, Lock, Trash2, Edit, Users, Clock, Mail, Phone,
-  Building2, Download, UploadCloud, ArrowRight,
+  Building2, Download, UploadCloud, ArrowRight, Sparkles,
 } from 'lucide-react';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
@@ -91,6 +92,26 @@ export default function ExhibitorTenders() {
   };
 
   const toggleStatus = (t, status) => updateMutation.mutate({ id: t.id, data: { status } });
+
+  // AI-drafted scope of work, grounded in title/category/closing date — same
+  // shared listing-copy pattern as job postings.
+  const [draftingTender, setDraftingTender] = useState(false);
+  const [draftTenderError, setDraftTenderError] = useState('');
+  const handleDraftTenderCopy = async () => {
+    setDraftingTender(true);
+    setDraftTenderError('');
+    try {
+      const { description } = await apiFetch('/api/ai/suggest-listing', {
+        method: 'POST',
+        body: { kind: 'tender', title: form.title, category: form.category, extra: { 'Closing date': form.closing_date } },
+      });
+      setForm(f => ({ ...f, description }));
+    } catch (err) {
+      setDraftTenderError(err.message);
+    } finally {
+      setDraftingTender(false);
+    }
+  };
 
   const handleDocUpload = async (tender, file) => {
     if (!file) return;
@@ -203,7 +224,18 @@ export default function ExhibitorTenders() {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground font-medium block mb-1">Scope of Work</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-muted-foreground font-medium">Scope of Work</label>
+              <button
+                type="button"
+                onClick={handleDraftTenderCopy}
+                disabled={draftingTender || !form.title.trim()}
+                className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline disabled:opacity-60"
+              >
+                <Sparkles className="w-3 h-3" /> {draftingTender ? 'Thinking…' : 'Draft with AI'}
+              </button>
+            </div>
+            {draftTenderError && <p className="text-[11px] text-red-500 mb-1">{draftTenderError}</p>}
             <textarea
               rows={4} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}

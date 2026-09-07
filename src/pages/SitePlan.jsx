@@ -7,6 +7,7 @@ import TierBadge from '@/components/ui/TierBadge';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { useAppSettings } from '@/lib/AppSettingsContext';
+import { useSEO } from '@/lib/useSEO';
 
 const PACKAGE_COLORS = {
   Premium:  '#16a34a',
@@ -44,6 +45,11 @@ function matchExhibitors(spotTitle, exhibitors) {
 }
 
 export default function SitePlan() {
+  useSEO({
+    title: 'Site Plan',
+    description: 'Interactive site plan for the ADMA Agri Show at ART Farm, Pomona, Harare — find exhibitor booths and event zones.',
+    path: '/site-plan',
+  });
   const [zoom, setZoom] = useState(1);
   const [selectedTitle, setSelectedTitle] = useState(null);
   const [selectedExhibitorId, setSelectedExhibitorId] = useState(null);

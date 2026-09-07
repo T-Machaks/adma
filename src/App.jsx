@@ -13,7 +13,6 @@ import ExhibitorShell from '@/components/layout/ExhibitorShell';
 import ConsoleGuard from '@/components/ConsoleGuard';
 import OrganizerGuard from '@/components/OrganizerGuard';
 import ChatWidget from '@/components/ChatWidget';
-import UpdateBanner from '@/components/UpdateBanner';
 import { PWAInstallProvider } from '@/lib/PWAInstallContext';
 import { AppSettingsProvider } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
@@ -89,6 +88,7 @@ import ExhibitorRateCard from '@/pages/exhibitor/ExhibitorRateCard';
 import PaymentHistory from '@/pages/PaymentHistory';
 import PaymentStub from '@/pages/PaymentStub';
 import PaymentReturn from '@/pages/PaymentReturn';
+import FileShareUpload from '@/pages/FileShareUpload';
 
 // Layout wrappers (give each shell access to Outlet)
 const AttendeeLayout = () => (
@@ -108,10 +108,19 @@ const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
   if (isLoadingPublicSettings || isLoadingAuth) {
+    // This is the app's real "startup screen" for a PWA launch — the native OS splash
+    // (manifest background_color) is only ever on screen for an instant and can't be a
+    // gradient (a solid-color-only field, same on iOS), so this is what's actually
+    // visible while the app boots. Matches the home page hero (Home.jsx) exactly: same
+    // steel background, same amber radial glow, same transparent-background logo —
+    // instead of the plain spinner-on-steel this used to be.
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-steel">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-amber/30 border-t-amber rounded-full animate-spin" />
+      <div className="fixed inset-0 flex items-center justify-center bg-steel overflow-hidden">
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(249,138,26,0.15) 0%, transparent 60%)' }} />
+        <div className="absolute top-0 left-1/2 w-64 h-64 rounded-full blur-3xl bg-amber/20" style={{ animation: 'hero-glow 6s ease-in-out infinite' }} />
+        <div className="relative flex flex-col items-center gap-4">
+          <img src={EVENT_CONFIG.logo.transparent} alt="" className="w-28 h-28 object-contain drop-shadow-2xl" />
+          <div className="w-8 h-8 border-4 border-amber/30 border-t-amber rounded-full animate-spin" />
           <p className="text-slate-400 text-sm font-medium">Loading {EVENT_CONFIG.eventName}…</p>
         </div>
       </div>
@@ -142,6 +151,7 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password"   element={<ResetPassword />} />
       <Route path="/privacy"          element={<PrivacyPolicy />} />
       <Route path="/payment/stub/:id" element={<PaymentStub />} />
+      <Route path="/file-share/:token" element={<FileShareUpload />} />
       <Route path="/payment/return"   element={<PaymentReturn />} />
 
       {/* ── Management Console (organizer + marketing_partner only) ── */}
@@ -187,6 +197,7 @@ const AuthenticatedApp = () => {
         <Route path="/exhibitor/collaborations" element={<ExhibitorCollaborations />} />
         <Route path="/exhibitor/listings"  element={<ExhibitorListings />} />
         <Route path="/exhibitor/rate-card" element={<ExhibitorRateCard />} />
+        <Route path="/exhibitor/sms-credits" element={<Navigate to="/exhibitor/rate-card" replace />} />
         <Route path="/exhibitor/billing"   element={<PaymentHistory />} />
       </Route>
 
@@ -241,7 +252,6 @@ function App() {
             </Router>
             <Toaster />
             <ChatWidget />
-            <UpdateBanner />
           </QueryClientProvider>
         </AppSettingsProvider>
       </AuthProvider>

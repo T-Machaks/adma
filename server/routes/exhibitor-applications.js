@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
       if (!validTiers.includes(tier))
         return res.status(400).json({ error: 'Invalid tier.' });
     } else {
-      const validPackages = ['Basic', 'Enhanced', 'Premium'];
+      const validPackages = ['Free', 'Basic', 'Enhanced', 'Premium'];
       if (!validPackages.includes(pkg))
         return res.status(400).json({ error: 'Invalid package.' });
     }

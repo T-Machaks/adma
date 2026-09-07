@@ -25,12 +25,28 @@ if ('serviceWorker' in navigator) {
       })
       .catch(() => {});
 
-    // When a new SW takes control (skipWaiting fired), don't reload immediately —
-    // that would blow away anything the user has open (e.g. a half-filled "New
-    // Auction" dialog) with zero warning. Instead, let UpdateBanner offer the user
-    // a "Refresh" button so they choose when it's safe to apply.
+    // Auto-update (2026-09-01): reload automatically once a new service worker takes
+    // control, with no button/prompt needed — but only at a moment nothing is
+    // interrupted, so this can't blow away anything the user has open (e.g. a
+    // half-filled "New Auction" dialog) the way reloading unconditionally would.
+    // Reloads immediately if the tab is already hidden (nobody's looking), or on the
+    // next time it's hidden otherwise (switching apps, locking the phone, switching
+    // browser tabs) — never while the app is actively visible. skipWaiting()/
+    // clients.claim() in sw.js mean the new SW is already in control by the time this
+    // fires; this only decides when it's safe to actually reload the page onto it.
+    let reloadPending = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.dispatchEvent(new Event('adma:update-ready'));
+      if (document.hidden) {
+        window.location.reload();
+      } else if (!reloadPending) {
+        reloadPending = true;
+        document.addEventListener('visibilitychange', function onHidden() {
+          if (document.hidden) {
+            document.removeEventListener('visibilitychange', onHidden);
+            window.location.reload();
+          }
+        });
+      }
     });
   });
 }

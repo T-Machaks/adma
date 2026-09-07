@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Exhibitor, MeetingRequest, AdSlot } from '@/api/entities';
+import { Exhibitor, MeetingRequest, AdSlot, SmsCredits } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { notifyMeeting } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
@@ -10,6 +10,7 @@ import {
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
   Images, MessageCircle, Award, Plus, Video, Move, Sparkles, Check,
+  MessageSquare, ExternalLink, Loader2, Download,
 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
@@ -63,6 +64,15 @@ export default function ExhibitorHome() {
   const { data: allAdSlots = [] } = useQuery({
     queryKey: ['adslots'],
     queryFn: () => AdSlot.list(),
+  });
+
+  const { data: smsSummary } = useQuery({ queryKey: ['sms-credits-summary'], queryFn: () => SmsCredits.summary() });
+  const [smsOpenError, setSmsOpenError] = useState('');
+  const smsOpenMutation = useMutation({
+    mutationFn: () => SmsCredits.open(),
+    onMutate: () => setSmsOpenError(''),
+    onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (e) => setSmsOpenError(e.message || 'Could not open your SMS dashboard.'),
   });
 
   const myBooth = exhibitors.find(
@@ -227,7 +237,14 @@ export default function ExhibitorHome() {
     setEditOpen(o => !o);
   };
 
+  // Typing is allowed past limits.descChars (see the textarea below) so "Tighten
+  // with AI" gets the full original text as context — but the package-tier
+  // character budget is a real product rule, not just UI decoration, so it's
+  // still enforced here at save time instead.
+  const descOverLimit = (editForm.description?.length || 0) > limits.descChars;
+
   const handleSaveProfile = () => {
+    if (descOverLimit) return;
     const { specialties, certifications, faq, ...rest } = editForm;
     updateBooth.mutate({
       ...rest,
@@ -271,6 +288,29 @@ export default function ExhibitorHome() {
     setFaqSuggestions(s => s.filter((_, idx) => idx !== i));
   };
   const discardFaqSuggestion = (i) => setFaqSuggestions(s => s.filter((_, idx) => idx !== i));
+
+  // AI description tightening — a real, reachable need (not just "over-typing"):
+  // limits.descChars can shrink after a package downgrade, and the textarea's own
+  // maxLength only blocks further typing, it doesn't retroactively trim an
+  // already-saved value. Replaces editForm.description directly (single value, not
+  // a list like FAQ suggestions) since Cancel already discards unsaved edits wholesale.
+  const [shorteningDesc, setShorteningDesc] = useState(false);
+  const [descShortenError, setDescShortenError] = useState('');
+  const handleShortenDescription = async () => {
+    setShorteningDesc(true);
+    setDescShortenError('');
+    try {
+      const { description } = await apiFetch('/api/ai/suggest-description', {
+        method: 'POST',
+        body: { name: editForm.name, description: editForm.description, categories: editForm.categories, maxChars: limits.descChars },
+      });
+      setEditForm(f => ({ ...f, description }));
+    } catch (err) {
+      setDescShortenError(err.message);
+    } finally {
+      setShorteningDesc(false);
+    }
+  };
 
   const handleBoothImageUpload = (e) => {
     const file = e.target.files?.[0];
@@ -480,17 +520,36 @@ export default function ExhibitorHome() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs text-muted-foreground font-medium">Description</label>
-                <span className={`text-[10px] font-medium ${(editForm.description?.length || 0) >= limits.descChars ? 'text-red-500' : 'text-muted-foreground'}`}>
-                  {editForm.description?.length || 0}/{limits.descChars}
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleShortenDescription}
+                    disabled={shorteningDesc || !(editForm.description || '').trim()}
+                    className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline disabled:opacity-60"
+                  >
+                    <Sparkles className="w-3 h-3" /> {shorteningDesc ? 'Thinking…' : 'Tighten with AI'}
+                  </button>
+                  <span className={`text-[10px] font-medium ${descOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {editForm.description?.length || 0}/{limits.descChars}
+                  </span>
+                </div>
               </div>
+              {descShortenError && <p className="text-[11px] text-red-500 mb-1">{descShortenError}</p>}
               <textarea
                 rows={5}
-                maxLength={limits.descChars}
                 value={editForm.description || ''}
-                onChange={e => setEditForm(f => ({ ...f, description: e.target.value.slice(0, limits.descChars) }))}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50 resize-none"
+                onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                className={`w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 resize-none ${descOverLimit ? 'border-red-400 focus:ring-red-300' : 'border-border focus:ring-amber/50'}`}
               />
+              {/* No maxLength/typing cap here on purpose — writing past the limit is
+                  allowed so "Tighten with AI" has the full original text as context,
+                  not an already-truncated fragment. The limit is enforced at save
+                  time instead (handleSaveProfile), not while typing. */}
+              {descOverLimit && (
+                <p className="text-[11px] text-amber-600 mt-1">
+                  Over your {standTier} package's {limits.descChars}-character limit by {editForm.description.length - limits.descChars} — shorten it manually or use "Tighten with AI" above before saving.
+                </p>
+              )}
             </div>
 
             {isPremiumPkg && (
@@ -596,7 +655,8 @@ export default function ExhibitorHome() {
             <div className="flex gap-2 pt-1">
               <button
                 onClick={handleSaveProfile}
-                disabled={updateBooth.isPending}
+                disabled={updateBooth.isPending || descOverLimit}
+                title={descOverLimit ? 'Shorten the description to fit your package limit before saving' : undefined}
                 className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold bg-amber text-white rounded-lg hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 touch-manipulation"
               >
                 {updateBooth.isPending ? 'Saving…' : 'Save Changes'}
@@ -629,6 +689,49 @@ export default function ExhibitorHome() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* SMS Dashboard quick link — always visible on the profile page so there's one
+          clear path to it regardless of whether a workspace exists yet. Purchasing
+          bundles still happens on the Rate Card page; this is just the fast path to
+          the dashboard itself once it's active. */}
+      <div className="bg-card border border-border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-amber/10 rounded-lg flex items-center justify-center flex-shrink-0">
+            <MessageSquare className="w-5 h-5 text-amber" />
+          </div>
+          <div>
+            <p className="font-heading font-bold text-sm">SMS Dashboard</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {smsSummary?.hasWorkspace ? 'Send bulk messages from your OmniFlex workspace.' : 'Buy SMS credits to activate your workspace.'}
+            </p>
+          </div>
+        </div>
+        {smsSummary?.hasWorkspace ? (
+          <button
+            onClick={() => smsOpenMutation.mutate()}
+            disabled={smsOpenMutation.isPending}
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-xl bg-amber text-white hover:bg-amber/90 active:scale-95 transition-all disabled:opacity-60 flex-shrink-0"
+          >
+            {smsOpenMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />} Open My SMS Dashboard
+          </button>
+        ) : (
+          <Link
+            to="/exhibitor/rate-card"
+            className="flex items-center gap-1.5 flex-shrink-0 text-xs border border-border font-semibold px-4 py-2.5 rounded-xl hover:bg-muted active:scale-95 transition-all duration-150 whitespace-nowrap"
+          >
+            Buy SMS Credits <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        )}
+        {smsOpenError && <p className="text-xs text-red-500 w-full">{smsOpenError}</p>}
+        <a
+          href="/api/exhibitor-contacts/export.csv"
+          download
+          title="Download the exhibitor directory plus your own enquiry/meeting/job-applicant leads as a CSV"
+          className="flex items-center gap-1.5 flex-shrink-0 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" /> Download Contacts (CSV)
+        </a>
       </div>
 
       {/* Package Upgrade CTA — shown for non-Premium exhibitors */}

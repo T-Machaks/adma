@@ -10,8 +10,9 @@ import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import { Switch } from '@/components/ui/switch';
+import { apiFetch } from '@/api/client';
 import {
-  Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp, ArrowRight,
+  Briefcase, Plus, X, Lock, Trash2, Edit, Users, MapPin, Clock, Mail, Phone, FileUp, ArrowRight, Sparkles,
 } from 'lucide-react';
 
 const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: JOB_TYPES[0], description: '', requirements: '', closing_date: '', contact_email: '', source_url: '', accept_submissions: true, display_format: 'text', display_image_url: '', interactive_status: null };
@@ -87,6 +88,29 @@ export default function ExhibitorJobs() {
 
   const toggleStatus = (job) => {
     updateMutation.mutate({ id: job.id, data: { status: job.status === 'Open' ? 'Closed' : 'Open' } });
+  };
+
+  // AI-drafted description + requirements, grounded in whatever's already filled
+  // in (title/category/type/location) — same "ground in what's already provided"
+  // shape as the exhibitor profile's FAQ/description AI features. Replaces both
+  // fields directly (not staged for accept/discard) since this form is itself
+  // unsaved until "Post"/"Save" is clicked.
+  const [draftingJob, setDraftingJob] = useState(false);
+  const [draftJobError, setDraftJobError] = useState('');
+  const handleDraftJobCopy = async () => {
+    setDraftingJob(true);
+    setDraftJobError('');
+    try {
+      const { description, requirements } = await apiFetch('/api/ai/suggest-listing', {
+        method: 'POST',
+        body: { kind: 'job', title: form.title, category: form.category, extra: { Location: form.location, 'Employment type': form.type } },
+      });
+      setForm(f => ({ ...f, description, requirements }));
+    } catch (err) {
+      setDraftJobError(err.message);
+    } finally {
+      setDraftingJob(false);
+    }
   };
 
   if (!myBooth) {
@@ -203,6 +227,18 @@ export default function ExhibitorJobs() {
               />
             </div>
           </div>
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] text-muted-foreground">Fill in title, category, type & location above, then draft the rest with AI.</p>
+            <button
+              type="button"
+              onClick={handleDraftJobCopy}
+              disabled={draftingJob || !form.title.trim()}
+              className="flex items-center gap-1 text-[11px] text-amber font-semibold hover:underline disabled:opacity-60 flex-shrink-0"
+            >
+              <Sparkles className="w-3 h-3" /> {draftingJob ? 'Thinking…' : 'Draft with AI'}
+            </button>
+          </div>
+          {draftJobError && <p className="text-[11px] text-red-500">{draftJobError}</p>}
           <div>
             <label className="text-xs text-muted-foreground font-medium block mb-1">Description</label>
             <textarea

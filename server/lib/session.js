@@ -12,6 +12,7 @@ export const SESSION_COOKIE = 'adma_session';
 // and exhibitors aren't forced to re-login constantly during the show.
 const CONSOLE_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const IMPERSONATION_TTL_MS = 2 * 60 * 60 * 1000;
 
 export async function createSession(user) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -31,6 +32,42 @@ export async function createSession(user) {
       created_at: new Date(now).toISOString(),
       expires_at: expiresAt.toISOString(),
       expires_at_ttl: Math.floor(expiresAt.getTime() / 1000), // DynamoDB TTL attribute (epoch seconds)
+      revoked: false,
+    },
+  }));
+
+  return { token, expiresAt };
+}
+
+// "Manage as Exhibitor" — lets an organizer act as a specific exhibitor without a real
+// login account existing for them yet (the common case for a brand-new exhibitor who
+// hasn't onboarded), and without needing that exhibitor's own credentials. Reuses
+// every existing exhibitor-only route/UI unchanged — getMyExhibitorId reads
+// exhibitor_id straight off the session (lib/ownership.js), same as a normal exhibitor
+// login. `user_id` is deliberately the ORGANIZER's own id, not a fabricated exhibitor
+// one — that's the real identity behind this session for audit purposes, which is also
+// why this is short-lived (2h) rather than a normal exhibitor session's 30 days, and
+// re-issued on demand from the console rather than something worth keeping around.
+export async function createImpersonationSession(organizer, exhibitor) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = Date.now();
+  const expiresAt = new Date(now + IMPERSONATION_TTL_MS);
+
+  await ddb.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      token,
+      user_id: organizer.id,
+      role: 'exhibitor',
+      exhibitor_id: exhibitor.id,
+      email: exhibitor.contact_email || '',
+      company: exhibitor.name || '',
+      impersonating: true,
+      impersonated_by: organizer.id,
+      impersonated_by_email: organizer.email,
+      created_at: new Date(now).toISOString(),
+      expires_at: expiresAt.toISOString(),
+      expires_at_ttl: Math.floor(expiresAt.getTime() / 1000),
       revoked: false,
     },
   }));

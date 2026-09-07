@@ -2,11 +2,17 @@ import { Link } from 'react-router-dom';
 import { UserPlus, LogIn, QrCode, CheckCircle, Ticket, Building2, ArrowRight, Clock } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
+import { useSEO } from '@/lib/useSEO';
 
 // Physical event registration is handled entirely separately from ADMA Digital (not
 // duplicated or linked out from here) — see the notice below. This page only offers the
 // free digital platform account (used for the QR account-holder badge).
 export default function Register() {
+  useSEO({
+    title: 'Register',
+    description: 'Create your free ADMA Digital account — get your QR badge, book meetings, and access exhibitor information for the ADMA Agri Show.',
+    path: '/register',
+  });
   const { user } = useAuth();
 
   return (

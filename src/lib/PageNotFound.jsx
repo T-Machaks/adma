@@ -1,8 +1,14 @@
 import { useLocation } from 'react-router-dom';
+import { useSEO } from './useSEO';
 
 export default function PageNotFound() {
   const location = useLocation();
   const pageName = location.pathname.substring(1);
+  // The server always returns 200 for the SPA shell (there's no way to send a real
+  // HTTP 404 from a client-rendered route), so this noindex is the only signal Google
+  // gets that this isn't real content — without it, a stale/mistyped link could get
+  // indexed as a legitimate page.
+  useSEO({ title: 'Page Not Found', path: location.pathname, noindex: true });
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
