@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet, Navigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ChevronDown, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt, MessageSquare, Loader2, Eye } from 'lucide-react';
+import { Store, Calendar, BarChart2, LogOut, ChevronLeft, ChevronDown, ScanLine, Users, Inbox, MessageCircle, Briefcase, FileText, Handshake, LayoutList, DollarSign, Receipt, MessageSquare, Loader2, Eye, Sparkles } from 'lucide-react';
 import EventLogo from './EventLogo.jsx';
 import { useAuth } from '@/lib/AuthContext';
-import { SmsCredits } from '@/api/entities';
+import { useAppSettings } from '@/lib/AppSettingsContext';
+import { SmsCredits, Exhibitor } from '@/api/entities';
+import { getStandTier, isPromoActive } from '@/lib/standTiers';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 // Kept as individual top-level pills — either high-frequency (checked most days) or
@@ -75,6 +77,22 @@ export default function ExhibitorShell() {
     onSuccess: ({ url }) => { window.location.href = url; },
   });
 
+  // Launch promo banner — same queryKey as ExhibitorHome.jsx's own fetch, so react-query
+  // dedupes this against whatever the actual page underneath also needs, no extra request
+  // in practice.
+  const { settings } = useAppSettings();
+  const { data: exhibitors = [] } = useQuery({
+    queryKey: ['exhibitors-all'],
+    queryFn: () => Exhibitor.list(),
+    enabled: !!user && user.role === 'exhibitor',
+  });
+  const myBooth = exhibitors.find(
+    e => e.contact_email?.toLowerCase() === user?.email?.toLowerCase()
+      || (user?.company && e.name?.toLowerCase() === user.company.toLowerCase())
+  );
+  const promoActive = isPromoActive(settings) && myBooth && getStandTier(myBooth) !== 'Premium';
+  const promoDaysLeft = promoActive ? Math.ceil((new Date(settings.promoTierOverrideUntil) - new Date()) / (24 * 60 * 60 * 1000)) : 0;
+
   if (isLoadingAuth) return null;
   if (!user || user.role !== 'exhibitor') {
     return <Navigate to="/login" replace />;
@@ -96,6 +114,15 @@ export default function ExhibitorShell() {
           >
             {exitingImpersonation ? 'Exiting…' : 'Exit'}
           </button>
+        </div>
+      )}
+      {promoActive && (
+        <div className="bg-emerald-600 text-white px-3 sm:px-4 py-1.5 flex items-center justify-center gap-2 text-xs font-medium flex-wrap text-center">
+          <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>
+            You're on our launch promo — free Premium features (job/tender postings, full gallery, analytics) for{' '}
+            <span className="font-bold">{promoDaysLeft} more day{promoDaysLeft === 1 ? '' : 's'}</span>, until {new Date(settings.promoTierOverrideUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.
+          </span>
         </div>
       )}
       <header className="sticky top-0 z-50 bg-steel border-b border-white/10">
