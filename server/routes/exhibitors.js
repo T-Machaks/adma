@@ -8,6 +8,7 @@ import { revokeAllSessionsForExhibitor, revokeAllSessionsForUser } from '../lib/
 import { requireAuth, requireRole } from '../lib/authMiddleware.js';
 import { getMyExhibitorId } from '../lib/ownership.js';
 import { sendOtpEmail } from '../lib/mailer.js';
+import { generateExhibitorOgCard, generateExhibitorQrCard } from '../lib/ogCard.js';
 
 // Every table with an `exhibitor_id` field to clean up when an exhibitor is deleted,
 // keyed to whether it has a GSI on that field (Query) or needs a filtered Scan.
@@ -209,6 +210,49 @@ export default crudRouter('adma_exhibitors', {
 
         logSecurityEvent('exhibitor_restored', { exhibitorId: req.params.id, exhibitorName: exhibitor.name, restoredBy: req.user.id, ip: req.ip });
         res.json(updated.Attributes);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    // GET /api/exhibitors/:id/share-card — a downloadable copy of the same branded
+    // 1200x630 card og.js generates for link previews, for the exhibitor to post to
+    // their own WhatsApp/Facebook/LinkedIn/Instagram. Public (no auth) — this is the
+    // same image already visible to anyone who opens their share link, just offered as
+    // a direct download here rather than only shown incidentally as a link preview.
+    // Regenerated fresh on every request rather than read from the og.js's S3 cache —
+    // this is a low-traffic, deliberate download action, not worth risking a stale
+    // image if their logo/name changed since anyone last shared their link.
+    r.get('/:id/share-card', async (req, res) => {
+      try {
+        const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+        const exhibitor = result.Item;
+        if (!exhibitor || exhibitor.deleted) return res.status(404).json({ error: 'Exhibitor not found.' });
+        const png = await generateExhibitorOgCard(exhibitor);
+        const filename = `${(exhibitor.name || 'adma-exhibitor').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-adma-digital.png`;
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(png);
+      } catch (e) {
+        res.status(500).json({ error: e.message });
+      }
+    });
+
+    // GET /api/exhibitors/:id/qr-card — a printable portrait card (QR code linking to
+    // their public profile + logo + name), for a physical counter, booth, or flyer —
+    // distinct from the "Booth QR Code" elsewhere in the exhibitor portal, which encodes
+    // a check-in payload for the ADMA app's own scanner, not a plain URL any phone
+    // camera can follow. Public (no auth), same reasoning as share-card above.
+    r.get('/:id/qr-card', async (req, res) => {
+      try {
+        const result = await ddb.send(new GetCommand({ TableName: 'adma_exhibitors', Key: { id: req.params.id } }));
+        const exhibitor = result.Item;
+        if (!exhibitor || exhibitor.deleted) return res.status(404).json({ error: 'Exhibitor not found.' });
+        const png = await generateExhibitorQrCard(exhibitor);
+        const filename = `${(exhibitor.name || 'adma-exhibitor').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-qr-card.png`;
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(png);
       } catch (e) {
         res.status(500).json({ error: e.message });
       }

@@ -8,6 +8,7 @@
 // site-wide default image (public/marketing-images source, steel background + amber
 // glow), see index.html's own og:image for that one.
 import { createCanvas, loadImage, GlobalFonts } from '@napi-rs/canvas';
+import QRCode from 'qrcode';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -110,5 +111,76 @@ export async function generateExhibitorOgCard(exhibitor) {
   ctx.font = '600 26px InterSemiBold';
   ctx.fillText('View Virtual Booth  ·  Book a Meeting', MARGIN, 450);
 
+  return canvas.encode('png');
+}
+
+// Printable card — a QR code linking straight to the exhibitor's public profile, meant
+// for a physical counter/booth/flyer, not a screen share. White background deliberately
+// (dark backgrounds burn far more ink and print muddy on an ordinary office printer);
+// the QR itself is near-black on white rather than brand colour, since scan reliability
+// matters more than brand purity here — plenty of phone cameras already struggle with
+// low-contrast or tinted QR codes. Portrait, roughly A4-croppable. Returns a PNG Buffer.
+export async function generateExhibitorQrCard(exhibitor) {
+  const W = 1000, H = 1400;
+  const canvas = createCanvas(W, H);
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  const admaLogo = await loadImage(admaLogoPath);
+  const brandH = 56;
+  const brandW = brandH * (admaLogo.width / admaLogo.height);
+  ctx.drawImage(admaLogo, (W - brandW) / 2, 70, brandW, brandH);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '600 24px InterSemiBold';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('admadigital.co.zw', W / 2, 70 + brandH + 34);
+
+  // Exhibitor's own logo, if they have one — small, above the QR, so the printed card
+  // is identifiably theirs at a glance before anyone scans anything.
+  if (exhibitor.logo_url) {
+    try {
+      const logoImg = await loadImage(exhibitor.logo_url);
+      const boxSize = 160;
+      const boxY = 210;
+      const pad = 16;
+      const scale = Math.min((boxSize - pad * 2) / logoImg.width, (boxSize - pad * 2) / logoImg.height);
+      const lw = logoImg.width * scale, lh = logoImg.height * scale;
+      ctx.drawImage(logoImg, (W - lw) / 2, boxY + (boxSize - lh) / 2, lw, lh);
+    } catch {
+      // missing/unreachable logo — just skip it, the name text below still identifies them
+    }
+  }
+
+  const profileUrl = `https://admadigital.co.zw/exhibitors/${exhibitor.id}`;
+  const qrBuffer = await QRCode.toBuffer(profileUrl, {
+    width: 640, margin: 1, errorCorrectionLevel: 'M',
+    color: { dark: '#111111ff', light: '#ffffffff' },
+  });
+  const qrImg = await loadImage(qrBuffer);
+  const qrX = (W - 640) / 2, qrY = 420;
+  ctx.drawImage(qrImg, qrX, qrY, 640, 640);
+
+  ctx.fillStyle = '#1b3729';
+  ctx.font = '800 44px InterExtraBold';
+  let name = exhibitor.name || 'ADMA Exhibitor';
+  const maxTextWidth = W - 160;
+  while (ctx.measureText(name).width > maxTextWidth && name.length > 3) {
+    name = name.slice(0, -1);
+  }
+  if (name !== (exhibitor.name || 'ADMA Exhibitor')) name = name.trimEnd() + '…';
+  ctx.fillText(name, W / 2, qrY + 640 + 80);
+
+  ctx.fillStyle = '#eab308';
+  ctx.font = '600 28px InterSemiBold';
+  ctx.fillText('ADMA Digital Virtual Exhibitor', W / 2, qrY + 640 + 122);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '600 26px InterSemiBold';
+  ctx.fillText('Scan to view our profile', W / 2, qrY + 640 + 172);
+
+  ctx.textAlign = 'left'; // restore default for any future caller sharing this module state
   return canvas.encode('png');
 }

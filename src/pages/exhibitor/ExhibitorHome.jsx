@@ -4,13 +4,14 @@ import { Exhibitor, MeetingRequest, AdSlot, SmsCredits } from '@/api/entities';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
 import { notifyMeeting } from '@/api/notify';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useState } from 'react';
 import {
   Store, Calendar, CheckCircle, XCircle, Clock,
   Mail, Phone, Globe, MapPin, Edit, Users, Star, QrCode, ScanLine,
   ImagePlus, Trash2, ArrowRight, TrendingUp, X, Megaphone, Lock, MousePointerClick,
   Images, MessageCircle, Award, Plus, Video, Move, Sparkles, Check,
-  MessageSquare, ExternalLink, Loader2, Download,
+  MessageSquare, ExternalLink, Loader2, Download, Share2,
 } from 'lucide-react';
 import { apiFetch } from '@/api/client';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
@@ -21,7 +22,7 @@ import VideoUploadOrUrlField from '@/components/shared/VideoUploadOrUrlField';
 import ImagePositioner from '@/components/shared/ImagePositioner';
 import { normalizeGalleryItem } from '@/lib/imageUtils';
 import ImageCropModal from '@/components/shared/ImageCropModal';
-import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
+import { getStandTier, effectiveStandTierAtLeast, getEffectivePackageLimits } from '@/lib/standTiers';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
 import { isEmbedVideoUrl } from '@/lib/videoUtils';
 import { uploadFileToS3 } from '@/lib/uploadFile';
@@ -41,6 +42,7 @@ const UPGRADE_PERKS = {
 
 export default function ExhibitorHome() {
   const { user, setSession } = useAuth();
+  const { settings: appSettings } = useAppSettings();
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -93,9 +95,9 @@ export default function ExhibitorHome() {
       }
     : { carousel: null, 'video-carousel': null, 'footer-strip': null };
   const isPremiumPkg = myBooth?.package === 'Premium';
-  const standTier = myBooth ? getStandTier(myBooth) : 'Basic';
-  const isEnhancedPlus = myBooth ? standTierAtLeast(myBooth, 'Enhanced') : false;
-  const limits = myBooth ? getPackageLimits(myBooth) : { descChars: 250, galleryMax: 0 };
+  const standTier = myBooth ? getStandTier(myBooth) : 'Basic'; // the REAL tier — shown on badges/upgrade prompts below, never promo-inflated
+  const isEnhancedPlus = myBooth ? effectiveStandTierAtLeast(myBooth, appSettings, 'Enhanced') : false;
+  const limits = myBooth ? getEffectivePackageLimits(myBooth, appSettings) : { descChars: 250, galleryMax: 0 };
   const expired = myBooth ? isSubscriptionExpired(myBooth) : false;
   const packageBillingExpired = myBooth ? isPackageBillingExpired(myBooth) : false;
 
@@ -431,13 +433,23 @@ export default function ExhibitorHome() {
               </div>
             </div>
           </div>
-          <button
-            onClick={handleEditOpen}
-            className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white border border-white/20 hover:border-white/40 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all duration-150 active:scale-95 flex-shrink-0 touch-manipulation"
-          >
-            <Edit className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Edit Profile</span>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a
+              href={`/api/exhibitors/${myBooth.id}/share-card`}
+              title="Download a branded card image to post on your own WhatsApp, Facebook, LinkedIn, or Instagram"
+              className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white border border-white/20 hover:border-white/40 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all duration-150 active:scale-95 touch-manipulation"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Share Card</span>
+            </a>
+            <button
+              onClick={handleEditOpen}
+              className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white border border-white/20 hover:border-white/40 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all duration-150 active:scale-95 touch-manipulation"
+            >
+              <Edit className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Edit Profile</span>
+            </button>
+          </div>
         </div>
 
         <div className="px-6 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
@@ -1210,6 +1222,29 @@ export default function ExhibitorHome() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Printable profile QR card — distinct from Booth QR Code above: this one links
+          straight to the public exhibitor page, so any ordinary phone camera can follow
+          it (not just the ADMA app's own scanner), for use off-platform entirely. */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <QrCode className="w-5 h-5 text-amber" />
+            <h2 className="font-heading text-sm font-bold uppercase tracking-wide">Printable Profile Card</h2>
+          </div>
+          <a
+            href={`/api/exhibitors/${myBooth.id}/qr-card`}
+            className="flex items-center gap-1.5 text-xs text-amber font-semibold hover:underline"
+          >
+            <Download className="w-3.5 h-3.5" /> Download
+          </a>
+        </div>
+        <div className="p-5">
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            A printable card with a QR code linking straight to your ADMA Digital profile — scannable by any phone camera, no app required. Print it for your shop counter, business cards, or handouts.
+          </p>
         </div>
       </div>
 

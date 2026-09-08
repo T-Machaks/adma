@@ -7,7 +7,7 @@ import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useAuth } from '@/lib/AuthContext';
 import { track } from '@/lib/tracking';
 import TierBadge from '@/components/ui/TierBadge';
-import { getStandTier, standTierAtLeast, getPackageLimits } from '@/lib/standTiers';
+import { effectiveStandTierAtLeast, getEffectivePackageLimits } from '@/lib/standTiers';
 import { getExhibitorCategories } from '@/lib/eventConfig';
 import { normalizeGalleryItem } from '@/lib/imageUtils';
 import { isEmbedVideoUrl } from '@/lib/videoUtils';
@@ -146,13 +146,16 @@ export default function ExhibitorDetail() {
     );
   }
 
-  const standTier = getStandTier(ex);
-  const isEnhancedPlus = standTierAtLeast(ex, 'Enhanced');
-  const isPremiumStand = standTier === 'Premium';
+  // These gate what's shown on the page — all promo-aware (getEffective*/effective*),
+  // so a launch promo genuinely unlocks the fuller public profile too, not just the
+  // exhibitor's own editing screen. ex.package itself (used by TierBadge below) is
+  // untouched — the badge always shows the exhibitor's real, paid-for tier.
+  const isEnhancedPlus = effectiveStandTierAtLeast(ex, settings, 'Enhanced');
+  const isPremiumStand = effectiveStandTierAtLeast(ex, settings, 'Premium');
   // Free tier (2026-08-31) sits below Basic and drops the contact form specifically —
   // everything else on this page Basic already hides too (see isEnhancedPlus gates below).
-  const hasContactForm = standTierAtLeast(ex, 'Basic');
-  const limits = getPackageLimits(ex);
+  const hasContactForm = effectiveStandTierAtLeast(ex, settings, 'Basic');
+  const limits = getEffectivePackageLimits(ex, settings);
 
   const expired = isSubscriptionExpired(ex) || isPackageBillingExpired(ex);
   const locked = !!ex.portal_locked;

@@ -9,7 +9,7 @@ import { useAppSettings } from '@/lib/AppSettingsContext';
 import { useAuth } from '@/lib/AuthContext';
 import { EVENT_CONFIG, getExhibitorCategories } from '@/lib/eventConfig';
 import { isSubscriptionExpired, isPackageBillingExpired } from '@/lib/subscription';
-import { getPackageLimits } from '@/lib/standTiers';
+import { getEffectivePackageLimits } from '@/lib/standTiers';
 import { useSEO } from '@/lib/useSEO';
 
 const CATEGORIES = ['All', ...EVENT_CONFIG.exhibitorCategories];
@@ -188,7 +188,7 @@ export default function Exhibitors() {
                     )}
                   </div>
                 </div>
-                {ex.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{ex.description.slice(0, getPackageLimits(ex).descChars)}</p>}
+                {ex.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{ex.description.slice(0, getEffectivePackageLimits(ex, settings).descChars)}</p>}
                 <div className="flex gap-1.5 mt-2 flex-wrap">
                   {getExhibitorCategories(ex).map(c => (
                     <span key={c} className="text-[10px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{c}</span>

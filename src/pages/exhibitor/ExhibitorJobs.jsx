@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, JobListing, JobApplication } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 import { EVENT_CONFIG } from '@/lib/eventConfig';
-import { standTierAtLeast } from '@/lib/standTiers';
+import { effectiveStandTierAtLeast } from '@/lib/standTiers';
 import { isMarketplaceAddonActive } from '@/lib/rateCard';
 import { JOB_CATEGORIES, JOB_TYPES } from '@/lib/jobConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
@@ -19,6 +20,7 @@ const EMPTY_JOB = { title: '', category: JOB_CATEGORIES[0], location: '', type: 
 
 export default function ExhibitorJobs() {
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -122,7 +124,7 @@ export default function ExhibitorJobs() {
     );
   }
 
-  if (!standTierAtLeast(myBooth, 'Enhanced')) {
+  if (!effectiveStandTierAtLeast(myBooth, settings, 'Enhanced')) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
         <div className="w-14 h-14 bg-amber/10 border border-amber/20 rounded-full flex items-center justify-center mx-auto mb-4">

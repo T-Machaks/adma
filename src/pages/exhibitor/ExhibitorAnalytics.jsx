@@ -5,6 +5,7 @@ import {
   JobListing, TenderListing, Collaboration, JobApplication, VirtualEnquiry,
 } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 import UpgradeEnquiryButton from '@/components/exhibitor/UpgradeEnquiryButton';
 import {
   Eye, Calendar, Megaphone, TrendingUp,
@@ -16,7 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import AdBannerPreview from '@/components/exhibitor/AdBannerPreview';
-import { getStandTier, standTierAtLeast } from '@/lib/standTiers';
+import { getStandTier, effectiveStandTierAtLeast, getEffectiveStandTier } from '@/lib/standTiers';
 import { LISTING_TYPE_LABEL, countEventsByListing, countSubmissionsByField, downloadListingsOverviewCSV } from '@/lib/marketplaceAnalytics';
 
 const TYPE_LABEL = {
@@ -103,6 +104,7 @@ function exportLeadsCSV(leads, boothName) {
 
 export default function ExhibitorAnalytics() {
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const { data: exhibitors = [] } = useQuery({
@@ -147,7 +149,7 @@ export default function ExhibitorAnalytics() {
     );
   }
 
-  const hasAnalytics = standTierAtLeast(myBooth, 'Enhanced');
+  const hasAnalytics = effectiveStandTierAtLeast(myBooth, settings, 'Enhanced');
 
   if (!hasAnalytics) {
     return (
@@ -218,7 +220,11 @@ export default function ExhibitorAnalytics() {
   const hasGuideActivity    = guideAdClicks + guideVideoPlays + guideCarouselViews > 0;
   const guideStats = { adClicks: guideAdClicks, videoPlays: guideVideoPlays, videoCompletes: guideVideoCompletes, carouselViews: guideCarouselViews };
 
-  const hasLeadExport = getStandTier(myBooth) === 'Premium';
+  const hasLeadExport = getEffectiveStandTier(myBooth, settings) === 'Premium';
+  // Ad Slots are an organizer-allocated resource (a real, limited inventory of carousel
+  // placements), not a software toggle — deliberately checks the REAL package, not the
+  // promo-widened one, since promoting this would just show "contact the organiser" to
+  // more people with nothing to actually give them.
   const isPremiumPkg = myBooth?.package === 'Premium';
   const myAd = activeAdSlots.find(a => a.exhibitor_id === myBooth.id) ?? null;
   const carouselAdClicks = events.filter(e => e.type === 'ad_click' && e.source === 'home_carousel').length;

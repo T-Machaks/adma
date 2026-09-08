@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Registration, Exhibitor, User as UserEntity } from '@/api/entities';
-import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2, Plus, Eye, Loader2, FolderUp } from 'lucide-react';
+import { Shield, User, Building2, Star, Lock, Unlock, CheckCircle, ChevronRight, Users, Bell, Mail, Search, Link2, AlertCircle, DollarSign, Trash2, Plus, Eye, Loader2, FolderUp, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useAppSettings } from '@/lib/AppSettingsContext';
@@ -109,6 +109,22 @@ export default function AdminPanel() {
       setSaveError(e.message);
     } finally {
       setSavingLockId(null);
+    }
+  };
+
+  // Home page "Featured Exhibitors" spotlight (src/pages/Home.jsx) — free exposure,
+  // no package requirement.
+  const [savingFeaturedId, setSavingFeaturedId] = useState(null);
+  const toggleFeatured = async (id, featured) => {
+    setSavingFeaturedId(id);
+    setSaveError(null);
+    try {
+      await Exhibitor.update(id, { featured });
+      queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSavingFeaturedId(null);
     }
   };
 
@@ -439,6 +455,19 @@ export default function AdminPanel() {
                   >
                     {PACKAGES.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
+                  <button
+                    type="button"
+                    disabled={savingFeaturedId === e.id}
+                    onClick={() => toggleFeatured(e.id, !e.featured)}
+                    title={e.featured ? 'Remove from Featured Exhibitors on the home page' : 'Add to Featured Exhibitors on the home page'}
+                    className={`flex-shrink-0 p-1.5 rounded-lg border transition-colors disabled:opacity-60 ${
+                      e.featured
+                        ? 'border-amber/40 text-amber bg-amber/10 hover:bg-amber/20'
+                        : 'border-border text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${e.featured ? 'fill-amber' : ''}`} />
+                  </button>
                   <button
                     type="button"
                     disabled={savingLockId === e.id}
@@ -833,6 +862,39 @@ export default function AdminPanel() {
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground">Shown as the date pill on the home page hero. This is the digital platform's operating window, not the physical show's fixed dates — Event Info, Magazine, and Schedule pages keep their own dates and are unaffected.</p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3" /> Launch promo — free Premium features for every exhibitor until
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={settingValue('promoTierOverrideUntil')}
+                onChange={ev => setSettingsDraft(d => ({ ...d, promoTierOverrideUntil: ev.target.value }))}
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-amber/50"
+              />
+              <button
+                type="button"
+                disabled={savingField === 'promoTierOverrideUntil' || !('promoTierOverrideUntil' in settingsDraft)}
+                onClick={() => saveSetting('promoTierOverrideUntil')}
+                className="flex-shrink-0 text-xs bg-amber hover:bg-amber/90 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {savingField === 'promoTierOverrideUntil' ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            {(() => {
+              const raw = settingValue('promoTierOverrideUntil');
+              if (!raw) return <p className="text-[11px] text-muted-foreground">Inactive — every exhibitor sees only their own real package's features.</p>;
+              const daysLeft = Math.ceil((new Date(raw) - new Date()) / (24 * 60 * 60 * 1000));
+              return daysLeft > 0 ? (
+                <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Active — every exhibitor gets Premium-level features (gallery, analytics, job/tender/collaboration postings, full profile) for {daysLeft} more day{daysLeft === 1 ? '' : 's'}. To extend, just move the date and save.</p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">Expired {Math.abs(daysLeft)} day{Math.abs(daysLeft) === 1 ? '' : 's'} ago — exhibitors are back to their own real package. Move the date forward to resume or extend.</p>
+              );
+            })()}
+            <p className="text-[11px] text-muted-foreground">Doesn't change anyone's billed package — badges, Rate Card, and what they're actually paying for are unaffected. Only widens which features are unlocked while this is active.</p>
           </div>
         </div>
       </div>

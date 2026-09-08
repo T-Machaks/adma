@@ -46,3 +46,29 @@ export const PACKAGE_LIMITS = {
 export function getPackageLimits(exhibitor) {
   return PACKAGE_LIMITS[getStandTier(exhibitor)];
 }
+
+// ── Launch promo — temporary Premium-level feature access for every exhibitor ──────
+// Organizer-set end date (AdminPanel → Platform Settings → promoTierOverrideUntil, an
+// app_settings field, extendable at any time by moving the date). Deliberately doesn't
+// touch exhibitor.package itself — an exhibitor's real tier (what they're actually
+// paying for, shown on badges, used for billing) is completely unaffected; this only
+// widens what getEffective*/effective* below report for feature-gating checks. Use the
+// plain (non-"effective") functions above wherever the REAL tier matters — badges,
+// billing, Rate Card — and these wherever a feature is being unlocked/hidden.
+export function isPromoActive(settings) {
+  return !!(settings?.promoTierOverrideUntil && new Date(settings.promoTierOverrideUntil) > new Date());
+}
+
+export function getEffectiveStandTier(exhibitor, settings) {
+  const real = getStandTier(exhibitor);
+  if (isPromoActive(settings) && STAND_TIER_RANK[real] < STAND_TIER_RANK.Premium) return 'Premium';
+  return real;
+}
+
+export function effectiveStandTierAtLeast(exhibitor, settings, min) {
+  return STAND_TIER_RANK[getEffectiveStandTier(exhibitor, settings)] >= STAND_TIER_RANK[min];
+}
+
+export function getEffectivePackageLimits(exhibitor, settings) {
+  return PACKAGE_LIMITS[getEffectiveStandTier(exhibitor, settings)];
+}

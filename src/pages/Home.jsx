@@ -54,6 +54,13 @@ export default function Home() {
 
   const pinned = announcements.filter(a => a.pinned);
   const recent = announcements.filter(a => !a.pinned).slice(0, 3);
+  // Earliest sign-ups first — free spotlight for exhibitors who joined while the
+  // platform is still building its exhibitor base, organizer-toggled per booth
+  // (Admin & Security → Exhibitor Portal Logins → the star icon).
+  const featuredExhibitors = allExhibitors
+    .filter(e => e.featured && !e.deleted)
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date))
+    .slice(0, 12);
 
   return (
     <div className="pb-20 page-enter">
@@ -160,6 +167,32 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        {/* Featured Exhibitors — free spotlight, organizer-toggled per booth */}
+        {featuredExhibitors.length > 0 && (
+          <div className="mt-6">
+            <h2 className="font-heading text-lg font-bold uppercase tracking-wide text-foreground mb-3 flex items-center gap-2">
+              <span className="w-1 h-5 bg-amber rounded-full flex-shrink-0" />
+              Featured Exhibitors
+            </h2>
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-none">
+              {featuredExhibitors.map(ex => (
+                <Link
+                  key={ex.id}
+                  to={`/exhibitors/${ex.id}`}
+                  className="flex-shrink-0 w-28 bg-card border border-border rounded-2xl p-3 text-center hover:border-amber/50 hover:shadow-md transition-all duration-150 active:scale-95"
+                >
+                  <div className="w-16 h-16 mx-auto bg-white border border-border rounded-xl flex items-center justify-center overflow-hidden mb-2">
+                    {ex.logo_url
+                      ? <img src={ex.logo_url} alt={ex.name} className="w-14 h-14 object-contain" />
+                      : <span className="font-heading text-xl font-bold text-muted-foreground">{ex.name[0]}</span>}
+                  </div>
+                  <p className="text-xs font-semibold truncate">{ex.name}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Get started — only shown to guests */}
         {!isAuthenticated && (

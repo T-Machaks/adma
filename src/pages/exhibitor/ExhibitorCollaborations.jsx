@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, Collaboration, VirtualEnquiry } from '@/api/entities';
 import { useAuth } from '@/lib/AuthContext';
-import { standTierAtLeast } from '@/lib/standTiers';
+import { useAppSettings } from '@/lib/AppSettingsContext';
+import { effectiveStandTierAtLeast } from '@/lib/standTiers';
 import { isMarketplaceAddonActive } from '@/lib/rateCard';
 import { COLLABORATION_TYPES } from '@/lib/collaborationConstants';
 import ImageUploadOrUrlField from '@/components/shared/ImageUploadOrUrlField';
@@ -18,6 +19,7 @@ const EMPTY_COLLAB = { title: '', type: COLLABORATION_TYPES[0], description: '',
 
 export default function ExhibitorCollaborations() {
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -116,7 +118,7 @@ export default function ExhibitorCollaborations() {
     );
   }
 
-  if (!standTierAtLeast(myBooth, 'Enhanced')) {
+  if (!effectiveStandTierAtLeast(myBooth, settings, 'Enhanced')) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-16 text-center">
         <div className="w-14 h-14 bg-amber/10 border border-amber/20 rounded-full flex items-center justify-center mx-auto mb-4">

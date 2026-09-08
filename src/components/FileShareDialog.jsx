@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { normalizeGalleryItem } from '@/lib/imageUtils';
-import { getPackageLimits } from '@/lib/standTiers';
+import { getEffectivePackageLimits } from '@/lib/standTiers';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 
 function formatBytes(bytes) {
   if (!bytes) return '0 B';
@@ -53,6 +54,7 @@ function CopyButton({ text }) {
 // image files; a PDF or video has nothing sensible to apply here.
 function ApplyToProfileActions({ file, exhibitorFull, exhibitorId, disabled }) {
   const queryClient = useQueryClient();
+  const { settings } = useAppSettings();
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['exhibitor-full', exhibitorId] });
     queryClient.invalidateQueries({ queryKey: ['exhibitors-all'] });
@@ -78,7 +80,7 @@ function ApplyToProfileActions({ file, exhibitorFull, exhibitorId, disabled }) {
 
   const isLogo = exhibitorFull.logo_url === file.url;
   const isBoothImage = exhibitorFull.booth_image_url === file.url;
-  const galleryMax = getPackageLimits(exhibitorFull).galleryMax;
+  const galleryMax = getEffectivePackageLimits(exhibitorFull, settings).galleryMax;
   const gallery = exhibitorFull.gallery || [];
   const inGallery = gallery.some(g => normalizeGalleryItem(g).url === file.url);
   const galleryFull = gallery.length >= galleryMax;

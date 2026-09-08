@@ -19,6 +19,7 @@ export function AppSettingsProvider({ children }) {
     showUpdates: true,
     sitePlanImageUrl: '',
     exhibitorListUrl: '',
+    promoTierOverrideUntil: '', // launch promo — ISO date; empty/past = inactive. See standTiers.js.
   });
   const [isLoading, setIsLoading] = useState(true);
 
