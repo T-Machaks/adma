@@ -36,9 +36,10 @@ const EMPTY_FORM = { type: 'General', title: '', body: '', sponsored: false, spo
 const EMPTY_CAMPAIGN_FORM = { label: '', subject: '', body: '' };
 
 const AUDIENCE_GROUP_OPTIONS = [
-  { key: 'attendees',  label: 'Attendees',  desc: 'Confirmed / Checked In registrations', icon: Users },
-  { key: 'exhibitors', label: 'Exhibitors', desc: 'Exhibitor booth contacts',              icon: Building2 },
-  { key: 'users',      label: 'Accounts',   desc: 'Every login account, any role',         icon: UserCog },
+  { key: 'attendees',       label: 'Attendees',            desc: 'Confirmed / Checked In registrations', icon: Users },
+  { key: 'exhibitors',      label: 'Exhibitors',            desc: 'Exhibitor booth contacts',              icon: Building2 },
+  { key: 'exhibitors_basic', label: 'Basic-Tier Exhibitors', desc: 'Exhibitor booths on the Basic package', icon: Building2 },
+  { key: 'users',           label: 'Accounts',              desc: 'Every login account, any role',         icon: UserCog },
 ];
 
 export default function Communications() {

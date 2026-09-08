@@ -162,11 +162,16 @@ function broadcastEmailHtml(message) {
 // normalized form (a person's email and phone don't need to trace back to the same
 // source record) so nobody who appears in more than one selected group gets the
 // same message twice.
-const AUDIENCE_GROUPS = ['attendees', 'exhibitors', 'users'];
+// exhibitors_basic — same exhibitor booths as `exhibitors`, narrowed to the Basic
+// package (missing/blank `package` counts as Basic too, same interpretation
+// getStandTier uses client-side — src/lib/standTiers.js). Added for the launch-promo
+// campaign so it can target exactly the exhibitors the promo is actually widening
+// features for, without hand-picking recipients.
+const AUDIENCE_GROUPS = ['attendees', 'exhibitors', 'exhibitors_basic', 'users'];
 
 async function resolveBroadcastAudience(groups) {
   const selected = groups.filter(g => AUDIENCE_GROUPS.includes(g));
-  const [regsResult, exhibitorsResult, usersResult] = await Promise.all([
+  const [regsResult, exhibitorsResult, exhibitorsBasicResult, usersResult] = await Promise.all([
     selected.includes('attendees')
       ? ddb.send(new ScanCommand({
           TableName: 'adma_registrations',
@@ -178,6 +183,9 @@ async function resolveBroadcastAudience(groups) {
     selected.includes('exhibitors')
       ? ddb.send(new ScanCommand({ TableName: 'adma_exhibitors' }))
       : Promise.resolve({ Items: [] }),
+    selected.includes('exhibitors_basic')
+      ? ddb.send(new ScanCommand({ TableName: 'adma_exhibitors' }))
+      : Promise.resolve({ Items: [] }),
     selected.includes('users')
       ? ddb.send(new ScanCommand({ TableName: 'adma_users' }))
       : Promise.resolve({ Items: [] }),
@@ -186,6 +194,9 @@ async function resolveBroadcastAudience(groups) {
   const raw = [
     ...(regsResult.Items || []).map(r => ({ email: r.email, phone: r.phone, name: r.full_name })),
     ...(exhibitorsResult.Items || []).map(e => ({ email: e.contact_email, phone: e.phone, name: e.name })),
+    ...(exhibitorsBasicResult.Items || [])
+      .filter(e => !e.deleted && (!e.package || e.package === 'Basic'))
+      .map(e => ({ email: e.contact_email, phone: e.phone, name: e.name })),
     ...(usersResult.Items || []).map(u => ({ email: u.email, phone: u.phone, name: u.full_name })),
   ];
 
