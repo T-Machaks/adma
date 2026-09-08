@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Exhibitor, AttendeeNote } from '@/api/entities';
 import { Search, Calendar, Globe, Phone, Mail, Filter, ChevronRight, Download, Star } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import TierBadge from '@/components/ui/TierBadge';
 import { track } from '@/lib/tracking';
 import { useAppSettings } from '@/lib/AppSettingsContext';
@@ -22,7 +22,11 @@ export default function Exhibitors() {
     description: 'Browse machinery dealers, input suppliers, and service providers exhibiting at the ADMA Agri Show in Zimbabwe — filter by category, tier, and section.',
     path: '/exhibitors',
   });
-  const [search, setSearch] = useState('');
+  // Seeded from ?q= so the WebSite/SearchAction sitelinks-search-box entry in
+  // index.html (target: /exhibitors?q={search_term_string}) actually lands a visitor
+  // on a pre-filtered result rather than the bare unfiltered page.
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [category, setCategory] = useState('All');
   const [pkg, setPkg] = useState('All');
   const [section, setSection] = useState('All');
