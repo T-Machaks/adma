@@ -592,7 +592,11 @@ r.post('/broadcast', requireRole('organizer', 'marketing_partner', 'superadmin')
     const result = {};
     if (channel === 'email' || channel === 'both') {
       result.email = await sendBatch(emails, (email) =>
-        sendOtpEmail(email, null, { subject: subject?.trim() || 'ADMA Digital', html: broadcastEmailHtml(message) }),
+        // replyTo: broadcasts routinely ask people to reply (this campaign's copy does
+        // exactly that) — SENDER itself (notifications@admadigital.co.zw) isn't a
+        // monitored inbox, so a bare reply would go nowhere. Points it at the same
+        // address every broadcast's own CTA already gives as the contact email.
+        sendOtpEmail(email, null, { subject: subject?.trim() || 'ADMA Digital', html: broadcastEmailHtml(message), replyTo: 'sales@admadigital.co.zw' }),
         EMAIL_CONCURRENCY
       );
     }

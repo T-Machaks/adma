@@ -31,6 +31,11 @@ async function getToken() {
   return data.access_token;
 }
 
+// override.replyTo — sets the Reply-To header so a recipient hitting "Reply" lands in
+// a real, monitored inbox rather than SENDER (notifications@admadigital.co.zw), which
+// is a send-only mailbox nobody reads. Needed for anything whose copy invites a reply
+// (broadcasts/campaigns) — leave unset for transactional mail (OTPs, password resets)
+// where a reply was never expected anyway.
 export async function sendOtpEmail(toEmail, otp, override = null) {
   if (!TENANT_ID || !CLIENT_ID || !CLIENT_SECRET || !SENDER) {
     throw new Error('Mailer not configured — set MAILER_TENANT_ID, MAILER_CLIENT_ID, MAILER_CLIENT_SECRET, MAILER_USER in server/.env');
@@ -66,6 +71,7 @@ export async function sendOtpEmail(toEmail, otp, override = null) {
           subject,
           body: { contentType: 'HTML', content: html },
           toRecipients: [{ emailAddress: { address: toEmail } }],
+          ...(override?.replyTo ? { replyTo: [{ emailAddress: { address: override.replyTo } }] } : {}),
         },
         saveToSentItems: false,
       }),
