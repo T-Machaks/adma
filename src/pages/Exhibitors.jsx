@@ -19,7 +19,7 @@ const SECTIONS   = ['All', ...EVENT_CONFIG.exhibitorSections];
 export default function Exhibitors() {
   useSEO({
     title: 'Exhibitors',
-    description: 'Browse machinery dealers, input suppliers, and service providers exhibiting at the ADMA Agri Show — filter by category, tier, and section.',
+    description: 'Browse machinery dealers, input suppliers, and service providers exhibiting at the ADMA Agri Show in Zimbabwe — filter by category, tier, and section.',
     path: '/exhibitors',
   });
   const [search, setSearch] = useState('');

@@ -9,7 +9,7 @@ import { useSEO } from '@/lib/useSEO';
 export default function EventInfo() {
   useSEO({
     title: 'Event Info',
-    description: 'Dates, venue, tickets, and everything you need to know about attending the ADMA Agri Show at ART Farm, Pomona, Harare.',
+    description: 'Dates, venue, tickets, and everything you need to know about attending the ADMA Agri Show in Zimbabwe — ART Farm, Pomona, Harare.',
     path: '/event-info',
   });
   const [openFaq, setOpenFaq] = useState(null);

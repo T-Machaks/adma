@@ -38,7 +38,7 @@ const typeColor = {
 export default function Home() {
   useSEO({
     title: 'ADMA Digital — The Digital Platform for the ADMA Agri Show',
-    description: "Zimbabwe's largest agricultural exhibition, digital-first — explore exhibitors, book meetings, and get event updates for the ADMA Agri Show, 05-07 June 2026, ART Farm, Pomona, Harare.",
+    description: "ADMA — Zimbabwe's leading agricultural exhibition, digital-first. Explore exhibitors, book meetings, and get updates for the ADMA Agri Show 2026.",
     path: '/',
   });
   const { settings } = useAppSettings();
@@ -73,6 +73,9 @@ export default function Home() {
           <p className="text-amber font-medium text-sm mb-6">{EVENT_CONFIG.venue}, Zimbabwe</p>
           <p className="text-slate-300 text-sm max-w-lg mx-auto leading-relaxed">
             Connecting machinery dealers, input suppliers, and service providers with farmers and buyers across Zimbabwe's agricultural value chain — online, year-round.
+          </p>
+          <p className="text-slate-400 text-xs mt-3">
+            Also known as ADMA Zimbabwe, the ADMA Exhibition, or Agri Show Zimbabwe.
           </p>
           <div className="mt-6 flex justify-center">
             <div className="flex gap-3 glass rounded-2xl p-2">
