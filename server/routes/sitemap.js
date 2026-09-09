@@ -27,6 +27,7 @@ const STATIC_PAGES = [
   { path: '/tenders',        priority: '0.6' },
   { path: '/auctions',       priority: '0.6' },
   { path: '/collaborations', priority: '0.5' },
+  { path: '/blog',           priority: '0.6' },
   { path: '/register',       priority: '0.8' },
   { path: '/exhibitor-apply',priority: '0.7' },
   { path: '/privacy',        priority: '0.2' },
@@ -52,12 +53,13 @@ async function safeScan(table) {
 const r = Router();
 
 r.get('/sitemap.xml', async (_req, res) => {
-  const [exhibitors, jobs, tenders, auctions, collaborations] = await Promise.all([
+  const [exhibitors, jobs, tenders, auctions, collaborations, blogPosts] = await Promise.all([
     safeScan('adma_exhibitors'),
     safeScan('adma_job_listings'),
     safeScan('adma_tender_listings'),
     safeScan('adma_auctions'),
     safeScan('adma_collaborations'),
+    safeScan('adma_blog_posts'),
   ]);
 
   const entries = [
@@ -67,6 +69,9 @@ r.get('/sitemap.xml', async (_req, res) => {
     ...tenders.map(t => urlEntry(`${APP_URL}/tenders/${t.id}`, '0.4', t.created_date?.slice(0, 10))),
     ...auctions.map(a => urlEntry(`${APP_URL}/auctions/${a.id}`, '0.4', a.created_date?.slice(0, 10))),
     ...collaborations.map(c => urlEntry(`${APP_URL}/collaborations/${c.id}`, '0.4', c.created_date?.slice(0, 10))),
+    // Draft posts are excluded — BlogDetail.jsx 404s them anyway, but there's no reason
+    // to invite a crawler to an unpublished post's URL before it's actually live.
+    ...blogPosts.filter(p => (p.status || 'Draft') === 'Published').map(p => urlEntry(`${APP_URL}/blog/${p.id}`, '0.5', (p.published_date || p.created_date)?.slice(0, 10))),
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</urlset>\n`;

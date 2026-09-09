@@ -44,6 +44,8 @@ import AuctionDetail from '@/pages/AuctionDetail';
 import LotDetail from '@/pages/LotDetail';
 import Collaborations from '@/pages/Collaborations';
 import CollaborationDetail from '@/pages/CollaborationDetail';
+import Blog from '@/pages/Blog';
+import BlogDetail from '@/pages/BlogDetail';
 import Login from '@/pages/Login';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
@@ -61,6 +63,7 @@ import MarketingHub from '@/pages/console/MarketingHub';
 import MagazineSectionBuilder from '@/pages/console/MagazineSectionBuilder';
 import EventContentManager from '@/pages/console/EventContentManager';
 import MarketplaceListings from '@/pages/console/MarketplaceListings';
+import BlogManager from '@/pages/console/BlogManager';
 import ExhibitorApplications from '@/pages/console/ExhibitorApplications';
 import PaidListingRequests from '@/pages/console/PaidListingRequests';
 import RateCardManager from '@/pages/console/RateCardManager';
@@ -162,6 +165,7 @@ const AuthenticatedApp = () => {
           <Route path="/console/analytics"   element={<Analytics />} />
           <Route path="/console/marketing"   element={<MarketingHub />} />
           <Route path="/console/magazine-sections" element={<MagazineSectionBuilder />} />
+          <Route path="/console/blog"        element={<BlogManager />} />
 
           {/* Organizer-only */}
           <Route element={<OrganizerGuard />}>
@@ -233,6 +237,8 @@ const AuthenticatedApp = () => {
         <Route path="/lots/:id"           element={<LotDetail />} />
         <Route path="/collaborations"     element={<Collaborations />} />
         <Route path="/collaborations/:id" element={<CollaborationDetail />} />
+        <Route path="/blog"               element={<Blog />} />
+        <Route path="/blog/:id"           element={<BlogDetail />} />
         <Route path="*"                   element={<PageNotFound />} />
       </Route>
     </Routes>
