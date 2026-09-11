@@ -70,6 +70,7 @@ export default function RateCardManager() {
         <div>
           <h1 className="font-heading text-2xl font-bold uppercase tracking-wide">Rate Card</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Pricing shown to exhibitors on their portal's Rate Card page.</p>
+          <p className="text-muted-foreground text-xs mt-0.5">Rates below are entered in USD and exclude VAT — that note is shown to exhibitors automatically, no need to add it per item.</p>
         </div>
         <Button onClick={() => saveMutation.mutate(draft)} disabled={!dirty || saveMutation.isPending}>
           {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}

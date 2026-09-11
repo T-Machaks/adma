@@ -37,6 +37,7 @@ export default function PaymentsLedger() {
           Payments
         </h1>
         <p className="text-muted-foreground text-sm mt-1">Every payment attempt across packages, marketplace add-ons, ad slots & magazine placements.</p>
+        <p className="text-muted-foreground text-xs mt-1">Amounts are excl. VAT (same as what exhibitors see on the Rate Card).</p>
       </div>
 
       {isLoading ? (

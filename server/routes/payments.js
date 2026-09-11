@@ -58,6 +58,7 @@ function paymentConfirmationHtml(record) {
       <table style="width:100%;margin-top:16px;border-collapse:collapse">
         ${rows}
         <tr><td style="padding:10px 0 0;color:#888;font-size:13px;border-top:1px solid #eee">Total</td><td style="padding:10px 0 0;color:#111;font-size:13px;font-weight:700;text-align:right;border-top:1px solid #eee">$${Number(record.amount).toLocaleString()} ${record.currency}</td></tr>
+        <tr><td colspan="2" style="padding:2px 0 0;color:#aaa;font-size:11px;text-align:right">excl. VAT</td></tr>
         <tr><td colspan="2" style="padding:10px 0 0;color:#888;font-size:12px">Reference: ${record.reference}</td></tr>
       </table>
       <p style="color:#555;margin-top:20px;font-size:13px">The ADMA team will be in touch if anything further is needed.</p>

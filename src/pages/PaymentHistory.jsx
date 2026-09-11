@@ -34,6 +34,7 @@ export default function PaymentHistory() {
           <Receipt className="w-5 h-5 text-amber" /> Payment History
         </h1>
         <p className="text-muted-foreground text-sm mt-1">Everything you've purchased through the Rate Card, and its current status.</p>
+        <p className="text-muted-foreground text-xs mt-1">Amounts shown exclude VAT.</p>
       </div>
 
       {isLoading ? (
